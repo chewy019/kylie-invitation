@@ -609,7 +609,7 @@
             });
         });
 
-        async function saveGuestToCloud(guest) {
+        async function saveGuestToCloud(guest, createInvitationLink = false) {
             if (!guest || !guest.id) throw new Error('Missing guest record.');
             if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
 
@@ -617,13 +617,16 @@
             const guestRef = doc(db, "rsvps", guest.id);
             await setDoc(guestRef, guestToSave, { merge: true });
 
-            // Store only the minimum information needed to reopen the invitation later.
-            const inviteRef = doc(db, "invites", guest.id);
-            await setDoc(inviteRef, {
-                name: guest.name,
-                numGuests: guest.numGuests || 1,
-                ownerUid: auth.currentUser.uid
-            }, { merge: true });
+            // Only create the permanent invitation link AFTER the guest confirms attendance.
+            if (createInvitationLink && guest.rsvpStatus === 'Confirmed') {
+                const inviteRef = doc(db, "invites", guest.id);
+                await setDoc(inviteRef, {
+                    name: guest.name,
+                    numGuests: guest.numGuests || 1,
+                    ownerUid: auth.currentUser.uid,
+                    rsvpStatus: 'Confirmed'
+                }, { merge: true });
+            }
 
             currentGuest = guestToSave;
         }
@@ -937,7 +940,7 @@
             }
 
             try {
-                await saveGuestToCloud(currentGuest);
+                await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
                 showConfirmationView();
                 window.goToStep(5);
             } catch (err) {
