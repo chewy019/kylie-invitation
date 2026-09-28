@@ -551,7 +551,10 @@
         let currentGuest = null;
         let countdownInterval = null;
         let adminSnapshotUnsubscribe = null;
-        let authReady = false;
+
+        // Guest authentication is initialized once when the page loads.
+        // Registration waits for this Promise before writing to Firestore.
+        let guestAuthPromise = null;
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Fulla",
@@ -569,12 +572,16 @@
 
             startCountdownTimer();
 
+            // Start guest authentication immediately. The registration handler
+            // will await this Promise before touching Firestore.
+            guestAuthPromise = ensureAnonymousAuth();
+
             try {
-                await signInAnonymously(auth);
-                authReady = true;
+                await guestAuthPromise;
+                console.log("Firebase guest authentication is ready.");
             } catch (err) {
                 console.error("Firebase anonymous sign-in failed:", err);
-                alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
+                showFirebaseError(err, "Guest authentication could not be started.");
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -594,11 +601,74 @@
             });
         });
 
+        async function ensureAnonymousAuth() {
+            // If an anonymous guest is already signed in, reuse that session.
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                return auth.currentUser;
+            }
+
+            // signInAnonymously resolves with the actual Firebase user.
+            // This avoids depending on auth.currentUser being populated
+            // at the exact moment the registration button is clicked.
+            const credential = await signInAnonymously(auth);
+            return credential.user;
+        }
+
+        async function getGuestAuthUser() {
+            if (!guestAuthPromise) {
+                guestAuthPromise = ensureAnonymousAuth();
+            }
+
+            const user = await guestAuthPromise;
+
+            if (!user || !user.isAnonymous) {
+                throw new Error("Guest authentication did not return an anonymous user.");
+            }
+
+            // Make sure the active Firebase session is still this anonymous user.
+            if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
+                const refreshedUser = await ensureAnonymousAuth();
+                if (!refreshedUser || !refreshedUser.isAnonymous) {
+                    throw new Error("Anonymous Firebase authentication is unavailable.");
+                }
+                return refreshedUser;
+            }
+
+            return user;
+        }
+
+        function showFirebaseError(err, fallbackMessage) {
+            const code = err && err.code ? err.code : "unknown";
+            const message = err && err.message ? err.message : String(err || fallbackMessage);
+            console.error("Firebase error:", { code, message, error: err });
+
+            let friendly = fallbackMessage;
+
+            if (code === "permission-denied") {
+                friendly = "Firebase rejected the save. Please check the Firestore Rules and make sure anonymous guests can create/update their own RSVP records.";
+            } else if (code === "auth/operation-not-allowed") {
+                friendly = "Anonymous Authentication is disabled for this Firebase project. Enable Anonymous sign-in in Firebase Authentication.";
+            } else if (code === "auth/invalid-api-key") {
+                friendly = "The Firebase API key is invalid. Check the Firebase configuration in index.html.";
+            } else if (code === "auth/network-request-failed") {
+                friendly = "Firebase could not be reached. Please check your internet connection and try again.";
+            }
+
+            alert(`${friendly}\n\nFirebase error: ${code}`);
+        }
+
         async function saveGuestToCloud(guest) {
             if (!guest || !guest.id) throw new Error('Missing guest record.');
-            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
 
-            const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
+            const user = await getGuestAuthUser();
+
+            // ownerUid is required by the Firestore security rules.
+            // It must match request.auth.uid exactly.
+            const guestToSave = {
+                ...guest,
+                ownerUid: user.uid
+            };
+
             const guestRef = doc(db, "rsvps", guest.id);
             await setDoc(guestRef, guestToSave, { merge: true });
             currentGuest = guestToSave;
@@ -745,7 +815,8 @@
             if (!fullName || !email) return;
 
             currentGuest = {
-                id: 'KYLIE-' + Math.floor(1000 + Math.random() * 9000),
+                // Timestamp + random suffix greatly reduces duplicate document IDs.
+                id: 'KYLIE-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
                 name: fullName,
                 email: email,
                 numGuests: guestCount,
@@ -759,8 +830,8 @@
                 populateInvitationView();
                 window.goToStep(2);
             } catch (err) {
-                console.error(err);
-                alert("We could not save your registration. Please try again.");
+                console.error("Registration save failed:", err);
+                showFirebaseError(err, "We could not save your registration. Please try again.");
             }
         };
 
@@ -856,8 +927,8 @@
                 showConfirmationView();
                 window.goToStep(5);
             } catch (err) {
-                console.error(err);
-                alert("We could not save your RSVP. Please try again.");
+                console.error("RSVP save failed:", err);
+                showFirebaseError(err, "We could not save your RSVP. Please try again.");
             }
         };
 
