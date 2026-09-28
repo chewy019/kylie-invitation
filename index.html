@@ -503,20 +503,44 @@
         </div>
     </div>
 
+    <!-- Host Login Modal -->
+    <div id="admin-login-modal" class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="debut-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative">
+            <button type="button" onclick="closeAdminLogin()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-blush-100 text-blush-700 hover:bg-blush-200">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-xl">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <h3 class="font-serif-debut text-2xl font-bold text-blush-900">Host Login</h3>
+                <p class="text-xs text-blush-700 mt-1">Sign in to view the private guest database.</p>
+            </div>
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                <input id="admin-email" type="email" required placeholder="Host email" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900">
+                <input id="admin-password" type="password" required placeholder="Password" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900">
+                <p id="admin-login-error" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3"></p>
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-blush-700 to-rosegold text-white font-semibold rounded-2xl shadow-md text-sm">
+                    Sign In
+                </button>
+            </form>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration Placeholder
-        // Replace with your real Firebase Project details from the Firebase Console
+        // Firebase configuration for the Kylie 18th RSVP project.
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
+            apiKey: "AIzaSyCK96DUaagUyDjs3lFW4-q29RvgbVCrMBU",
+            authDomain: "kylie-18th-rsvp.firebaseapp.com",
+            projectId: "kylie-18th-rsvp",
+            storageBucket: "kylie-18th-rsvp.firebasestorage.app",
+            messagingSenderId: "438094249212",
+            appId: "1:438094249212:web:6d5e87fc29a8baa0b0ab79",
+            measurementId: "G-H8VWBJ4N03"
         };
 
         const app = initializeApp(firebaseConfig);
@@ -526,6 +550,8 @@
         let guestDatabase = [];
         let currentGuest = null;
         let countdownInterval = null;
+        let adminSnapshotUnsubscribe = null;
+        let authReady = false;
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Fulla",
@@ -535,7 +561,6 @@
         };
 
         window.addEventListener('DOMContentLoaded', async () => {
-            // Check for ?admin=1 query parameter to reveal Host Console Button
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('admin') === '1') {
                 const adminBtn = document.getElementById('admin-console-btn');
@@ -544,39 +569,98 @@
 
             startCountdownTimer();
 
-            // Sign in anonymously to enable secure Firestore access
             try {
                 await signInAnonymously(auth);
+                authReady = true;
             } catch (err) {
-                console.warn("Firebase Auth Notice: Configure real Firebase details in firebaseConfig.", err);
+                console.error("Firebase anonymous sign-in failed:", err);
+                alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
             }
 
-            // Realtime Firestore Listener on "rsvps" collection
             onAuthStateChanged(auth, (user) => {
                 if (!user) return;
-                const rsvpsRef = collection(db, "rsvps");
-                onSnapshot(rsvpsRef, (snapshot) => {
-                    guestDatabase = [];
-                    snapshot.forEach((docSnap) => {
-                        guestDatabase.push({ id: docSnap.id, ...docSnap.data() });
-                    });
-                    renderDatabaseTable();
-                }, (error) => {
-                    console.error("Firestore listener error:", error);
-                });
+
+                // Only a non-anonymous host account may read the entire RSVP collection.
+                if (!user.isAnonymous) {
+                    startAdminListener();
+                    const drawer = document.getElementById('db-drawer');
+                    if (drawer) drawer.classList.remove('translate-y-full');
+                    const btn = document.getElementById('admin-console-btn');
+                    if (btn) {
+                        btn.classList.remove('hidden');
+                        btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold"></i><span class="hidden sm:inline">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>';
+                    }
+                }
             });
         });
 
-        // Save Guest to Firestore
         async function saveGuestToCloud(guest) {
-            if (!guest || !guest.id) return;
-            try {
-                const guestRef = doc(db, "rsvps", guest.id);
-                await setDoc(guestRef, guest, { merge: true });
-            } catch (err) {
-                console.error("Error saving guest to Firestore:", err);
-            }
+            if (!guest || !guest.id) throw new Error('Missing guest record.');
+            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+
+            const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
+            const guestRef = doc(db, "rsvps", guest.id);
+            await setDoc(guestRef, guestToSave, { merge: true });
+            currentGuest = guestToSave;
         }
+
+        function startAdminListener() {
+            if (adminSnapshotUnsubscribe) adminSnapshotUnsubscribe();
+            const rsvpsRef = collection(db, "rsvps");
+            adminSnapshotUnsubscribe = onSnapshot(rsvpsRef, (snapshot) => {
+                guestDatabase = [];
+                snapshot.forEach((docSnap) => {
+                    guestDatabase.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderDatabaseTable();
+            }, (error) => {
+                console.error("Private Firestore listener error:", error);
+                alert("Host database could not be loaded. Check Firestore Rules and your host account.");
+            });
+        }
+
+        window.handleAdminLogin = async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-login-error');
+            errorEl.classList.add('hidden');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                closeAdminLogin();
+                startAdminListener();
+                toggleDbDrawer();
+            } catch (err) {
+                console.error('Host login failed:', err);
+                errorEl.textContent = 'Login failed. Check the email/password and make sure Email/Password Authentication is enabled in Firebase.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.closeAdminLogin = function() {
+            const modal = document.getElementById('admin-login-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.toggleDbDrawer = function() {
+            const user = auth.currentUser;
+            if (!user || user.isAnonymous) {
+                const modal = document.getElementById('admin-login-modal');
+                if (modal) modal.classList.remove('hidden');
+                return;
+            }
+
+            const drawer = document.getElementById('db-drawer');
+            const icon = document.getElementById('drawer-toggle-icon');
+            if (drawer.classList.contains('translate-y-full')) {
+                drawer.classList.remove('translate-y-full');
+                if (icon) icon.className = "fa-solid fa-chevron-down";
+            } else {
+                drawer.classList.add('translate-y-full');
+                if (icon) icon.className = "fa-solid fa-chevron-up";
+            }
+        };
 
         // Countdown Timer Logic
         function startCountdownTimer() {
@@ -652,7 +736,7 @@
         };
 
         // Form Handlers
-        window.handleRegistration = function(e) {
+        window.handleRegistration = async function(e) {
             e.preventDefault();
             const fullName = document.getElementById('reg-fullname').value.trim();
             const email = document.getElementById('reg-email').value.trim();
@@ -670,9 +754,14 @@
                 createdAt: new Date().toLocaleString()
             };
 
-            saveGuestToCloud(currentGuest);
-            populateInvitationView();
-            window.goToStep(2);
+            try {
+                await saveGuestToCloud(currentGuest);
+                populateInvitationView();
+                window.goToStep(2);
+            } catch (err) {
+                console.error(err);
+                alert("We could not save your registration. Please try again.");
+            }
         };
 
         function populateInvitationView() {
@@ -728,7 +817,7 @@
             }
         };
 
-        window.handleRsvpSubmit = function(e) {
+        window.handleRsvpSubmit = async function(e) {
             e.preventDefault();
             if (!currentGuest) return;
 
@@ -762,9 +851,14 @@
                 currentGuest.guestNames = [];
             }
 
-            saveGuestToCloud(currentGuest);
-            showConfirmationView();
-            window.goToStep(5);
+            try {
+                await saveGuestToCloud(currentGuest);
+                showConfirmationView();
+                window.goToStep(5);
+            } catch (err) {
+                console.error(err);
+                alert("We could not save your RSVP. Please try again.");
+            }
         };
 
         function showConfirmationView() {
@@ -876,18 +970,6 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-        };
-
-        window.toggleDbDrawer = function() {
-            const drawer = document.getElementById('db-drawer');
-            const icon = document.getElementById('drawer-toggle-icon');
-            if (drawer.classList.contains('translate-y-full')) {
-                drawer.classList.remove('translate-y-full');
-                if (icon) icon.className = "fa-solid fa-chevron-down";
-            } else {
-                drawer.classList.add('translate-y-full');
-                if (icon) icon.className = "fa-solid fa-chevron-up";
-            }
         };
 
         function escapeHtml(str) {
