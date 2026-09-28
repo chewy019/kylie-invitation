@@ -220,6 +220,20 @@
 
                 <div class="w-24 h-0.5 bg-gradient-to-r from-transparent via-rosegold to-transparent mx-auto my-6"></div>
 
+                <div class="mt-8 rounded-2xl border border-blush-200 bg-blush-50/80 p-5 sm:p-6">
+                    <p class="text-sm font-semibold text-blush-900 mb-1">Save Your Invitation 💙</p>
+                    <p class="text-xs text-blush-700 mb-4">Copy this link and save it in Messenger, Notes, or your email so you can open your invitation again anytime.</p>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <button type="button" onclick="copyInvitationLink()" class="flex-1 py-3 px-4 rounded-xl bg-blush-600 hover:bg-blush-700 text-white text-sm font-semibold transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-copy"></i> Copy My Invitation Link
+                        </button>
+                        <button type="button" onclick="openInvitationLink()" class="flex-1 py-3 px-4 rounded-xl border border-blush-300 bg-white hover:bg-blush-100 text-blush-800 text-sm font-semibold transition flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> Open My Invitation
+                        </button>
+                    </div>
+                    <p id="copy-link-status" class="text-xs text-emerald-700 font-semibold mt-3 hidden">Invitation link copied! 💙</p>
+                </div>
+
                 <div class="space-y-2">
                     <p class="text-xs uppercase tracking-widest text-blush-600 font-bold">In Honor Of</p>
                     <h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900">Kylie Fulla</h3>
@@ -551,10 +565,7 @@
         let currentGuest = null;
         let countdownInterval = null;
         let adminSnapshotUnsubscribe = null;
-
-        // Guest authentication is initialized once when the page loads.
-        // Registration waits for this Promise before writing to Firestore.
-        let guestAuthPromise = null;
+        let authReady = false;
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Fulla",
@@ -571,17 +582,14 @@
             }
 
             startCountdownTimer();
-
-            // Start guest authentication immediately. The registration handler
-            // will await this Promise before touching Firestore.
-            guestAuthPromise = ensureAnonymousAuth();
+            loadInvitationFromLink();
 
             try {
-                await guestAuthPromise;
-                console.log("Firebase guest authentication is ready.");
+                await signInAnonymously(auth);
+                authReady = true;
             } catch (err) {
                 console.error("Firebase anonymous sign-in failed:", err);
-                showFirebaseError(err, "Guest authentication could not be started.");
+                alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -601,74 +609,11 @@
             });
         });
 
-        async function ensureAnonymousAuth() {
-            // If an anonymous guest is already signed in, reuse that session.
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                return auth.currentUser;
-            }
-
-            // signInAnonymously resolves with the actual Firebase user.
-            // This avoids depending on auth.currentUser being populated
-            // at the exact moment the registration button is clicked.
-            const credential = await signInAnonymously(auth);
-            return credential.user;
-        }
-
-        async function getGuestAuthUser() {
-            if (!guestAuthPromise) {
-                guestAuthPromise = ensureAnonymousAuth();
-            }
-
-            const user = await guestAuthPromise;
-
-            if (!user || !user.isAnonymous) {
-                throw new Error("Guest authentication did not return an anonymous user.");
-            }
-
-            // Make sure the active Firebase session is still this anonymous user.
-            if (!auth.currentUser || auth.currentUser.uid !== user.uid) {
-                const refreshedUser = await ensureAnonymousAuth();
-                if (!refreshedUser || !refreshedUser.isAnonymous) {
-                    throw new Error("Anonymous Firebase authentication is unavailable.");
-                }
-                return refreshedUser;
-            }
-
-            return user;
-        }
-
-        function showFirebaseError(err, fallbackMessage) {
-            const code = err && err.code ? err.code : "unknown";
-            const message = err && err.message ? err.message : String(err || fallbackMessage);
-            console.error("Firebase error:", { code, message, error: err });
-
-            let friendly = fallbackMessage;
-
-            if (code === "permission-denied") {
-                friendly = "Firebase rejected the save. Please check the Firestore Rules and make sure anonymous guests can create/update their own RSVP records.";
-            } else if (code === "auth/operation-not-allowed") {
-                friendly = "Anonymous Authentication is disabled for this Firebase project. Enable Anonymous sign-in in Firebase Authentication.";
-            } else if (code === "auth/invalid-api-key") {
-                friendly = "The Firebase API key is invalid. Check the Firebase configuration in index.html.";
-            } else if (code === "auth/network-request-failed") {
-                friendly = "Firebase could not be reached. Please check your internet connection and try again.";
-            }
-
-            alert(`${friendly}\n\nFirebase error: ${code}`);
-        }
-
         async function saveGuestToCloud(guest) {
             if (!guest || !guest.id) throw new Error('Missing guest record.');
+            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
 
-            const user = await getGuestAuthUser();
-
-            // ownerUid is required by the Firestore security rules.
-            // It must match request.auth.uid exactly.
-            const guestToSave = {
-                ...guest,
-                ownerUid: user.uid
-            };
-
+            const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
             const guestRef = doc(db, "rsvps", guest.id);
             await setDoc(guestRef, guestToSave, { merge: true });
             currentGuest = guestToSave;
@@ -815,8 +760,7 @@
             if (!fullName || !email) return;
 
             currentGuest = {
-                // Timestamp + random suffix greatly reduces duplicate document IDs.
-                id: 'KYLIE-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase(),
+                id: 'KYLIE-' + Math.floor(1000 + Math.random() * 9000),
                 name: fullName,
                 email: email,
                 numGuests: guestCount,
@@ -830,10 +774,65 @@
                 populateInvitationView();
                 window.goToStep(2);
             } catch (err) {
-                console.error("Registration save failed:", err);
-                showFirebaseError(err, "We could not save your registration. Please try again.");
+                console.error(err);
+                alert("We could not save your registration. Please try again.");
             }
         };
+
+        function getInvitationLink() {
+            if (!currentGuest || !currentGuest.id || !currentGuest.name) return window.location.href;
+            const payload = btoa(unescape(encodeURIComponent(JSON.stringify({
+                id: currentGuest.id,
+                name: currentGuest.name
+            }))));
+            return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(payload);
+        }
+
+        window.copyInvitationLink = async function() {
+            const link = getInvitationLink();
+            try {
+                await navigator.clipboard.writeText(link);
+            } catch (err) {
+                const temp = document.createElement('textarea');
+                temp.value = link;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                temp.remove();
+            }
+            const status = document.getElementById('copy-link-status');
+            if (status) {
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 2500);
+            }
+        };
+
+        window.openInvitationLink = function() {
+            window.open(getInvitationLink(), '_blank');
+        };
+
+        function loadInvitationFromLink() {
+            const encoded = new URLSearchParams(window.location.search).get('invite');
+            if (!encoded) return false;
+            try {
+                const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+                if (!decoded.id || !decoded.name) return false;
+                currentGuest = {
+                    id: decoded.id,
+                    name: decoded.name,
+                    email: '',
+                    numGuests: 1,
+                    guestNames: [decoded.name],
+                    rsvpStatus: 'Confirmed'
+                };
+                populateInvitationView();
+                window.goToStep(2);
+                return true;
+            } catch (err) {
+                console.error('Invalid invitation link:', err);
+                return false;
+            }
+        }
 
         function populateInvitationView() {
             if (!currentGuest) return;
@@ -927,8 +926,8 @@
                 showConfirmationView();
                 window.goToStep(5);
             } catch (err) {
-                console.error("RSVP save failed:", err);
-                showFirebaseError(err, "We could not save your RSVP. Please try again.");
+                console.error(err);
+                alert("We could not save your RSVP. Please try again.");
             }
         };
 
