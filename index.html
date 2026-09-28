@@ -544,7 +544,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const firebaseConfig = {
@@ -582,11 +582,11 @@
             }
 
             startCountdownTimer();
-            loadInvitationFromLink();
 
             try {
                 await signInAnonymously(auth);
                 authReady = true;
+                await loadInvitationFromLink();
             } catch (err) {
                 console.error("Firebase anonymous sign-in failed:", err);
                 alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
@@ -616,6 +616,15 @@
             const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
             const guestRef = doc(db, "rsvps", guest.id);
             await setDoc(guestRef, guestToSave, { merge: true });
+
+            // Store only the minimum information needed to reopen the invitation later.
+            const inviteRef = doc(db, "invites", guest.id);
+            await setDoc(inviteRef, {
+                name: guest.name,
+                numGuests: guest.numGuests || 1,
+                ownerUid: auth.currentUser.uid
+            }, { merge: true });
+
             currentGuest = guestToSave;
         }
 
@@ -780,12 +789,8 @@
         };
 
         function getInvitationLink() {
-            if (!currentGuest || !currentGuest.id || !currentGuest.name) return window.location.href;
-            const payload = btoa(unescape(encodeURIComponent(JSON.stringify({
-                id: currentGuest.id,
-                name: currentGuest.name
-            }))));
-            return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(payload);
+            if (!currentGuest || !currentGuest.id) return window.location.href;
+            return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(currentGuest.id);
         }
 
         window.copyInvitationLink = async function() {
@@ -811,25 +816,35 @@
             window.open(getInvitationLink(), '_blank');
         };
 
-        function loadInvitationFromLink() {
-            const encoded = new URLSearchParams(window.location.search).get('invite');
-            if (!encoded) return false;
+        async function loadInvitationFromLink() {
+            const inviteId = new URLSearchParams(window.location.search).get('invite');
+            if (!inviteId) return false;
+            if (!auth.currentUser) return false;
+
             try {
-                const decoded = JSON.parse(decodeURIComponent(escape(atob(encoded))));
-                if (!decoded.id || !decoded.name) return false;
+                const inviteSnap = await getDoc(doc(db, "invites", inviteId));
+                if (!inviteSnap.exists()) {
+                    console.warn('Invitation link not found:', inviteId);
+                    return false;
+                }
+
+                const invite = inviteSnap.data();
+                if (!invite.name) return false;
+
                 currentGuest = {
-                    id: decoded.id,
-                    name: decoded.name,
+                    id: inviteId,
+                    name: invite.name,
                     email: '',
-                    numGuests: 1,
-                    guestNames: [decoded.name],
-                    rsvpStatus: 'Confirmed'
+                    numGuests: invite.numGuests || 1,
+                    guestNames: [invite.name],
+                    rsvpStatus: 'Pending'
                 };
+
                 populateInvitationView();
                 window.goToStep(2);
                 return true;
             } catch (err) {
-                console.error('Invalid invitation link:', err);
+                console.error('Could not load invitation link:', err);
                 return false;
             }
         }
