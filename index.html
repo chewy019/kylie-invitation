@@ -181,18 +181,6 @@
                             class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm">
                     </div>
 
-                    <div>
-                        <label for="reg-guests-count" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Number of Guests (Including Yourself) *</label>
-                        <select id="reg-guests-count" required 
-                            class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 text-sm">
-                            <option value="1">1 Guest (Solo)</option>
-                            <option value="2">2 Guests (+1 Accompanied)</option>
-                            <option value="3">3 Guests (Family)</option>
-                            <option value="4">4 Guests (Family / Group)</option>
-                            <option value="5">5+ Guests (VIP Table)</option>
-                        </select>
-                    </div>
-
                     <button type="submit" 
                         class="w-full py-4 px-6 mt-4 bg-gradient-to-r from-blush-600 via-rosegold to-blush-700 hover:from-blush-700 hover:to-blush-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition duration-300 flex items-center justify-center gap-2 text-sm group">
                         <span>Unlock My Personalized Invitation</span>
@@ -230,7 +218,7 @@
             <div class="bg-gradient-to-br from-blush-900 via-blush-800 to-rosegold-dark text-white rounded-3xl p-6 sm:p-8 shadow-2xl mb-8 text-center relative overflow-hidden">
                 <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-champagne via-blush-300 to-champagne"></div>
                 <h4 class="font-script text-3xl sm:text-4xl text-champagne mb-1">Counting Down To The Magic</h4>
-                <p class="text-xs text-blush-200 mb-6 uppercase tracking-wider font-semibold">Saturday, November 7, 2026 at 6:00 PM</p>
+                <p class="text-xs text-blush-200 mb-6 uppercase tracking-wider font-semibold">Saturday, November 7, 2026 at 4:00 PM</p>
 
                 <div id="countdown-container" class="grid grid-cols-4 gap-3 sm:gap-4 max-w-md mx-auto">
                     <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
@@ -292,8 +280,8 @@
                         </div>
                         <div>
                             <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
-                            <p class="font-semibold text-blush-900 text-sm">6:00 PM</p>
-                            <p class="text-xs text-blush-700 mt-0.5">Doors open at 5:30 PM</p>
+                            <p class="font-semibold text-blush-900 text-sm">4:00 PM</p>
+                            <p class="text-xs text-blush-700 mt-0.5">Doors open at 3:30 PM</p>
                         </div>
                     </div>
 
@@ -304,8 +292,8 @@
                         </div>
                         <div>
                             <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
-                            <p class="font-semibold text-blush-900 text-sm">To be announced</p>
-                            <p class="text-xs text-blush-700 mt-0.5">Location details pending</p>
+                            <a href="https://www.google.com/maps/place/Tito%27s+Restaurant+Tondo/@14.6106759,120.9648302,17z/data=!3m1!4b1!4m6!3m5!1s0x3397cbe4edd4068f:0x56ebe0edd2cca682!8m2!3d14.6106759!4d120.9674105!16s%2Fg%2F11kj0d80_l?entry=ttu&g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="font-semibold text-blush-900 text-sm underline decoration-blush-300 underline-offset-2 hover:text-blush-700">Tito's Restaurant</a>
+                            <p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila · Tap for Google Maps</p>
                         </div>
                     </div>
 
@@ -316,8 +304,8 @@
                         </div>
                         <div>
                             <h5 class="text-xs uppercase font-bold tracking-wider text-sky-700 mb-1">Dress Code</h5>
-                            <p class="font-semibold text-sky-900 text-sm">Light Blue</p>
-                            <p class="text-xs text-sky-700 mt-0.5">Formal attire with Light Blue accents</p>
+                            <p class="font-semibold text-sky-900 text-sm">Light Blue &amp; Purple</p>
+                            <p class="text-xs text-sky-700 mt-0.5">Formal attire with Light Blue and Purple accents</p>
                         </div>
                     </div>
                 </div>
@@ -325,7 +313,7 @@
                 <div class="pt-4 border-t border-blush-200">
                     <h4 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h4>
                     <div class="grid grid-cols-3 gap-3 text-center">
-                        <div class="p-3 rounded-2xl bg-blush-50 border border-blush-200">
+                        <button type="button" onclick="openMilestoneModal('roses')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
                             <div class="mb-2 flex justify-center" aria-label="Rose icon" role="img">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-8 h-8" aria-hidden="true">
                                     <circle cx="32" cy="27" r="16" fill="#d85b78" opacity="0.18"/>
@@ -337,17 +325,17 @@
                             </div>
                             <span class="block text-xs font-bold text-blush-900">18 Roses</span>
                             <span class="text-[10px] text-blush-600">Grand Dance</span>
-                        </div>
-                        <div class="p-3 rounded-2xl bg-blush-50 border border-blush-200">
-                            <i class="fa-solid fa-wand-magic-sparkles text-rosegold text-xl mb-1 block"></i>
+                        </button>
+                        <button type="button" onclick="openMilestoneModal('candles')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
+                            <i class="fa-solid fa-wand-magic-sparkles text-rosegold text-xl mb-2 block"></i>
                             <span class="block text-xs font-bold text-blush-900">18 Candles</span>
-                            <span class="text-[10px] text-blush-600">Wishes & Speeches</span>
-                        </div>
-                        <div class="p-3 rounded-2xl bg-blush-50 border border-blush-200">
-                            <i class="fa-solid fa-gem text-amber-600 text-xl mb-1 block"></i>
-                            <span class="block text-xs font-bold text-blush-900">18 Treasures</span>
-                            <span class="text-[10px] text-blush-600">Gifts & Blessings</span>
-                        </div>
+                            <span class="text-[10px] text-blush-600">Wishes &amp; Speeches</span>
+                        </button>
+                        <button type="button" onclick="openMilestoneModal('gifts')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
+                            <i class="fa-solid fa-gift text-amber-600 text-xl mb-2 block"></i>
+                            <span class="block text-xs font-bold text-blush-900">18 Gifts</span>
+                            <span class="text-[10px] text-blush-600">Gifts &amp; Blessings</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -390,22 +378,10 @@
                         </label>
                     </div>
 
-                    <div id="attending-details" class="hidden space-y-4 pt-4 border-t border-blush-200">
-                        <div>
-                            <label for="rsvp-guest-count" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Confirmed Party Size</label>
-                            <select id="rsvp-guest-count" onchange="generateGuestNameInputs(this.value)" 
-                                class="w-full px-4 py-3 rounded-2xl border border-blush-300 focus:border-rosegold outline-none bg-white text-blush-900 text-sm">
-                                <option value="1">1 Person</option>
-                                <option value="2">2 People</option>
-                                <option value="3">3 People</option>
-                                <option value="4">4 People</option>
-                                <option value="5">5 People</option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Attending Guest Names</label>
-                            <div id="guest-names-container" class="space-y-2"></div>
+                    <div id="attending-details" class="hidden space-y-3 pt-4 border-t border-blush-200">
+                        <div class="rounded-2xl bg-blush-50 border border-blush-200 p-4 text-center">
+                            <p class="text-sm font-semibold text-blush-900">1 person per registration</p>
+                            <p class="text-xs text-blush-600 mt-1">This RSVP is for you only.</p>
                         </div>
                     </div>
 
@@ -549,6 +525,23 @@
         </div>
     </div>
 
+    <!-- Milestone Names Modal -->
+    <div id="milestone-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="milestone-modal-title">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-blush-200 overflow-hidden">
+            <div class="p-6 text-center border-b border-blush-100">
+                <div id="milestone-modal-icon" class="text-3xl mb-2">🌹</div>
+                <h3 id="milestone-modal-title" class="font-serif-debut text-2xl font-bold text-blush-900">18 Roses</h3>
+                <p id="milestone-modal-subtitle" class="text-xs text-blush-600 mt-1">Grand Dance</p>
+            </div>
+            <div id="milestone-name-list" class="p-6 max-h-[55vh] overflow-y-auto">
+                <p class="text-sm text-center text-blush-600">Names will be added here.</p>
+            </div>
+            <div class="px-6 pb-6">
+                <button type="button" onclick="closeMilestoneModal()" class="w-full py-3 rounded-2xl bg-blush-700 hover:bg-blush-800 text-white font-semibold text-sm transition">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -578,9 +571,9 @@
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Fulla",
-            dateStr: "November 7, 2026 18:00:00 GMT+0800",
-            venue: "To be announced",
-            dressCode: "Light Blue"
+            dateStr: "November 7, 2026 16:00:00 GMT+0800",
+            venue: "Tito's Restaurant, 546 Concha St., Tondo, Manila",
+            dressCode: "Light Blue & Purple"
         };
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -777,12 +770,70 @@
         };
 
         // Form Handlers
+        // Add the final names here when the 18 Roses, 18 Candles, and 18 Gifts lists are confirmed.
+        const MILESTONE_NAMES = {
+            roses: [
+                'Jairus', 'Lance', 'JB', 'Orly', 'Tito Rodel', 'Ninong Joven',
+                'Ninong Ruel', 'Tito Amer', 'Tito Gboy', 'Tito Nhuno', 'Tito Jeff',
+                'Tito Charles', 'Tito Christ', 'Tito Junjun', 'Tito Mamang', 'Tatay Roger',
+                'Papa Oca', 'Daddy Randy'
+            ],
+            candles: [
+                'Erich', 'Mikay', 'Aiyzhen', 'Cahley', 'Jinky', 'Mary', 'Elaine', 'Ashley',
+                'Stefione', 'Marga', 'Louise', 'Ate Nica', 'Tita Len', 'Tita Shane',
+                'Tita Clarisa', 'Nanay Lourdes', 'Mama Salve', 'Sister Ayah & Amber'
+            ],
+            gifts: [
+                'Ninang Mara', 'Ninang Cha', 'Ninang Cindy', 'Ninang Kid', 'Ninang Racquel',
+                'Ninang Em', 'Ninong Joven', 'Mama Luz', 'Mama Engga', 'Ninang Ella',
+                'Tita Carmi', 'Tita Leigh Anne', 'Tito Jeff', 'Tito Charles', 'Tito Junjun',
+                'Tito Mamang', 'Tito Christ', 'Cousin Harley Quinn'
+            ]
+        };
+
+        const MILESTONE_INFO = {
+            roses: { title: '18 Roses', subtitle: 'Grand Dance', icon: '🌹' },
+            candles: { title: '18 Candles', subtitle: 'Wishes & Speeches', icon: '🕯️' },
+            gifts: { title: '18 Gifts', subtitle: 'Gifts & Blessings', icon: '🎁' }
+        };
+
+        window.openMilestoneModal = function(type) {
+            const info = MILESTONE_INFO[type];
+            if (!info) return;
+            const modal = document.getElementById('milestone-modal');
+            const list = document.getElementById('milestone-name-list');
+            document.getElementById('milestone-modal-icon').textContent = info.icon;
+            document.getElementById('milestone-modal-title').textContent = info.title;
+            document.getElementById('milestone-modal-subtitle').textContent = info.subtitle;
+            const names = MILESTONE_NAMES[type] || [];
+            if (names.length) {
+                list.innerHTML = names.map((name, index) => `
+                    <div class="flex items-center gap-3 py-2.5 border-b border-blush-100 last:border-0">
+                        <span class="w-7 h-7 rounded-full bg-blush-100 text-blush-700 text-xs font-bold flex items-center justify-center">${index + 1}</span>
+                        <span class="text-sm font-medium text-blush-900">${escapeHtml(name)}</span>
+                    </div>`).join('');
+            } else {
+                list.innerHTML = '<p class="text-sm text-center text-blush-600 py-4">Names will be added here once the list is confirmed.</p>';
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeMilestoneModal = function() {
+            const modal = document.getElementById('milestone-modal');
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') window.closeMilestoneModal();
+        });
+
         window.handleRegistration = async function(e) {
             e.preventDefault();
             inviteMode = false;
             const fullName = document.getElementById('reg-fullname').value.trim();
             const email = document.getElementById('reg-email').value.trim();
-            const guestCount = parseInt(document.getElementById('reg-guests-count').value);
+            const guestCount = 1;
 
             if (!fullName || !email) return;
 
@@ -880,11 +931,8 @@
                 greeting.textContent = `Dear ${currentGuest.name},`;
             }
 
-            const countSelect = document.getElementById('rsvp-guest-count');
-            if (countSelect) {
-                countSelect.value = currentGuest.numGuests;
-                window.generateGuestNameInputs(currentGuest.numGuests);
-            }
+            currentGuest.numGuests = 1;
+            currentGuest.guestNames = [currentGuest.name];
         }
 
         window.toggleAttendingDetails = function(isAttending) {
@@ -935,17 +983,9 @@
 
             if (attendance === 'Yes') {
                 currentGuest.rsvpStatus = 'Confirmed';
-                const count = parseInt(document.getElementById('rsvp-guest-count').value);
-                currentGuest.numGuests = count;
-
-                const names = [];
-                for (let i = 0; i < count; i++) {
-                    const input = form[`guest_name_${i}`];
-                    if (input && input.value.trim()) {
-                        names.push(input.value.trim());
-                    }
-                }
-                currentGuest.guestNames = names.length > 0 ? names : [currentGuest.name];
+                const count = 1;
+                currentGuest.numGuests = 1;
+                currentGuest.guestNames = [currentGuest.name];
 
                 if (typeof confetti === 'function') {
                     confetti({
