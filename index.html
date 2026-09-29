@@ -619,6 +619,13 @@
                         <i class="fa-solid fa-heart text-xs group-hover:scale-125 transition-transform"></i>
                     </button>
                 </form>
+
+                <div class="mt-5 pt-4 border-t border-blush-100 max-w-md mx-auto">
+                    <p class="text-xs text-blush-600 mb-2">Already registered?</p>
+                    <button type="button" onclick="openRecoveryModal()" class="text-sm font-semibold text-rosegold-dark hover:text-blush-800 underline underline-offset-4 transition">
+                        Recover My Invitation
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -1074,7 +1081,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const firebaseConfig = {
@@ -1148,16 +1155,18 @@
             const guestRef = doc(db, "rsvps", guest.id);
             await setDoc(guestRef, guestToSave, { merge: true });
 
-            // Only create the permanent invitation link AFTER the guest confirms attendance.
-            if (createInvitationLink && guest.rsvpStatus === 'Confirmed') {
-                const inviteRef = doc(db, "invites", guest.id);
-                await setDoc(inviteRef, {
-                    name: guest.name,
-                    numGuests: guest.numGuests || 1,
-                    ownerUid: auth.currentUser.uid,
-                    rsvpStatus: 'Confirmed'
-                }, { merge: true });
-            }
+            // Keep a lightweight registration record in invites. Pending/Confirmed emails
+            // are locked; Declined emails are reusable. Only Confirmed records open as invitations.
+            const inviteRef = doc(db, "invites", guest.id);
+            await setDoc(inviteRef, {
+                name: guest.name,
+                nameLower: normalizeName(guest.name),
+                email: guest.email,
+                emailLower: normalizeEmail(guest.email),
+                numGuests: guest.numGuests || 1,
+                ownerUid: auth.currentUser.uid,
+                rsvpStatus: guest.rsvpStatus
+            }, { merge: true });
 
             currentGuest = guestToSave;
         }
@@ -1363,6 +1372,138 @@
             if (e.key === 'Escape') window.closeMilestoneModal();
         });
 
+        function normalizeEmail(email) {
+            return (email || '').trim().toLowerCase();
+        }
+
+        function normalizeName(name) {
+            return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+        }
+
+        async function findInvitationByEmail(email, confirmedOnly = false) {
+            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+            const emailLower = normalizeEmail(email);
+            if (!emailLower) return null;
+
+            const invitesRef = collection(db, 'invites');
+            const snapshot = await getDocs(query(invitesRef, where('emailLower', '==', emailLower)));
+            let match = null;
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const usable = confirmedOnly ? data.rsvpStatus === 'Confirmed' : ['Pending', 'Confirmed'].includes(data.rsvpStatus);
+                if (!match && usable) {
+                    match = { id: docSnap.id, ...data };
+                }
+            });
+            return match;
+        }
+
+        async function openInvitationForGuest(inviteId, invite, showReminder = true) {
+            inviteMode = true;
+            currentGuest = {
+                id: inviteId,
+                name: invite.name,
+                email: invite.email || '',
+                numGuests: invite.numGuests || 1,
+                guestNames: [invite.name],
+                rsvpStatus: 'Confirmed'
+            };
+
+            const eventDetailsBtn = document.getElementById('view-event-details-btn');
+            if (eventDetailsBtn) eventDetailsBtn.classList.remove('hidden');
+            const rsvpButton = document.getElementById('details-rsvp-button');
+            if (rsvpButton) rsvpButton.classList.add('hidden');
+
+            populateInvitationView();
+            window.goToStep(2);
+            if (showReminder) setTimeout(() => openSecretReminder(), 250);
+        }
+
+        window.openRecoveryModal = function(prefillEmail = '', prefillName = '') {
+            const modal = document.getElementById('recovery-modal');
+            if (!modal) return;
+            const emailInput = document.getElementById('recovery-email');
+            const nameInput = document.getElementById('recovery-name');
+            const errorEl = document.getElementById('recovery-error');
+            const welcome = document.getElementById('recovery-welcome');
+            const form = document.getElementById('recovery-form');
+            const actions = document.getElementById('recovery-actions');
+            if (emailInput) emailInput.value = prefillEmail;
+            if (nameInput) nameInput.value = prefillName;
+            errorEl.classList.add('hidden');
+            welcome.classList.add('hidden');
+            form.classList.remove('hidden');
+            actions.classList.add('hidden');
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+        };
+
+        window.closeRecoveryModal = function() {
+            const modal = document.getElementById('recovery-modal');
+            if (modal) modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
+
+        window.handleRecovery = async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('recovery-email').value.trim();
+            const name = document.getElementById('recovery-name').value.trim();
+            const errorEl = document.getElementById('recovery-error');
+            const form = document.getElementById('recovery-form');
+            const welcome = document.getElementById('recovery-welcome');
+            const actions = document.getElementById('recovery-actions');
+            const welcomeName = document.getElementById('recovery-welcome-name');
+
+            errorEl.classList.add('hidden');
+            try {
+                const invite = await findInvitationByEmail(email, true);
+                if (!invite || normalizeName(invite.name) !== normalizeName(name)) {
+                    errorEl.textContent = 'We could not find a confirmed invitation with those details.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                window.recoveredInvite = { id: invite.id, data: invite };
+                welcomeName.textContent = invite.name;
+                form.classList.add('hidden');
+                welcome.classList.remove('hidden');
+                actions.classList.remove('hidden');
+            } catch (err) {
+                console.error('Invitation recovery failed:', err);
+                errorEl.textContent = 'We could not recover your invitation right now. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.copyRecoveredInvitationLink = async function() {
+            if (!window.recoveredInvite) return;
+            const inviteId = window.recoveredInvite.id;
+            const link = window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteId);
+            try {
+                await navigator.clipboard.writeText(link);
+            } catch (err) {
+                const temp = document.createElement('textarea');
+                temp.value = link;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                temp.remove();
+            }
+            const status = document.getElementById('recovery-link-status');
+            if (status) {
+                status.textContent = 'Invitation link copied successfully 💙';
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 3000);
+            }
+        };
+
+        window.openRecoveredInvitation = async function() {
+            if (!window.recoveredInvite) return;
+            const recovered = window.recoveredInvite;
+            window.recoveredInvite = null;
+            window.closeRecoveryModal();
+            await openInvitationForGuest(recovered.id, recovered.data, true);
+        };
+
         window.handleRegistration = async function(e) {
             e.preventDefault();
             inviteMode = false;
@@ -1371,6 +1512,19 @@
             const guestCount = 1;
 
             if (!fullName || !email) return;
+
+            try {
+                const existingInvite = await findInvitationByEmail(email, false);
+                if (existingInvite) {
+                    alert('This email has already been registered. You can recover your invitation using your full name and email.');
+                    openRecoveryModal(email, fullName);
+                    return;
+                }
+            } catch (err) {
+                console.error('Could not check existing email:', err);
+                alert('We could not verify this email right now. Please try again.');
+                return;
+            }
 
             currentGuest = {
                 id: 'KYLIE-' + Math.floor(1000 + Math.random() * 9000),
@@ -1463,31 +1617,11 @@
                 }
 
                 const invite = inviteSnap.data();
-                if (!invite.name) return false;
+                if (!invite.name || invite.rsvpStatus !== 'Confirmed') return false;
 
                 // A saved invitation is for a guest who already confirmed attendance.
                 // Open it in VIEW-ONLY mode so the guest cannot register/RSVP again.
-                inviteMode = true;
-                currentGuest = {
-                    id: inviteId,
-                    name: invite.name,
-                    email: '',
-                    numGuests: invite.numGuests || 1,
-                    guestNames: [invite.name],
-                    rsvpStatus: 'Confirmed'
-                };
-
-                const eventDetailsBtn = document.getElementById('view-event-details-btn');
-                if (eventDetailsBtn) eventDetailsBtn.classList.remove('hidden');
-
-                const rsvpButton = document.getElementById('details-rsvp-button');
-                if (rsvpButton) rsvpButton.classList.add('hidden');
-
-                populateInvitationView();
-                window.goToStep(2);
-
-                // One reminder popup per link opening.
-                setTimeout(() => openSecretReminder(), 250);
+                await openInvitationForGuest(inviteId, invite, true);
                 return true;
             } catch (err) {
                 console.error('Could not load invitation link:', err);
@@ -1774,6 +1908,50 @@
 })();
 </script>
 
+
+    <!-- Invitation Recovery Popup -->
+    <div id="recovery-modal" class="secret-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
+        <div class="secret-modal-card">
+            <div class="secret-modal-content">
+                <div class="secret-modal-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
+                <h3 id="recovery-title" class="secret-modal-title">Recover My Invitation</h3>
+                <div class="secret-modal-ornament">♡ ✦ ♡</div>
+
+                <form id="recovery-form" onsubmit="handleRecovery(event)" class="space-y-4 text-left">
+                    <div>
+                        <label for="recovery-name" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Full Name</label>
+                        <input id="recovery-name" type="text" required placeholder="Name used during registration" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm">
+                    </div>
+                    <div>
+                        <label for="recovery-email" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Email Address</label>
+                        <input id="recovery-email" type="email" required placeholder="Email used during registration" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm">
+                    </div>
+                    <p id="recovery-error" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3"></p>
+                    <button type="submit" class="secret-modal-button">Find My Invitation</button>
+                    <button type="button" onclick="closeRecoveryModal()" class="w-full py-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition">Cancel</button>
+                </form>
+
+                <div id="recovery-welcome" class="hidden">
+                    <p class="text-sm text-blush-700 mb-2">Welcome back,</p>
+                    <p id="recovery-welcome-name" class="font-serif-debut text-2xl font-bold text-blush-900 mb-3"></p>
+                    <p class="text-sm text-blush-700 leading-relaxed">Here is your personalized invitation.</p>
+                </div>
+
+                <div id="recovery-actions" class="hidden mt-5">
+                    <div class="flex flex-col gap-2">
+                        <button type="button" onclick="openRecoveredInvitation()" class="secret-modal-button">
+                            <i class="fa-solid fa-heart mr-1"></i> View My Invitation
+                        </button>
+                        <button type="button" onclick="copyRecoveredInvitationLink()" class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-link mr-1"></i> Copy My Invitation Link
+                        </button>
+                        <p id="recovery-link-status" class="hidden text-xs text-emerald-700 font-semibold mt-1"></p>
+                    </div>
+                    <button type="button" onclick="closeRecoveryModal()" class="w-full py-2 mt-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Surprise Reminder Popup -->
     <div id="secret-reminder-modal" class="secret-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="secret-reminder-title">
