@@ -437,16 +437,38 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             await openInvitationForGuest(recovered.id, recovered.data, true);
         };
 
+        async function waitForFirebaseAuth(timeoutMs = 10000) {
+            if (auth.currentUser) return true;
+            const started = Date.now();
+            while (!auth.currentUser && Date.now() - started < timeoutMs) {
+                await new Promise(resolve => setTimeout(resolve, 150));
+            }
+            return !!auth.currentUser;
+        }
+
         window.handleRegistration = async function(e) {
-            e.preventDefault();
+            if (e) e.preventDefault();
             inviteMode = false;
-            const fullName = document.getElementById('reg-fullname').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
+            const fullNameEl = document.getElementById('reg-fullname');
+            const emailEl = document.getElementById('reg-email');
+            const submitButton = document.querySelector('#registration-form button[type=\"submit\"]');
+            const fullName = fullNameEl ? fullNameEl.value.trim() : '';
+            const email = emailEl ? emailEl.value.trim() : '';
             const guestCount = 1;
 
-            if (!fullName || !email) return;
+            if (!fullName || !email) return false;
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('opacity-70', 'cursor-wait');
+            }
 
             try {
+                const ready = await waitForFirebaseAuth();
+                if (!ready) {
+                    alert('The RSVP connection is still loading. Please wait a moment and try again.');
+                    return false;
+                }
                 const existingInvite = await findInvitationByEmail(email, false);
                 if (existingInvite) {
                     alert('This email has already been registered. You can recover your invitation using your full name and email.');
@@ -495,7 +517,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             } catch (err) {
                 console.error(err);
                 alert("We could not save your registration. Please try again.");
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-70', 'cursor-wait');
+                }
             }
+            return false;
         };
 
         function getInvitationLink() {

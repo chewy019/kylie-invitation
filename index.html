@@ -64,7 +64,7 @@
                         Please register your details below to reveal your personalized invitation card, event countdown timer, and celebration details.
                     </p>
 </div>
-<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="handleRegistration(event)">
+<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } return false;">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-fullname">Your Full Name *</label>
 <input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
@@ -73,7 +73,7 @@
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-email">Email Address *</label>
 <input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" placeholder="maria@example.com" required="" type="email"/>
 </div>
-<button class="w-full py-4 px-6 mt-4 bg-gradient-to-r from-blush-600 via-rosegold to-blush-700 hover:from-blush-700 hover:to-blush-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
+<button class="registration-submit w-full py-4 px-6 mt-4 text-white font-semibold rounded-2xl shadow-lg transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
 <span>Unlock My Personalized Invitation</span>
 <i class="fa-solid fa-heart text-xs group-hover:scale-125 transition-transform"></i>
 </button>

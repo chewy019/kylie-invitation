@@ -531,3 +531,121 @@ body {
 .bg-gradient-to-r:hover {
     background-image: linear-gradient(90deg, #b21f43 0%, #8C4B54 50%, #941e3c 100%) !important;
 }
+
+
+/* Registration button: explicit CSS fallback so it never becomes invisible
+   if Tailwind custom utility generation changes. */
+.registration-submit {
+    width: 100%;
+    background: linear-gradient(90deg, #d42d57 0%, #B76E79 50%, #b21f43 100%) !important;
+    background-color: #d42d57 !important;
+    color: #ffffff !important;
+    border: 0 !important;
+    cursor: pointer;
+}
+
+.registration-submit:hover {
+    background: linear-gradient(90deg, #b21f43 0%, #8C4B54 50%, #941e3c 100%) !important;
+    color: #ffffff !important;
+}
+
+.registration-submit span,
+.registration-submit i {
+    color: #ffffff !important;
+}
+
+/* =========================================================
+   COLOR RESTORE FALLBACKS
+   Keeps the original Kylie palette even if Tailwind custom
+   utilities are not generated on GitHub Pages.
+   ========================================================= */
+:root {
+  --blush-50:#fff5f7;
+  --blush-100:#ffe3e8;
+  --blush-200:#fcccd6;
+  --blush-300:#f8a8b9;
+  --blush-400:#f37895;
+  --blush-500:#e84e72;
+  --blush-600:#d42d57;
+  --blush-700:#b21f43;
+  --blush-800:#941e3c;
+  --blush-900:#7d1d37;
+  --rosegold:#B76E79;
+  --rosegold-light:#E8C5C8;
+  --rosegold-dark:#8C4B54;
+  --champagne:#F7E7CE;
+}
+
+/* Backgrounds */
+.bg-blush-50{background-color:var(--blush-50)!important}
+.bg-blush-100{background-color:var(--blush-100)!important}
+.bg-blush-200{background-color:var(--blush-200)!important}
+.bg-blush-600{background-color:var(--blush-600)!important}
+.bg-blush-700{background-color:var(--blush-700)!important}
+.bg-blush-800{background-color:var(--blush-800)!important}
+.bg-blush-900{background-color:var(--blush-900)!important}
+.bg-rosegold{background-color:var(--rosegold)!important}
+
+/* Text */
+.text-blush-100{color:var(--blush-100)!important}
+.text-blush-200{color:var(--blush-200)!important}
+.text-blush-300{color:var(--blush-300)!important}
+.text-blush-400{color:var(--blush-400)!important}
+.text-blush-500{color:var(--blush-500)!important}
+.text-blush-600{color:var(--blush-600)!important}
+.text-blush-700{color:var(--blush-700)!important}
+.text-blush-800{color:var(--blush-800)!important}
+.text-blush-900{color:var(--blush-900)!important}
+.text-rosegold{color:var(--rosegold)!important}
+.text-rosegold-dark{color:var(--rosegold-dark)!important}
+.text-champagne{color:var(--champagne)!important}
+
+/* Borders / rings */
+.border-blush-100{border-color:var(--blush-100)!important}
+.border-blush-200{border-color:var(--blush-200)!important}
+.border-blush-300{border-color:var(--blush-300)!important}
+.border-rosegold{border-color:var(--rosegold)!important}
+.focus\\:border-rosegold:focus{border-color:var(--rosegold)!important}
+.focus\\:ring-blush-200:focus{--tw-ring-color:var(--blush-200)!important}
+.focus\\:ring-blush-300:focus{--tw-ring-color:var(--blush-300)!important}
+
+/* Opacity variants used by the page */
+.bg-blush-100\\/70{background-color:rgba(255,227,232,.70)!important}
+.bg-blush-200\\/50{background-color:rgba(252,204,214,.50)!important}
+.bg-blush-50\\/50{background-color:rgba(255,245,247,.50)!important}
+.bg-rosegold-light\\/50{background-color:rgba(232,197,200,.50)!important}
+.text-blush-900\\/80{color:rgba(125,29,55,.80)!important}
+
+/* Gradient utilities */
+.bg-gradient-to-r{background-image:linear-gradient(90deg,var(--blush-600),var(--rosegold),var(--blush-700))!important}
+.bg-gradient-to-br{background-image:linear-gradient(135deg,var(--blush-900),var(--blush-800),var(--rosegold-dark))!important}
+.from-blush-700{--tw-gradient-from:var(--blush-700)!important;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to,rgba(178,31,67,0))!important}
+.to-rosegold{--tw-gradient-to:var(--rosegold)!important}
+.via-rosegold{--tw-gradient-stops:var(--tw-gradient-from),var(--rosegold),var(--tw-gradient-to)!important}
+
+/* Hover colors */
+.hover\\:from-blush-800:hover{--tw-gradient-from:var(--blush-800)!important}
+.hover\\:to-rosegold-dark:hover{--tw-gradient-to:var(--rosegold-dark)!important}
+.hover\\:bg-blush-100:hover{background-color:var(--blush-100)!important}
+.hover\\:bg-blush-800:hover{background-color:var(--blush-800)!important}
+.hover\\:text-blush-800:hover{color:var(--blush-800)!important}
+
+/* Typography fallbacks */
+.font-script{font-family:'Great Vibes',cursive!important}
+.font-serif-debut{font-family:'Cormorant Garamond',Georgia,serif!important}
+
+/* Registration and important action buttons */
+.registration-submit,
+button[type="submit"] {
+  background-image:linear-gradient(90deg,var(--blush-600),var(--rosegold),var(--blush-700))!important;
+  background-color:var(--blush-600)!important;
+  color:#fff!important;
+}
+.registration-submit:hover,
+button[type="submit"]:hover {
+  background-image:linear-gradient(90deg,var(--blush-700),var(--rosegold-dark),var(--blush-800))!important;
+}
+.registration-submit span,
+.registration-submit i,
+button[type="submit"] span,
+button[type="submit"] i {color:#fff!important}
