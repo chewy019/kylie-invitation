@@ -521,3 +521,13 @@ body {
             .invitation-qr-wrap { padding: 14px; }
             .invitation-qr-wrap img { width: 210px; height: 210px; }
         }
+
+/* Fallback for gradient buttons so the design still works even if
+   Tailwind's gradient utility classes are not generated. */
+.bg-gradient-to-r {
+    background-image: linear-gradient(90deg, #d42d57 0%, #B76E79 50%, #b21f43 100%) !important;
+}
+
+.bg-gradient-to-r:hover {
+    background-image: linear-gradient(90deg, #b21f43 0%, #8C4B54 50%, #941e3c 100%) !important;
+}
