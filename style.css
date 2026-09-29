@@ -1,0 +1,523 @@
+body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #FFF5F7;
+            color: #4A2E35;
+            background-image: 
+                radial-gradient(#FCCCD6 0.8px, transparent 0.8px),
+                radial-gradient(#F8A8B9 0.8px, #FFF5F7 0.8px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        .font-script {
+            font-family: 'Great Vibes', cursive;
+        }
+
+        .font-serif-debut {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+        }
+
+        /* Glassmorphism luxury frame */
+        .debut-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px solid rgba(232, 197, 200, 0.65);
+            box-shadow: 0 20px 45px -15px rgba(183, 110, 121, 0.22);
+        }
+
+        /* Subtle glowing sparkle pulse */
+        @keyframes sparklePulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+            50% { transform: scale(1.2) rotate(15deg); opacity: 1; }
+        }
+        .sparkle-icon {
+            animation: sparklePulse 3s infinite ease-in-out;
+        }
+
+        .step-transition {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FFF5F7;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #E8C5C8;
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B76E79;
+        }
+
+        /* ================================
+           PAGE 2 — FLORAL DEBUT INVITATION
+           Visual-only redesign; other pages unchanged.
+           ================================ */
+        .page2-invitation-card {
+            background:
+                radial-gradient(circle at 50% 18%, rgba(255,255,255,.98), rgba(255,244,248,.94) 55%, rgba(249,224,235,.92) 100%);
+            border: 2px solid rgba(205, 162, 122, .55);
+            box-shadow:
+                0 28px 70px -25px rgba(126, 61, 79, .32),
+                inset 0 0 0 1px rgba(255,255,255,.9);
+            min-height: 590px;
+        }
+
+        .page2-invitation-card::before {
+            content: "";
+            position: absolute;
+            inset: 18px;
+            border: 1px solid rgba(184, 143, 99, .55);
+            border-radius: 26px;
+            pointer-events: none;
+        }
+
+        .page2-invitation-card::after {
+            content: "♡";
+            position: absolute;
+            top: 92px;
+            right: 26%;
+            color: rgba(190, 127, 153, .30);
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: 30px;
+            transform: rotate(12deg);
+            pointer-events: none;
+        }
+
+        .page2-floral-art {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .page2-floral-tl {
+            top: -6px;
+            left: -6px;
+            width: 235px;
+            height: 205px;
+        }
+
+        .page2-floral-tr {
+            top: -4px;
+            right: -5px;
+            width: 190px;
+            height: 175px;
+        }
+
+        .page2-ribbon-bl {
+            bottom: -5px;
+            left: -8px;
+            width: 170px;
+            height: 220px;
+        }
+
+        .page2-butterfly-br {
+            right: 12px;
+            bottom: 42px;
+            width: 125px;
+            height: 105px;
+        }
+
+        .page2-content {
+            position: relative;
+            z-index: 3;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 34px 22px 30px;
+        }
+
+        .page2-crown {
+            width: 72px;
+            height: 72px;
+            margin: 8px auto 16px;
+            border-radius: 50%;
+            background: rgba(255, 250, 245, .75);
+            border: 1px solid rgba(184, 143, 99, .65);
+            box-shadow: 0 8px 25px rgba(183,110,121,.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #A98255;
+            font-size: 27px;
+        }
+
+        .page2-kicker {
+            color: #9B6A72;
+            letter-spacing: .20em;
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .page2-greeting {
+            color: #7D2948;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-weight: 700;
+            font-size: clamp(2.6rem, 7vw, 4.1rem);
+            line-height: 1;
+            margin-top: 15px;
+            margin-bottom: 22px;
+            text-shadow: 0 1px 0 rgba(255,255,255,.8);
+        }
+
+        .page2-script-message {
+            color: #9B5669;
+            font-family: "Great Vibes", cursive;
+            font-size: clamp(2rem, 5vw, 3.35rem);
+            line-height: 1.18;
+            margin: 0 auto;
+            max-width: 660px;
+        }
+
+        .page2-ornament {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 11px;
+            margin: 26px auto 19px;
+            color: #B88D62;
+        }
+
+        .page2-ornament::before,
+        .page2-ornament::after {
+            content: "";
+            width: 95px;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #B88D62);
+        }
+
+        .page2-ornament::after {
+            background: linear-gradient(to left, transparent, #B88D62);
+        }
+
+        .page2-ornament span {
+            font-size: 20px;
+        }
+
+        .page2-honor-label {
+            color: #C02F61;
+            font-size: .78rem;
+            font-weight: 700;
+            letter-spacing: .20em;
+            text-transform: uppercase;
+        }
+
+        .page2-name {
+            color: #7D2948;
+            font-family: "Great Vibes", cursive;
+            font-size: clamp(3rem, 7vw, 4.6rem);
+            line-height: 1;
+            margin-top: 5px;
+            text-shadow: 0 1px 0 rgba(255,255,255,.8);
+        }
+
+        .page2-18 {
+            position: absolute;
+            right: 16%;
+            top: 25px;
+            z-index: 2;
+            color: rgba(193, 121, 145, .16);
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: 8rem;
+            font-weight: 700;
+            line-height: 1;
+            transform: rotate(8deg);
+            pointer-events: none;
+        }
+
+        .page2-countdown {
+            background: linear-gradient(135deg, rgba(255,249,250,.98), rgba(248,224,234,.96));
+            border: 1px solid rgba(184, 143, 99, .45);
+            box-shadow: 0 16px 40px -18px rgba(126, 61, 79, .28);
+            color: #6F3C4B;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page2-countdown::before {
+            content: "";
+            position: absolute;
+            left: 12%;
+            right: 12%;
+            top: 0;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #C9A06C, transparent);
+        }
+
+        .page2-countdown-title {
+            color: #8E4B61;
+            font-family: "Great Vibes", cursive;
+        }
+
+        .page2-countdown-subtitle {
+            color: #9B6A72;
+        }
+
+        .page2-time-box {
+            background: rgba(255,255,255,.55);
+            border: 1px solid rgba(184,143,99,.35);
+            box-shadow: inset 0 0 18px rgba(255,255,255,.65);
+        }
+
+        .page2-time-number {
+            color: #9A4D65;
+        }
+
+        .page2-time-label {
+            color: #A77C86;
+        }
+
+        .page2-details-button {
+            background: linear-gradient(135deg, #A94F70, #C18491 55%, #A98255);
+            box-shadow: 0 12px 30px -12px rgba(126,61,79,.5);
+        }
+
+        @media (max-width: 640px) {
+            .page2-invitation-card {
+                min-height: 560px;
+            }
+
+            .page2-floral-tl {
+                width: 150px;
+                height: 135px;
+            }
+
+            .page2-floral-tr {
+                width: 125px;
+                height: 120px;
+            }
+
+            .page2-ribbon-bl {
+                width: 115px;
+                height: 155px;
+            }
+
+            .page2-butterfly-br {
+                width: 90px;
+                height: 75px;
+                right: 0;
+                bottom: 28px;
+            }
+
+            .page2-content {
+                padding: 28px 12px 24px;
+            }
+
+            .page2-18 {
+                right: 9%;
+                font-size: 5rem;
+            }
+
+            .page2-script-message {
+                font-size: 2rem;
+            }
+
+            .page2-ornament::before,
+            .page2-ornament::after {
+                width: 55px;
+            }
+        }
+
+
+        /* ================================
+           SURPRISE REMINDER — FLORAL MODAL
+           ================================ */
+        .secret-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(73, 37, 51, .48);
+            backdrop-filter: blur(7px);
+            -webkit-backdrop-filter: blur(7px);
+        }
+
+        .secret-modal-card {
+            width: min(560px, 100%);
+            position: relative;
+            overflow: hidden;
+            border-radius: 28px;
+            background:
+                radial-gradient(circle at 50% 0%, rgba(255,255,255,.98), rgba(255,245,248,.98) 62%, rgba(245,225,235,.98));
+            border: 2px solid rgba(184, 143, 99, .55);
+            box-shadow: 0 30px 80px rgba(57, 26, 40, .35);
+            padding: 42px 28px 30px;
+            text-align: center;
+        }
+
+        .secret-modal-card::before {
+            content: "";
+            position: absolute;
+            inset: 12px;
+            border: 1px solid rgba(184, 143, 99, .48);
+            border-radius: 21px;
+            pointer-events: none;
+        }
+
+        .secret-modal-flower {
+            position: absolute;
+            pointer-events: none;
+            opacity: .9;
+        }
+
+        .secret-modal-flower.tl {
+            top: -4px;
+            left: -8px;
+            width: 125px;
+            height: 105px;
+        }
+
+        .secret-modal-flower.br {
+            right: -5px;
+            bottom: -8px;
+            width: 125px;
+            height: 100px;
+            transform: rotate(180deg);
+        }
+
+        .secret-modal-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .secret-modal-icon {
+            width: 68px;
+            height: 68px;
+            margin: 2px auto 15px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,.75);
+            border: 1px solid rgba(184,143,99,.58);
+            color: #A98255;
+            font-size: 25px;
+            box-shadow: 0 10px 25px rgba(183,110,121,.14);
+        }
+
+        .secret-modal-title {
+            color: #7D2948;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: clamp(1.9rem, 5vw, 2.55rem);
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .secret-modal-message {
+            color: #704351;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: 1.08rem;
+            line-height: 1.7;
+            max-width: 455px;
+            margin: 0 auto 22px;
+        }
+
+        .secret-modal-ornament {
+            color: #B88D62;
+            font-size: 20px;
+            letter-spacing: .28em;
+            margin-bottom: 18px;
+        }
+
+        .secret-modal-button {
+            position: relative;
+            z-index: 3;
+            background: linear-gradient(135deg, #A94F70, #C18491 55%, #A98255);
+            color: white;
+            border: 0;
+            border-radius: 15px;
+            padding: 13px 28px;
+            font-size: .82rem;
+            font-weight: 700;
+            letter-spacing: .04em;
+            box-shadow: 0 12px 28px -10px rgba(126,61,79,.5);
+            cursor: pointer;
+            transition: transform .2s ease, box-shadow .2s ease;
+        }
+
+        .secret-modal-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 32px -10px rgba(126,61,79,.55);
+        }
+
+        .secret-note-box {
+            background: linear-gradient(135deg, rgba(255,249,250,.98), rgba(247,226,235,.94));
+            border: 1px solid rgba(184,143,99,.42);
+            border-radius: 22px;
+            padding: 18px 18px 16px;
+            margin-bottom: 22px;
+            text-align: center;
+        }
+
+        .secret-note-box .secret-note-title {
+            color: #7D2948;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .secret-note-box .secret-note-text {
+            color: #76505b;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: .98rem;
+            line-height: 1.55;
+            margin: 0;
+        }
+
+        @media (max-width: 640px) {
+            .secret-modal-card {
+                padding: 36px 20px 25px;
+            }
+
+            .secret-modal-flower.tl,
+            .secret-modal-flower.br {
+                width: 95px;
+                height: 80px;
+            }
+        }
+
+        .invitation-qr-wrap {
+            background: rgba(255,255,255,.96);
+            border: 1px solid rgba(248,168,185,.55);
+            border-radius: 22px;
+            padding: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 30px -18px rgba(126,61,79,.35);
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .invitation-qr-wrap img {
+            display: block;
+            width: 240px;
+            height: 240px;
+            max-width: 72vw;
+            max-height: 72vw;
+            image-rendering: pixelated;
+            background: #fff;
+        }
+
+        .invitation-qr-caption {
+            color: #76505b;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: .98rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 640px) {
+            .invitation-qr-wrap { padding: 14px; }
+            .invitation-qr-wrap img { width: 210px; height: 210px; }
+        }
