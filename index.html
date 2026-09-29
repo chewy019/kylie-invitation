@@ -1,616 +1,1150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Kylie's 18th Birthday Debut - Personalized RSVP Invitation</title>
-<!-- Tailwind configuration MUST load before Tailwind CDN -->
-<script src="./tailwind.config.js"></script>
-<!-- Tailwind CSS for utility styling -->
-<script src="https://cdn.tailwindcss.com"></script>
-<!-- Canvas Confetti Library for RSVP celebration burst -->
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-<!-- QR Code Generator for personal invitation QR codes -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- QR scanner for event check-in -->
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-<!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
-<!-- FontAwesome for luxury icons -->
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<link href="./style.css" rel="stylesheet"/></head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kylie's 18th Birthday Debut - Personalized RSVP Invitation</title>
+
+    <!-- Tailwind CSS for utility styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Canvas Confetti Library for RSVP celebration burst -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Great+Vibes&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome for luxury icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        blush: {
+                            50: '#fff5f7',
+                            100: '#ffe3e8',
+                            200: '#fcccd6',
+                            300: '#f8a8b9',
+                            400: '#f37895',
+                            500: '#e84e72',
+                            600: '#d42d57',
+                            700: '#b21f43',
+                            800: '#941e3c',
+                            900: '#7d1d37',
+                        },
+                        rosegold: {
+                            DEFAULT: '#B76E79',
+                            light: '#E8C5C8',
+                            dark: '#8C4B54',
+                            glow: '#F7D6D8',
+                            gold: '#D4AF37'
+                        },
+                        champagne: {
+                            DEFAULT: '#F7E7CE',
+                            light: '#FFF9EF',
+                            dark: '#D1B894'
+                        }
+                    },
+                    fontFamily: {
+                        script: ['"Great Vibes"', 'cursive'],
+                        serif: ['"Cormorant Garamond"', 'Georgia', 'serif'],
+                        sans: ['Montserrat', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #FFF5F7;
+            color: #4A2E35;
+            background-image: 
+                radial-gradient(#FCCCD6 0.8px, transparent 0.8px),
+                radial-gradient(#F8A8B9 0.8px, #FFF5F7 0.8px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        .font-script {
+            font-family: 'Great Vibes', cursive;
+        }
+
+        .font-serif-debut {
+            font-family: 'Cormorant Garamond', Georgia, serif;
+        }
+
+        /* Glassmorphism luxury frame */
+        .debut-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 2px solid rgba(232, 197, 200, 0.65);
+            box-shadow: 0 20px 45px -15px rgba(183, 110, 121, 0.22);
+        }
+
+        /* Subtle glowing sparkle pulse */
+        @keyframes sparklePulse {
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+            50% { transform: scale(1.2) rotate(15deg); opacity: 1; }
+        }
+        .sparkle-icon {
+            animation: sparklePulse 3s infinite ease-in-out;
+        }
+
+        .step-transition {
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FFF5F7;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #E8C5C8;
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B76E79;
+        }
+    </style>
+</head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900 pb-16">
-<header class="w-full py-4 px-4 sm:px-8 bg-white/85 backdrop-blur-md border-b border-blush-200 sticky top-0 z-30 shadow-sm">
-<div class="max-w-5xl mx-auto flex items-center justify-between">
-<div class="flex items-center gap-2">
-<span class="text-rosegold text-2xl sparkle-icon">✨</span>
-<div>
-<span class="font-script text-2xl sm:text-3xl font-bold text-blush-800">Kylie's 18th</span>
-<span class="hidden sm:inline-block text-[10px] uppercase tracking-widest text-rosegold font-bold ml-2 bg-blush-100 px-2.5 py-0.5 rounded-full border border-blush-200">Grand Debut</span>
-</div>
-</div>
-<!-- Responsive Step Progress Bar -->
-<div class="hidden md:flex items-center gap-2 text-xs font-medium text-blush-700" id="step-indicator">
-<span class="px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition" id="ind-1">1. Register</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-2">2. Invitation</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-3">3. Details</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-4">4. RSVP</span>
-</div>
-<!-- Host Console Button (Only visible if URL contains ?admin=1) -->
-<button class="hidden text-xs flex items-center gap-2 px-3.5 py-2 rounded-full border border-blush-300 bg-white/90 text-blush-800 hover:bg-blush-100 transition shadow-sm font-medium" id="admin-console-btn" onclick="toggleDbDrawer()">
-<i class="fa-solid fa-crown text-rosegold"></i>
-<span class="hidden sm:inline">Guest Records</span>
-<span class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" id="guest-count-badge">0</span>
-</button>
-</div>
-</header>
-<main class="w-full max-w-3xl mx-auto px-4 py-8 sm:py-10 flex-grow">
-<section class="step-transition block" id="step-registration">
-<div class="debut-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden">
-<div class="absolute -top-12 -left-12 w-36 h-36 bg-blush-200/50 rounded-full blur-2xl pointer-events-none"></div>
-<div class="absolute -bottom-12 -right-12 w-36 h-36 bg-rosegold-light/50 rounded-full blur-2xl pointer-events-none"></div>
-<div class="mb-8">
-<span class="text-xs font-bold uppercase tracking-widest text-rosegold bg-blush-100 px-4 py-1.5 rounded-full border border-blush-200 inline-block mb-3">
+
+    <header class="w-full py-4 px-4 sm:px-8 bg-white/85 backdrop-blur-md border-b border-blush-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <span class="text-rosegold text-2xl sparkle-icon">✨</span>
+                <div>
+                    <span class="font-script text-2xl sm:text-3xl font-bold text-blush-800">Kylie's 18th</span>
+                    <span class="hidden sm:inline-block text-[10px] uppercase tracking-widest text-rosegold font-bold ml-2 bg-blush-100 px-2.5 py-0.5 rounded-full border border-blush-200">Grand Debut</span>
+                </div>
+            </div>
+
+            <!-- Responsive Step Progress Bar -->
+            <div id="step-indicator" class="hidden md:flex items-center gap-2 text-xs font-medium text-blush-700">
+                <span id="ind-1" class="px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition">1. Register</span>
+                <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+                <span id="ind-2" class="px-3 py-1 rounded-full text-blush-400 font-normal transition">2. Invitation</span>
+                <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+                <span id="ind-3" class="px-3 py-1 rounded-full text-blush-400 font-normal transition">3. Details</span>
+                <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+                <span id="ind-4" class="px-3 py-1 rounded-full text-blush-400 font-normal transition">4. RSVP</span>
+            </div>
+
+            <!-- Host Console Button (Only visible if URL contains ?admin=1) -->
+            <button id="admin-console-btn" onclick="toggleDbDrawer()" class="hidden text-xs flex items-center gap-2 px-3.5 py-2 rounded-full border border-blush-300 bg-white/90 text-blush-800 hover:bg-blush-100 transition shadow-sm font-medium">
+                <i class="fa-solid fa-crown text-rosegold"></i>
+                <span class="hidden sm:inline">Guest Records</span>
+                <span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-3xl mx-auto px-4 py-8 sm:py-10 flex-grow">
+
+        <section id="step-registration" class="step-transition block">
+            <div class="debut-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden">
+                <div class="absolute -top-12 -left-12 w-36 h-36 bg-blush-200/50 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="absolute -bottom-12 -right-12 w-36 h-36 bg-rosegold-light/50 rounded-full blur-2xl pointer-events-none"></div>
+
+                <div class="mb-8">
+                    <span class="text-xs font-bold uppercase tracking-widest text-rosegold bg-blush-100 px-4 py-1.5 rounded-full border border-blush-200 inline-block mb-3">
                         🌸 You Are Cordially Invited
                     </span>
-<h1 class="font-script text-5xl sm:text-6xl text-blush-800 font-bold mb-1">Kylie Aianna Fulla</h1>
-<p class="font-serif-debut text-2xl sm:text-3xl italic text-rosegold-dark mb-4">Is Turning Eighteen</p>
-<p class="text-xs sm:text-sm text-blush-900/80 max-w-md mx-auto leading-relaxed">
+                    <h1 class="font-script text-5xl sm:text-6xl text-blush-800 font-bold mb-1">Kylie Fulla</h1>
+                    <p class="font-serif-debut text-2xl sm:text-3xl italic text-rosegold-dark mb-4">Is Turning Eighteen</p>
+                    <p class="text-xs sm:text-sm text-blush-900/80 max-w-md mx-auto leading-relaxed">
                         Please register your details below to reveal your personalized invitation card, event countdown timer, and celebration details.
                     </p>
-</div>
-<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } return false;">
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-fullname">Your Full Name *</label>
-<input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
-</div>
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-email">Email Address *</label>
-<input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" placeholder="maria@example.com" required="" type="email"/>
-</div>
-<button class="registration-submit w-full py-4 px-6 mt-4 text-white font-semibold rounded-2xl shadow-lg transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
-<span>Unlock My Personalized Invitation</span>
-<i class="fa-solid fa-heart text-xs group-hover:scale-125 transition-transform"></i>
-</button>
-</form>
-<div class="mt-5 pt-4 border-t border-blush-100 max-w-md mx-auto">
-<p class="text-xs text-blush-600 mb-2">Already registered?</p>
-<button class="text-sm font-semibold text-rosegold-dark hover:text-blush-800 underline underline-offset-4 transition" onclick="openRecoveryModal()" type="button">
-                        Recover My Invitation
+                </div>
+
+                <form id="registration-form" onsubmit="handleRegistration(event)" class="space-y-5 max-w-md mx-auto text-left">
+                    <div>
+                        <label for="reg-fullname" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Your Full Name *</label>
+                        <input type="text" id="reg-fullname" required placeholder="e.g. Maria Santos" 
+                            class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm">
+                    </div>
+
+                    <div>
+                        <label for="reg-email" class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5">Email Address *</label>
+                        <input type="email" id="reg-email" required placeholder="maria@example.com" 
+                            class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm">
+                    </div>
+
+                    <button type="submit" 
+                        class="w-full py-4 px-6 mt-4 bg-gradient-to-r from-blush-600 via-rosegold to-blush-700 hover:from-blush-700 hover:to-blush-800 text-white font-semibold rounded-2xl shadow-lg hover:shadow-xl transition duration-300 flex items-center justify-center gap-2 text-sm group">
+                        <span>Unlock My Personalized Invitation</span>
+                        <i class="fa-solid fa-heart text-xs group-hover:scale-125 transition-transform"></i>
                     </button>
-</div>
-</div>
-</section>
-<section class="step-transition hidden" id="step-invitation">
-<div class="page2-invitation-card rounded-[2rem] p-0 text-center relative overflow-hidden mb-8">
-<!-- Floral upper-left decoration -->
-<svg aria-hidden="true" class="page2-floral-art page2-floral-tl" viewbox="0 0 240 210">
-<defs>
-<lineargradient id="p2pink" x1="0" x2="1" y1="0" y2="1">
-<stop offset="0" stop-color="#fffaf9"></stop>
-<stop offset="1" stop-color="#eab5c3"></stop>
-</lineargradient>
-<lineargradient id="p2lav" x1="0" x2="1" y1="0" y2="1">
-<stop offset="0" stop-color="#e9dcf5"></stop>
-<stop offset="1" stop-color="#a997c7"></stop>
-</lineargradient>
-</defs>
-<path d="M8 16 C58 38 75 68 111 104 C139 132 164 158 205 184" fill="none" opacity=".65" stroke="#B88D62" stroke-width="1.4"></path>
-<path d="M40 42 C60 54 74 69 88 86 M92 88 C111 101 128 118 143 134" fill="none" opacity=".65" stroke="#91A77A" stroke-width="1.5"></path>
-<g transform="translate(28 22)">
-<circle cx="0" cy="0" fill="url(#p2pink)" r="30" stroke="#d8a0af" stroke-width="1"></circle>
-<circle cx="-18" cy="-2" fill="#fffaf8" r="16"></circle>
-<circle cx="18" cy="-2" fill="#f7e8e9" r="16"></circle>
-<circle cx="0" cy="-19" fill="#fffdfc" r="16"></circle>
-<circle cx="0" cy="18" fill="#f0d1d8" r="16"></circle>
-<circle cx="0" cy="0" fill="#d2a66c" r="8"></circle>
-</g>
-<g transform="translate(91 45)">
-<circle cx="0" cy="0" fill="url(#p2pink)" r="23"></circle>
-<circle cx="-13" cy="0" fill="#fffdfb" r="12"></circle>
-<circle cx="13" cy="0" fill="#f4d9df" r="12"></circle>
-<circle cx="0" cy="-13" fill="#fffaf8" r="12"></circle>
-<circle cx="0" cy="13" fill="#efd0d8" r="12"></circle>
-<circle cx="0" cy="0" fill="#c49a67" r="6"></circle>
-</g>
-<g transform="translate(133 79)">
-<ellipse cx="0" cy="-9" fill="url(#p2lav)" rx="7" ry="17" transform="rotate(-35)"></ellipse>
-<ellipse cx="0" cy="-9" fill="url(#p2lav)" rx="7" ry="17" transform="rotate(35)"></ellipse>
-<ellipse cx="0" cy="-9" fill="#c4b4dc" rx="7" ry="17" transform="rotate(75)"></ellipse>
-<ellipse cx="0" cy="-9" fill="#b8a5d2" rx="7" ry="17" transform="rotate(-75)"></ellipse>
-<circle cx="0" cy="0" fill="#d3a56e" r="4"></circle>
-</g>
-<g fill="#c6a06d" opacity=".8">
-<circle cx="154" cy="31" r="2.5"></circle><circle cx="174" cy="53" r="2"></circle>
-<circle cx="112" cy="18" r="2"></circle><circle cx="72" cy="12" r="2.5"></circle>
-</g>
-<path d="M116 8 C136 17 153 19 171 15" fill="none" stroke="#91A77A" stroke-width="1.2"></path>
-<path d="M172 15 C182 4 192 5 199 14 C188 13 181 18 176 25" fill="none" stroke="#91A77A" stroke-width="1.2"></path>
-</svg>
-<!-- Floral upper-right decoration + gold bow -->
-<svg aria-hidden="true" class="page2-floral-art page2-floral-tr" viewbox="0 0 195 180">
-<path d="M18 13 H176" opacity=".8" stroke="#B88D62" stroke-width="1.2"></path>
-<path d="M137 25 C155 6 178 6 188 21 C173 19 159 25 151 38" fill="none" stroke="#B88D62" stroke-width="2"></path>
-<path d="M137 25 C154 42 176 41 188 26 C172 28 158 23 151 12" fill="none" stroke="#B88D62" stroke-width="2"></path>
-<path d="M151 38 C151 67 164 87 174 102" fill="none" stroke="#B88D62" stroke-width="1.5"></path>
-<path d="M151 38 C141 66 145 89 137 111" fill="none" stroke="#B88D62" stroke-width="1.2"></path>
-<g transform="translate(47 39)">
-<circle cx="0" cy="0" fill="#fff9f7" r="21" stroke="#d6a6b3"></circle>
-<circle cx="-11" cy="0" fill="#f1d6dc" r="11"></circle>
-<circle cx="11" cy="0" fill="#fffdfb" r="11"></circle>
-<circle cx="0" cy="-11" fill="#f6e4e7" r="11"></circle>
-<circle cx="0" cy="11" fill="#eccbd4" r="11"></circle>
-<circle cx="0" cy="0" fill="#c39a68" r="5"></circle>
-</g>
-<path d="M30 77 C51 65 72 71 88 88" fill="none" stroke="#91A77A" stroke-width="1.3"></path>
-<path d="M88 88 C105 74 118 72 130 79" fill="none" stroke="#91A77A" stroke-width="1.3"></path>
-<g fill="#a993c4">
-<circle cx="101" cy="69" r="4"></circle><circle cx="111" cy="65" r="3.5"></circle>
-<circle cx="120" cy="70" r="3.5"></circle><circle cx="111" cy="76" r="3.5"></circle>
-</g>
-<path d="M164 113 C172 107 180 110 184 117" fill="none" stroke="#B88D62" stroke-width="1.2"></path>
-</svg>
-<!-- Lavender ribbon -->
-<svg aria-hidden="true" class="page2-floral-art page2-ribbon-bl" viewbox="0 0 175 225">
-<path d="M48 3 C38 39 50 77 69 110 C83 134 88 160 73 218" fill="none" opacity=".9" stroke="#b6a3d5" stroke-width="15"></path>
-<path d="M48 3 C42 39 54 76 72 108 C85 132 92 162 77 218" fill="none" opacity=".9" stroke="#e6ddf2" stroke-width="5"></path>
-<path d="M72 112 C49 102 26 106 8 122 C28 123 44 133 57 148 C52 130 58 119 72 112" fill="#a996ca" opacity=".9"></path>
-<path d="M78 154 C99 147 117 153 132 169 C111 166 97 173 86 186 C89 171 87 162 78 154" fill="#b7a4d3" opacity=".82"></path>
-<path d="M42 27 C26 17 13 21 5 34 C22 31 32 38 42 49" fill="none" stroke="#c7b4df" stroke-width="7"></path>
-</svg>
-<!-- Small butterfly -->
-<svg aria-hidden="true" class="page2-floral-art page2-butterfly-br" viewbox="0 0 130 110">
-<path d="M66 49 C86 25 105 31 108 50 C95 53 82 58 69 66" fill="#c7d7ed" opacity=".9" stroke="#91a7c6" stroke-width="1"></path>
-<path d="M61 49 C43 24 24 31 23 49 C37 53 49 59 61 67" fill="#d8c8ec" opacity=".9" stroke="#9c8dbd" stroke-width="1"></path>
-<path d="M66 60 C87 55 96 65 91 77 C81 75 73 72 66 68" fill="#b8cce7" opacity=".85" stroke="#91a7c6" stroke-width="1"></path>
-<path d="M60 60 C42 55 32 65 37 77 C47 75 54 72 61 68" fill="#c8b8df" opacity=".85" stroke="#9c8dbd" stroke-width="1"></path>
-<path d="M64 48 C61 58 61 69 64 79" fill="none" stroke="#7d6a79" stroke-width="2"></path>
-<path d="M63 49 C58 43 54 40 50 38 M66 49 C71 43 76 40 80 38" fill="none" stroke="#7d6a79" stroke-width="1"></path>
-<path d="M99 84 C111 75 119 79 122 88" fill="none" stroke="#c59f70" stroke-dasharray="3 4" stroke-width="1.2"></path>
-<path d="M122 88 C116 94 112 94 108 91" fill="none" stroke="#c59f70" stroke-width="1.2"></path>
-</svg>
-<div class="page2-18">18</div>
-<div class="page2-content">
-<div class="page2-crown">
-<i class="fa-solid fa-crown"></i>
-</div>
-<p class="page2-kicker">18th Birthday Debut Celebration</p>
-<h2 class="page2-greeting" id="invitation-greeting">
-                        Dear Guest,
-                    </h2>
-<p class="page2-script-message">
-                        You are warmly invited to celebrate Kylie Aianna Fulla's 18th Birthday Debut with us.
-                    </p>
-<div class="page2-ornament">
-<span>♡</span>
-</div>
-<div class="space-y-1">
-<p class="page2-honor-label">In Honor Of</p>
-<h3 class="page2-name">Kylie Aianna Fulla</h3>
-</div>
-</div>
-</div>
-<!-- Live Countdown Timer — same information, redesigned to match Page 2 -->
-<div class="page2-countdown rounded-[2rem] p-6 sm:p-8 shadow-xl mb-8 text-center relative overflow-hidden">
-<h4 class="page2-countdown-title text-3xl sm:text-4xl mb-1">Counting Down To The Magic</h4>
-<p class="page2-countdown-subtitle text-xs mb-6 uppercase tracking-wider font-semibold">Saturday, November 7, 2026 at 4:30 PM</p>
-<div class="grid grid-cols-4 gap-3 sm:gap-4 max-w-md mx-auto" id="countdown-container">
-<div class="page2-time-box rounded-2xl p-3">
-<span class="page2-time-number block font-serif-debut text-2xl sm:text-4xl font-bold" id="count-days">00</span>
-<span class="page2-time-label text-[10px] sm:text-xs uppercase tracking-widest font-semibold">Days</span>
-</div>
-<div class="page2-time-box rounded-2xl p-3">
-<span class="page2-time-number block font-serif-debut text-2xl sm:text-4xl font-bold" id="count-hours">00</span>
-<span class="page2-time-label text-[10px] sm:text-xs uppercase tracking-widest font-semibold">Hours</span>
-</div>
-<div class="page2-time-box rounded-2xl p-3">
-<span class="page2-time-number block font-serif-debut text-2xl sm:text-4xl font-bold" id="count-minutes">00</span>
-<span class="page2-time-label text-[10px] sm:text-xs uppercase tracking-widest font-semibold">Mins</span>
-</div>
-<div class="page2-time-box rounded-2xl p-3">
-<span class="page2-time-number block font-serif-debut text-2xl sm:text-4xl font-bold" id="count-seconds">00</span>
-<span class="page2-time-label text-[10px] sm:text-xs uppercase tracking-widest font-semibold">Secs</span>
-</div>
-</div>
-<div class="hidden font-serif-debut text-2xl sm:text-3xl text-[#9A4D65] font-bold py-4" id="countdown-ended-msg">
+                </form>
+            </div>
+        </section>
+
+        <section id="step-invitation" class="step-transition hidden">
+            <div class="debut-card rounded-3xl p-8 sm:p-12 text-center relative overflow-hidden border-2 border-blush-300 shadow-2xl mb-8">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-blush-100 flex items-center justify-center border border-blush-300 text-rosegold text-2xl shadow-inner">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+
+                <p class="text-xs uppercase tracking-widest text-rosegold font-bold mb-3">18th Birthday Debut Celebration</p>
+
+                <h2 id="invitation-greeting" class="font-serif-debut text-2xl sm:text-4xl font-bold text-blush-900 mb-4 leading-relaxed">
+                    Dear Guest,
+                </h2>
+
+                <p class="font-script text-3xl sm:text-4xl text-rosegold-dark mb-6">
+                    You are warmly invited to celebrate Kylie Fulla's 18th Birthday Debut with us.
+                </p>
+
+                <div class="w-24 h-0.5 bg-gradient-to-r from-transparent via-rosegold to-transparent mx-auto my-6"></div>
+
+                <div class="space-y-2">
+                    <p class="text-xs uppercase tracking-widest text-blush-600 font-bold">In Honor Of</p>
+                    <h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900">Kylie Fulla</h3>
+                </div>
+            </div>
+
+            <!-- Live Countdown Timer -->
+            <div class="bg-gradient-to-br from-blush-900 via-blush-800 to-rosegold-dark text-white rounded-3xl p-6 sm:p-8 shadow-2xl mb-8 text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-champagne via-blush-300 to-champagne"></div>
+                <h4 class="font-script text-3xl sm:text-4xl text-champagne mb-1">Counting Down To The Magic</h4>
+                <p class="text-xs text-blush-200 mb-6 uppercase tracking-wider font-semibold">Saturday, November 7, 2026 at 4:00 PM</p>
+
+                <div id="countdown-container" class="grid grid-cols-4 gap-3 sm:gap-4 max-w-md mx-auto">
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                        <span id="count-days" class="block font-serif-debut text-2xl sm:text-4xl font-bold text-champagne">00</span>
+                        <span class="text-[10px] sm:text-xs text-blush-200 uppercase tracking-widest font-semibold">Days</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                        <span id="count-hours" class="block font-serif-debut text-2xl sm:text-4xl font-bold text-champagne">00</span>
+                        <span class="text-[10px] sm:text-xs text-blush-200 uppercase tracking-widest font-semibold">Hours</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                        <span id="count-minutes" class="block font-serif-debut text-2xl sm:text-4xl font-bold text-champagne">00</span>
+                        <span class="text-[10px] sm:text-xs text-blush-200 uppercase tracking-widest font-semibold">Mins</span>
+                    </div>
+                    <div class="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/20">
+                        <span id="count-seconds" class="block font-serif-debut text-2xl sm:text-4xl font-bold text-champagne">00</span>
+                        <span class="text-[10px] sm:text-xs text-blush-200 uppercase tracking-widest font-semibold">Secs</span>
+                    </div>
+                </div>
+
+                <div id="countdown-ended-msg" class="hidden font-serif-debut text-2xl sm:text-3xl text-champagne font-bold py-4">
                     ✨ The Event Has Started! ✨
                 </div>
-</div>
-<div class="text-center">
-<button class="page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)">
-<span>View Event Details &amp; Schedule</span>
-<i class="fa-solid fa-arrow-right text-xs"></i>
-</button>
-</div>
-</section>
-<section class="step-transition hidden space-y-6" id="step-details">
-<div class="debut-card p-6 sm:p-8 rounded-3xl space-y-6">
-<div class="text-center mb-6">
-<span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
-<h3 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h3>
-</div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<!-- Date -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
-<div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-regular fa-calendar-check"></i>
-</div>
-<div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
-<p class="font-semibold text-blush-900 text-sm">November 7, 2026</p>
-<p class="text-xs text-blush-700 mt-0.5">Saturday</p>
-</div>
-</div>
-<!-- Time -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
-<div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-regular fa-clock"></i>
-</div>
-<div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
-<p class="font-semibold text-blush-900 text-sm">4:30 PM</p>
-<p class="text-xs text-blush-700 mt-0.5">Doors open at 4:00 PM</p>
-</div>
-</div>
-<!-- Venue -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
-<div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-solid fa-location-dot"></i>
-</div>
-<div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
-<a class="font-semibold text-blush-900 text-sm underline decoration-blush-300 underline-offset-2 hover:text-blush-700" href="https://www.google.com/maps/place/Tito%27s+Restaurant+Tondo/@14.6106759,120.9648302,17z/data=!3m1!4b1!4m6!3m5!1s0x3397cbe4edd4068f:0x56ebe0edd2cca682!8m2!3d14.6106759!4d120.9674105!16s%2Fg%2F11kj0d80_l?entry=ttu&amp;g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D" rel="noopener noreferrer" target="_blank">Tito's Restaurant</a>
-<p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila · Tap for Google Maps</p>
-</div>
-</div>
-<!-- Dress Code -->
-<div class="bg-sky-50/80 p-5 rounded-2xl border border-sky-200 flex items-start gap-4 shadow-sm">
-<div class="w-10 h-10 rounded-full bg-sky-100 flex items-center justify-center text-sky-600 text-lg shrink-0">
-<i class="fa-solid fa-shirt"></i>
-</div>
-<div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-sky-700 mb-1">Dress Code</h5>
-<p class="font-semibold text-sky-900 text-sm">Light Blue &amp; Purple</p>
-<p class="text-xs text-sky-700 mt-0.5">Party dress — Light Blue or Purple</p>
-</div>
-</div>
-</div>
-<div class="pt-4 border-t border-blush-200">
-<h4 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h4>
-<div class="grid grid-cols-3 gap-3 text-center">
-<button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('roses')" type="button">
-<div aria-label="Rose icon" class="mb-2 flex justify-center" role="img">
-<svg aria-hidden="true" class="w-8 h-8" viewbox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-<circle cx="32" cy="27" fill="#d85b78" opacity="0.18" r="16"></circle>
-<path d="M32 43c-7-6-15-10-15-19 0-6 5-10 10-8 3 1 5 4 5 4s2-3 5-4c5-2 10 2 10 8 0 9-8 13-15 19z" fill="#c75b76"></path>
-<path d="M32 21c-4-5-10-4-11 1 0 5 5 8 11 12 6-4 11-7 11-12-1-5-7-6-11-1z" fill="#a9435e"></path>
-<path d="M32 43c-2 7-7 11-13 14M32 43c2 7 7 11 13 14" fill="none" stroke="#6d9a62" stroke-linecap="round" stroke-width="3"></path>
-<path d="M20 51c-5-2-9-1-12 2 5 3 10 3 14 0M44 51c5-2 9-1 12 2-5 3-10 3-14 0" fill="#78a96d"></path>
-</svg>
-</div>
-<span class="block text-xs font-bold text-blush-900">18 Roses</span>
-<span class="text-[10px] text-blush-600">Grand Dance</span>
-</button>
-<button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('candles')" type="button">
-<i class="fa-solid fa-wand-magic-sparkles text-rosegold text-xl mb-2 block"></i>
-<span class="block text-xs font-bold text-blush-900">18 Candles</span>
-<span class="text-[10px] text-blush-600">Wishes &amp; Speeches</span>
-</button>
-<button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('gifts')" type="button">
-<i class="fa-solid fa-gift text-amber-600 text-xl mb-2 block"></i>
-<span class="block text-xs font-bold text-blush-900">18 Gifts</span>
-<span class="text-[10px] text-blush-600">Gifts &amp; Blessings</span>
-</button>
-</div>
-</div>
-</div>
-<div class="flex items-center justify-between gap-4">
-<button class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition" onclick="goToStep(2)">
-<i class="fa-solid fa-angle-left mr-1"></i> Back
+            </div>
+
+            <div class="text-center">
+                <button id="view-event-details-btn" onclick="goToStep(3)" 
+                    class="py-4 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm">
+                    <span>View Event Details & Schedule</span>
+                    <i class="fa-solid fa-arrow-right text-xs"></i>
                 </button>
-<button class="py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)">
-<span>Proceed to Confirm RSVP</span>
-<i class="fa-solid fa-check"></i>
-</button>
-</div>
-</section>
-<section class="step-transition hidden" id="step-rsvp">
-<div class="debut-card rounded-3xl p-6 sm:p-10 text-center border border-blush-300">
-<div class="mb-8">
-<span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
-<h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
-<p class="text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
-</div>
-<form class="space-y-6 max-w-lg mx-auto text-left" id="rsvp-form" onsubmit="handleRsvpSubmit(event)">
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90" id="opt-label-yes">
-<input class="accent-blush-600 w-4 h-4" name="attendance" onchange="toggleAttendingDetails(true)" required="" type="radio" value="Yes"/>
-<div>
-<span class="block font-semibold text-blush-900 text-sm">Yes, I'll be there 🌸</span>
-<span class="text-xs text-blush-600">Accepts with delight</span>
-</div>
-</label>
-<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90" id="opt-label-no">
-<input class="accent-blush-600 w-4 h-4" name="attendance" onchange="toggleAttendingDetails(false)" required="" type="radio" value="No"/>
-<div>
-<span class="block font-semibold text-blush-900 text-sm">Sorry, I can't attend 💌</span>
-<span class="text-xs text-blush-600">Sending love from afar</span>
-</div>
-</label>
-</div>
-<div class="hidden space-y-3 pt-4 border-t border-blush-200" id="attending-details">
-<div class="rounded-2xl bg-blush-50 border border-blush-200 p-4 text-center">
-<p class="text-sm font-semibold text-blush-900">1 person per registration</p>
-<p class="text-xs text-blush-600 mt-1">This RSVP is for you only.</p>
-</div>
-</div>
-<div class="flex items-center gap-3 pt-4">
-<button class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs" onclick="goToStep(3)" type="button">
+            </div>
+        </section>
+
+        <section id="step-details" class="step-transition hidden space-y-6">
+            <div class="debut-card p-6 sm:p-8 rounded-3xl space-y-6">
+                <div class="text-center mb-6">
+                    <span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
+                    <h3 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h3>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Date -->
+                    <div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+                        <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
+                            <i class="fa-regular fa-calendar-check"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
+                            <p class="font-semibold text-blush-900 text-sm">November 7, 2026</p>
+                            <p class="text-xs text-blush-700 mt-0.5">Saturday</p>
+                        </div>
+                    </div>
+
+                    <!-- Time -->
+                    <div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+                        <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
+                            <i class="fa-regular fa-clock"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
+                            <p class="font-semibold text-blush-900 text-sm">4:00 PM</p>
+                            <p class="text-xs text-blush-700 mt-0.5">Doors open at 3:30 PM</p>
+                        </div>
+                    </div>
+
+                    <!-- Venue -->
+                    <div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+                        <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </div>
+                        <div>
+                            <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
+                            <a href="https://www.google.com/maps/place/Tito%27s+Restaurant+Tondo/@14.6106759,120.9648302,17z/data=!3m1!4b1!4m6!3m5!1s0x3397cbe4edd4068f:0x56ebe0edd2cca682!8m2!3d14.6106759!4d120.9674105!16s%2Fg%2F11kj0d80_l?entry=ttu&g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D" target="_blank" rel="noopener noreferrer" class="font-semibold text-blush-900 text-sm underline decoration-blush-300 underline-offset-2 hover:text-blush-700">Tito's Restaurant</a>
+                            <p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila · Tap for Google Maps</p>
+                        </div>
+                    </div>
+
+                    <!-- Dress Code -->
+                    <div class="bg-white p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+                        <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
+                            <i class="fa-solid fa-shirt"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h5 class="text-xs uppercase font-bold tracking-wider text-blush-700 mb-1">Dress Code</h5>
+                            <p class="font-semibold text-blush-900 text-sm">Casual Attire</p>
+
+                            <div class="flex flex-wrap items-center gap-4 mt-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="w-7 h-7 rounded-full border shadow-sm inline-block" style="background-color:#FFFDD0; border-color:#D8C9A8;" aria-label="Cream"></span>
+                                    <span class="text-xs text-blush-700">Cream</span>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    <span class="w-7 h-7 rounded-full border shadow-sm inline-block" style="background-color:#E8DCC8; border-color:#CDBB9D;" aria-label="Beige"></span>
+                                    <span class="text-xs text-blush-700">Beige</span>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-blush-200">
+                    <h4 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h4>
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <button type="button" onclick="openMilestoneModal('roses')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
+                            <div class="mb-2 flex justify-center" aria-label="Rose icon" role="img">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" class="w-8 h-8" aria-hidden="true">
+                                    <circle cx="32" cy="27" r="16" fill="#d85b78" opacity="0.18"/>
+                                    <path d="M32 43c-7-6-15-10-15-19 0-6 5-10 10-8 3 1 5 4 5 4s2-3 5-4c5-2 10 2 10 8 0 9-8 13-15 19z" fill="#c75b76"/>
+                                    <path d="M32 21c-4-5-10-4-11 1 0 5 5 8 11 12 6-4 11-7 11-12-1-5-7-6-11-1z" fill="#a9435e"/>
+                                    <path d="M32 43c-2 7-7 11-13 14M32 43c2 7 7 11 13 14" fill="none" stroke="#6d9a62" stroke-width="3" stroke-linecap="round"/>
+                                    <path d="M20 51c-5-2-9-1-12 2 5 3 10 3 14 0M44 51c5-2 9-1 12 2-5 3-10 3-14 0" fill="#78a96d"/>
+                                </svg>
+                            </div>
+                            <span class="block text-xs font-bold text-blush-900">18 Roses</span>
+                            <span class="text-[10px] text-blush-600">Grand Dance</span>
+                        </button>
+                        <button type="button" onclick="openMilestoneModal('candles')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
+                            <i class="fa-solid fa-wand-magic-sparkles text-rosegold text-xl mb-2 block"></i>
+                            <span class="block text-xs font-bold text-blush-900">18 Candles</span>
+                            <span class="text-[10px] text-blush-600">Wishes &amp; Speeches</span>
+                        </button>
+                        <button type="button" onclick="openMilestoneModal('gifts')" class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300">
+                            <i class="fa-solid fa-gift text-amber-600 text-xl mb-2 block"></i>
+                            <span class="block text-xs font-bold text-blush-900">18 Gifts</span>
+                            <span class="text-[10px] text-blush-600">Gifts &amp; Blessings</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between gap-4">
+                <button onclick="goToStep(2)" class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition">
+                    <i class="fa-solid fa-angle-left mr-1"></i> Back
+                </button>
+                <button onclick="goToStep(4)" class="py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2">
+                    <span>Proceed to Confirm RSVP</span>
+                    <i class="fa-solid fa-check"></i>
+                </button>
+            </div>
+        </section>
+
+        <section id="step-rsvp" class="step-transition hidden">
+            <div class="debut-card rounded-3xl p-6 sm:p-10 text-center border border-blush-300">
+                <div class="mb-8">
+                    <span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
+                    <h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
+                    <p class="text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
+                </div>
+
+                <form id="rsvp-form" onsubmit="handleRsvpSubmit(event)" class="space-y-6 max-w-lg mx-auto text-left">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <label id="opt-label-yes" class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90">
+                            <input type="radio" name="attendance" value="Yes" required onchange="toggleAttendingDetails(true)" class="accent-blush-600 w-4 h-4">
+                            <div>
+                                <span class="block font-semibold text-blush-900 text-sm">Yes, I'll be there 🌸</span>
+                                <span class="text-xs text-blush-600">Accepts with delight</span>
+                            </div>
+                        </label>
+
+                        <label id="opt-label-no" class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90">
+                            <input type="radio" name="attendance" value="No" required onchange="toggleAttendingDetails(false)" class="accent-blush-600 w-4 h-4">
+                            <div>
+                                <span class="block font-semibold text-blush-900 text-sm">Sorry, I can't attend 💌</span>
+                                <span class="text-xs text-blush-600">Sending love from afar</span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div id="attending-details" class="hidden space-y-3 pt-4 border-t border-blush-200">
+                        <div class="rounded-2xl bg-blush-50 border border-blush-200 p-4 text-center">
+                            <p class="text-sm font-semibold text-blush-900">1 person per registration</p>
+                            <p class="text-xs text-blush-600 mt-1">This RSVP is for you only.</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3 pt-4">
+                        <button type="button" onclick="goToStep(3)" class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs">
                             Back
                         </button>
-<button class="flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm" type="submit">
+                        <button type="submit" class="flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm">
                             Confirm RSVP
                         </button>
-</div>
-</form>
-</div>
-</section>
-<section class="step-transition hidden" id="step-confirmation">
-<div class="debut-card rounded-3xl p-8 sm:p-12 text-center border-2 border-blush-300 max-w-xl mx-auto relative overflow-hidden shadow-2xl">
-<div class="w-20 h-20 bg-blush-100 rounded-full flex items-center justify-center text-rosegold text-3xl mx-auto mb-6 shadow-inner border border-blush-200">
-<i class="fa-solid fa-wand-magic-sparkles" id="confirm-icon"></i>
-</div>
-<h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mb-3" id="confirm-title">
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="step-confirmation" class="step-transition hidden">
+            <div class="debut-card rounded-3xl p-8 sm:p-12 text-center border-2 border-blush-300 max-w-xl mx-auto relative overflow-hidden shadow-2xl">
+                <div class="w-20 h-20 bg-blush-100 rounded-full flex items-center justify-center text-rosegold text-3xl mx-auto mb-6 shadow-inner border border-blush-200">
+                    <i id="confirm-icon" class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+
+                <h3 id="confirm-title" class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mb-3">
                     Thank You!
                 </h3>
-<p class="text-blush-800 text-base sm:text-lg mb-8 leading-relaxed font-script" id="confirm-message">
+
+                <p id="confirm-message" class="text-blush-800 text-base sm:text-lg mb-8 leading-relaxed font-script">
                     Your response has been registered.
                 </p>
-<div class="bg-white/80 rounded-2xl p-5 border border-blush-200 text-left mb-8 space-y-2 text-xs sm:text-sm" id="rsvp-summary-box">
-<p><span class="font-semibold text-blush-900">Registered Name:</span> <span class="text-blush-800" id="sum-name">-</span></p>
-<p><span class="font-semibold text-blush-900">Email:</span> <span class="text-blush-800" id="sum-email">-</span></p>
-<p><span class="font-semibold text-blush-900">RSVP Status:</span> <span class="px-2.5 py-0.5 rounded-full text-xs font-bold" id="sum-status">-</span></p>
-<p id="sum-guests-row"><span class="font-semibold text-blush-900">Party List:</span> <span class="text-blush-800" id="sum-guests-list">-</span></p>
-</div>
-<div class="bg-blush-50 rounded-2xl p-5 border border-blush-200 mb-6 hidden" id="confirmation-invitation-links">
-<p class="text-sm font-semibold text-blush-900 mb-1">Your Personal Invitation QR Code 💙</p>
-<p class="text-xs text-blush-700 mb-4">Save this QR code. You can tap, long-press, or right-click the QR image to save it, or use the button below.</p>
-<div class="flex flex-col items-center justify-center gap-4">
-<div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="confirmation-qr-wrap"></div>
-<p class="invitation-qr-caption max-w-sm">Scan this QR code anytime to open your personalized invitation, countdown, and event details.</p>
-<div class="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
-<button class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveConfirmationQRCode()" type="button">
-<i class="fa-solid fa-download mr-1"></i>Save My QR Code
-                            </button>
-<button class="w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition" onclick="openInvitationLink()" type="button">
-<i class="fa-solid fa-heart mr-1"></i>Open My Invitation
-                            </button>
-</div>
-</div>
-<p class="text-xs text-emerald-700 font-semibold mt-3" id="invitation-link-note"></p>
-</div>
-<div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-<button class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition" onclick="restartRegistrationLoop()">
-<i class="fa-solid fa-plus text-xs mr-1.5"></i> Register Another Guest
+
+                <div id="rsvp-summary-box" class="bg-white/80 rounded-2xl p-5 border border-blush-200 text-left mb-8 space-y-2 text-xs sm:text-sm">
+                    <p><span class="font-semibold text-blush-900">Registered Name:</span> <span id="sum-name" class="text-blush-800">-</span></p>
+                    <p><span class="font-semibold text-blush-900">Email:</span> <span id="sum-email" class="text-blush-800">-</span></p>
+                    <p><span class="font-semibold text-blush-900">RSVP Status:</span> <span id="sum-status" class="px-2.5 py-0.5 rounded-full text-xs font-bold">-</span></p>
+                    <p id="sum-guests-row"><span class="font-semibold text-blush-900">Party List:</span> <span id="sum-guests-list" class="text-blush-800">-</span></p>
+                </div>
+
+                <div id="confirmation-invitation-links" class="bg-blush-50 rounded-2xl p-5 border border-blush-200 mb-6 hidden">
+                    <p class="text-sm font-semibold text-blush-900 mb-1">Save Your Invitation 💙</p>
+                    <p class="text-xs text-blush-700 mb-4">Your RSVP is confirmed. Copy this personal link and save it so you can return later to see your invitation and countdown.</p>
+                    <div class="flex flex-col sm:flex-row items-center justify-center gap-2">
+                        <button type="button" onclick="copyInvitationLink()" class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-link mr-1"></i><span id="copy-link-label-confirm">Copy My Invitation Link</span>
+                        </button>
+                        <button type="button" onclick="openInvitationLink()" class="w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-heart mr-1"></i>Open My Invitation
+                        </button>
+                    </div>
+                    <p id="invitation-link-note" class="text-xs text-emerald-700 font-semibold mt-3"></p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                    <button onclick="goToStep(4)" class="w-full sm:w-auto py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition">
+                        <i class="fa-solid fa-pen text-xs mr-1.5"></i> Update Response
                     </button>
-</div>
-</div>
-</section>
-</main>
-<!-- Guest QR check-in scanner -->
-<div class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" id="qr-scanner-modal">
-<div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-blush-200">
-<div class="px-5 py-4 bg-blush-900 text-white flex items-center justify-between">
-<div>
-<div class="font-serif-debut font-bold text-lg">Guest Check-In</div>
-<div class="text-[11px] text-blush-100">Scan the guest's personal invitation QR code</div>
-</div>
-<button class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20" onclick="closeQrScanner()" type="button">
-<i class="fa-solid fa-xmark"></i>
-</button>
-</div>
-<div class="p-5">
-<div class="w-full overflow-hidden rounded-2xl border border-blush-200 bg-blush-50" id="qr-reader"></div>
-<div class="mt-4 text-center text-sm text-blush-800 font-medium" id="qr-scan-status">Point the camera at the guest's QR code.</div>
-<div class="hidden mt-4 rounded-2xl border p-4 text-center" id="qr-scan-result"></div>
-<button class="mt-4 w-full py-3 rounded-xl border border-blush-300 text-blush-800 hover:bg-blush-50 text-xs font-semibold" onclick="closeQrScanner()" type="button">
-                    Close Scanner
+                    <button onclick="restartRegistrationLoop()" class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition">
+                        <i class="fa-solid fa-plus text-xs mr-1.5"></i> Register Another Guest
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <div id="db-drawer" class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blush-300 shadow-2xl transition-transform duration-300 transform translate-y-full z-40 max-h-[80vh] flex flex-col">
+        <div class="px-6 py-4 bg-blush-900 text-white flex flex-wrap items-center justify-between gap-2 cursor-pointer" onclick="toggleDbDrawer()">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-crown text-champagne"></i>
+                <span class="font-serif-debut font-bold text-base sm:text-lg">Kylie's Debut - Host Database Console</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="event.stopPropagation(); exportCsv()" class="text-[11px] bg-blush-700 hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium">
+                    <i class="fa-solid fa-download mr-1"></i> Export CSV
                 </button>
-</div>
-</div>
-</div>
-<div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blush-300 shadow-2xl transition-transform duration-300 transform translate-y-full z-40 max-h-[80vh] flex flex-col" id="db-drawer">
-<div class="px-6 py-4 bg-blush-900 text-white flex flex-wrap items-center justify-between gap-2 cursor-pointer" onclick="toggleDbDrawer()">
-<div class="flex items-center gap-2">
-<i class="fa-solid fa-crown text-champagne"></i>
-<span class="font-serif-debut font-bold text-base sm:text-lg">Kylie's Debut - Host Database Console</span>
-</div>
-<div class="flex items-center gap-2">
-<button class="text-[11px] bg-blush-700 hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); exportCsv()">
-<i class="fa-solid fa-download mr-1"></i> Export CSV
+                <button class="text-blush-200 hover:text-white ml-2">
+                    <i id="drawer-toggle-icon" class="fa-solid fa-chevron-up"></i>
                 </button>
-<button class="text-[11px] bg-rosegold hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); openQrScanner()">
-<i class="fa-solid fa-qrcode mr-1"></i> Scan Guest QR
-                </button>
-<button class="text-blush-200 hover:text-white ml-2">
-<i class="fa-solid fa-chevron-up" id="drawer-toggle-icon"></i>
-</button>
-</div>
-</div>
-<div class="p-4 bg-blush-100/70 border-b border-blush-200 flex flex-wrap items-center justify-between gap-3 text-xs">
-<div class="flex items-center gap-2 flex-1 min-w-[200px]">
-<i class="fa-solid fa-magnifying-glass text-blush-500"></i>
-<input class="w-full px-3 py-1.5 rounded-xl border border-blush-300 focus:outline-none text-xs bg-white text-blush-900" id="db-search-input" oninput="renderDatabaseTable()" placeholder="Search guest name or email..." type="text"/>
-</div>
-<div class="flex items-center gap-2">
-<span class="text-blush-800 font-semibold">Filter:</span>
-<select class="px-3 py-1.5 rounded-xl border border-blush-300 text-xs bg-white text-blush-900 outline-none" id="db-filter-status" onchange="renderDatabaseTable()">
-<option value="ALL">All Responses</option>
-<option value="Confirmed">Confirmed Attending</option>
-<option value="Declined">Declined</option>
-<option value="Pending">Pending RSVP</option>
-</select>
-</div>
-</div>
-<div class="p-6 overflow-y-auto flex-grow bg-blush-50/50">
-<div class="overflow-x-auto">
-<table class="w-full text-left text-xs border-collapse">
-<thead>
-<tr class="bg-blush-100 text-blush-900 border-b border-blush-200">
-<th class="p-3 font-semibold">Guest ID</th>
-<th class="p-3 font-semibold">Name</th>
-<th class="p-3 font-semibold">Email</th>
-<th class="p-3 font-semibold">Party Count</th>
-<th class="p-3 font-semibold">Party Names</th>
-<th class="p-3 font-semibold">RSVP Status</th>
-<th class="p-3 font-semibold">Check-In</th>
-<th class="p-3 font-semibold">Registered At</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-blush-200 text-blush-800" id="db-table-body"></tbody>
-</table>
-</div>
-<div class="text-center py-8 text-blush-400 italic text-xs" id="db-empty-msg">
+            </div>
+        </div>
+
+        <div class="p-4 bg-blush-100/70 border-b border-blush-200 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+                <i class="fa-solid fa-magnifying-glass text-blush-500"></i>
+                <input type="text" id="db-search-input" oninput="renderDatabaseTable()" placeholder="Search guest name or email..." 
+                    class="w-full px-3 py-1.5 rounded-xl border border-blush-300 focus:outline-none text-xs bg-white text-blush-900">
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="text-blush-800 font-semibold">Filter:</span>
+                <select id="db-filter-status" onchange="renderDatabaseTable()" class="px-3 py-1.5 rounded-xl border border-blush-300 text-xs bg-white text-blush-900 outline-none">
+                    <option value="ALL">All Responses</option>
+                    <option value="Confirmed">Confirmed Attending</option>
+                    <option value="Declined">Declined</option>
+                    <option value="Pending">Pending RSVP</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="p-6 overflow-y-auto flex-grow bg-blush-50/50">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-blush-100 text-blush-900 border-b border-blush-200">
+                            <th class="p-3 font-semibold">Guest ID</th>
+                            <th class="p-3 font-semibold">Name</th>
+                            <th class="p-3 font-semibold">Email</th>
+                            <th class="p-3 font-semibold">Party Count</th>
+                            <th class="p-3 font-semibold">Party Names</th>
+                            <th class="p-3 font-semibold">RSVP Status</th>
+                            <th class="p-3 font-semibold">Registered At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="db-table-body" class="divide-y divide-blush-200 text-blush-800"></tbody>
+                </table>
+            </div>
+            <div id="db-empty-msg" class="text-center py-8 text-blush-400 italic text-xs">
                 No guest registrations recorded in Firestore yet.
             </div>
-</div>
-</div>
-<!-- Host Login Modal -->
-<div class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" id="admin-login-modal">
-<div class="debut-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative">
-<button class="absolute top-4 right-4 w-9 h-9 rounded-full bg-blush-100 text-blush-700 hover:bg-blush-200" onclick="closeAdminLogin()" type="button">
-<i class="fa-solid fa-xmark"></i>
-</button>
-<div class="text-center mb-6">
-<div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-xl">
-<i class="fa-solid fa-crown"></i>
-</div>
-<h3 class="font-serif-debut text-2xl font-bold text-blush-900">Host Login</h3>
-<p class="text-xs text-blush-700 mt-1">Sign in to view the private guest database.</p>
-</div>
-<form class="space-y-4" onsubmit="handleAdminLogin(event)">
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-email" placeholder="Host email" required="" type="email"/>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-password" placeholder="Password" required="" type="password"/>
-<p class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="admin-login-error"></p>
-<button class="w-full py-3.5 bg-gradient-to-r from-blush-700 to-rosegold text-white font-semibold rounded-2xl shadow-md text-sm" type="submit">
+        </div>
+    </div>
+
+    <!-- Host Login Modal -->
+    <div id="admin-login-modal" class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="debut-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative">
+            <button type="button" onclick="closeAdminLogin()" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-blush-100 text-blush-700 hover:bg-blush-200">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-xl">
+                    <i class="fa-solid fa-crown"></i>
+                </div>
+                <h3 class="font-serif-debut text-2xl font-bold text-blush-900">Host Login</h3>
+                <p class="text-xs text-blush-700 mt-1">Sign in to view the private guest database.</p>
+            </div>
+            <form onsubmit="handleAdminLogin(event)" class="space-y-4">
+                <input id="admin-email" type="email" required placeholder="Host email" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900">
+                <input id="admin-password" type="password" required placeholder="Password" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900">
+                <p id="admin-login-error" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3"></p>
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-blush-700 to-rosegold text-white font-semibold rounded-2xl shadow-md text-sm">
                     Sign In
                 </button>
-</form>
-</div>
-</div>
-<!-- Milestone Names Modal -->
-<div aria-labelledby="milestone-modal-title" aria-modal="true" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4" id="milestone-modal" role="dialog">
-<div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-blush-200 overflow-hidden">
-<div class="p-6 text-center border-b border-blush-100">
-<div class="text-3xl mb-2" id="milestone-modal-icon">🌹</div>
-<h3 class="font-serif-debut text-2xl font-bold text-blush-900" id="milestone-modal-title">18 Roses</h3>
-<p class="text-xs text-blush-600 mt-1" id="milestone-modal-subtitle">Grand Dance</p>
-</div>
-<div class="p-6 max-h-[55vh] overflow-y-auto" id="milestone-name-list">
-<p class="text-sm text-center text-blush-600">Names will be added here.</p>
-</div>
-<div class="px-6 pb-6">
-<button class="w-full py-3 rounded-2xl bg-blush-700 hover:bg-blush-800 text-white font-semibold text-sm transition" onclick="closeMilestoneModal()" type="button">Close</button>
-</div>
-</div>
-</div>
-<audio aria-label="Background music" id="bg-music" loop="" preload="auto">
-<source src="./kylie-soft-piano-strings.wav" type="audio/wav"/>
-</audio>
-<button aria-label="Mute background music" id="music-toggle" style="position:fixed;right:18px;bottom:18px;z-index:100; width:48px;height:48px;border-radius:999px;
-           border:1px solid rgba(184,143,99,.55);background:rgba(255,249,250,.94);color:#9A4D65;
-           box-shadow:0 8px 24px rgba(126,61,79,.22);cursor:pointer;font-size:17px;" title="Mute music" type="button">
-<i class="fa-solid fa-volume-high"></i>
-</button>
-<!-- Invitation Recovery Popup -->
-<div aria-labelledby="recovery-title" aria-modal="true" class="secret-modal-backdrop hidden" id="recovery-modal" role="dialog">
-<div class="secret-modal-card">
-<div class="secret-modal-content">
-<div class="secret-modal-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
-<h3 class="secret-modal-title" id="recovery-title">Recover My Invitation</h3>
-<div class="secret-modal-ornament">♡ ✦ ♡</div>
-<form class="space-y-4 text-left" id="recovery-form" onsubmit="handleRecovery(event)">
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-name">Full Name</label>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-name" placeholder="Name used during registration" required="" type="text"/>
-</div>
-<div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-email">Email Address</label>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" placeholder="Email used during registration" required="" type="email"/>
-</div>
-<p class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="recovery-error"></p>
-<button class="secret-modal-button" type="submit">Find My Invitation</button>
-<button class="w-full py-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition" onclick="closeRecoveryModal()" type="button">Cancel</button>
-</form>
-<div class="hidden" id="recovery-welcome">
-<p class="text-sm text-blush-700 mb-2">Welcome back,</p>
-<p class="font-serif-debut text-2xl font-bold text-blush-900 mb-3" id="recovery-welcome-name"></p>
-<p class="text-sm text-blush-700 leading-relaxed">Here is your personalized invitation.</p>
-</div>
-<div class="hidden mt-5" id="recovery-actions">
-<div class="flex flex-col items-center gap-3">
-<p class="text-xs font-semibold text-blush-900">Your Personal Invitation QR Code 💙</p>
-<div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="recovery-qr-wrap"></div>
-<p class="invitation-qr-caption text-center">Save this QR code to open your personalized invitation anytime. You can tap, long-press, or right-click the QR image to save it.</p>
-<button class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveRecoveredQRCode()" type="button">
-<i class="fa-solid fa-download mr-1"></i> Save My QR Code
-                        </button>
-<button class="secret-modal-button w-full" onclick="openRecoveredInvitation()" type="button">
-<i class="fa-solid fa-heart mr-1"></i> View My Invitation
-                        </button>
-<p class="hidden text-xs text-emerald-700 font-semibold mt-1" id="recovery-link-status"></p>
-</div>
-<button class="w-full py-2 mt-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition" onclick="closeRecoveryModal()" type="button">Close</button>
-</div>
-</div>
-</div>
-</div>
-<!-- Surprise Reminder Popup -->
-<div aria-labelledby="secret-reminder-title" aria-modal="true" class="secret-modal-backdrop hidden" id="secret-reminder-modal" role="dialog">
-<div class="secret-modal-card">
-<svg aria-hidden="true" class="secret-modal-flower tl" viewbox="0 0 130 110">
-<path d="M8 10 C38 25 57 42 78 70" fill="none" opacity=".65" stroke="#B88D62" stroke-width="1.2"></path>
-<circle cx="28" cy="23" fill="#f8e7eb" r="18" stroke="#d5a3b1"></circle>
-<circle cx="17" cy="23" fill="#fffafa" r="9"></circle>
-<circle cx="39" cy="23" fill="#f1d1da" r="9"></circle>
-<circle cx="28" cy="12" fill="#fffdfb" r="9"></circle>
-<circle cx="28" cy="34" fill="#efd0d8" r="9"></circle>
-<circle cx="28" cy="23" fill="#c49a67" r="4"></circle>
-<path d="M70 30 C86 18 101 22 106 35 C93 34 84 39 76 49" fill="#c7b6dd" opacity=".9"></path>
-<path d="M76 49 C91 39 105 43 110 55 C97 53 87 58 79 66" fill="#b5a2d0" opacity=".85"></path>
-</svg>
-<svg aria-hidden="true" class="secret-modal-flower br" viewbox="0 0 130 110">
-<path d="M8 10 C38 25 57 42 78 70" fill="none" opacity=".65" stroke="#B88D62" stroke-width="1.2"></path>
-<circle cx="28" cy="23" fill="#f8e7eb" r="18" stroke="#d5a3b1"></circle>
-<circle cx="17" cy="23" fill="#fffafa" r="9"></circle>
-<circle cx="39" cy="23" fill="#f1d1da" r="9"></circle>
-<circle cx="28" cy="12" fill="#fffdfb" r="9"></circle>
-<circle cx="28" cy="34" fill="#efd0d8" r="9"></circle>
-<circle cx="28" cy="23" fill="#c49a67" r="4"></circle>
-<path d="M70 30 C86 18 101 22 106 35 C93 34 84 39 76 49" fill="#c7b6dd" opacity=".9"></path>
-<path d="M76 49 C91 39 105 43 110 55 C97 53 87 58 79 66" fill="#b5a2d0" opacity=".85"></path>
-</svg>
-<div class="secret-modal-content">
-<div class="secret-modal-icon">
-<i class="fa-solid fa-lock"></i>
-</div>
-<h3 class="secret-modal-title" id="secret-reminder-title">A Note in Confidence</h3>
-<div class="secret-modal-ornament">♡ ✦ ♡</div>
-<p class="secret-modal-message">
-                    Please keep this invitation and the details of this celebration private.
-                    This is a surprise celebration for Kylie, and we kindly ask that you keep
-                    the occasion confidential so we can preserve the surprise.
-                </p>
-<button class="secret-modal-button" onclick="closeSecretReminder()" type="button">
-                    I Understand
-                </button>
-</div>
-</div>
-</div>
-<script src="./script.js" type="module"></script></body>
+            </form>
+        </div>
+    </div>
+
+    <!-- Milestone Names Modal -->
+    <div id="milestone-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/40 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="milestone-modal-title">
+        <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-blush-200 overflow-hidden">
+            <div class="p-6 text-center border-b border-blush-100">
+                <div id="milestone-modal-icon" class="text-3xl mb-2">🌹</div>
+                <h3 id="milestone-modal-title" class="font-serif-debut text-2xl font-bold text-blush-900">18 Roses</h3>
+                <p id="milestone-modal-subtitle" class="text-xs text-blush-600 mt-1">Grand Dance</p>
+            </div>
+            <div id="milestone-name-list" class="p-6 max-h-[55vh] overflow-y-auto">
+                <p class="text-sm text-center text-blush-600">Names will be added here.</p>
+            </div>
+            <div class="px-6 pb-6">
+                <button type="button" onclick="closeMilestoneModal()" class="w-full py-3 rounded-2xl bg-blush-700 hover:bg-blush-800 text-white font-semibold text-sm transition">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase configuration for the Kylie 18th RSVP project.
+        const firebaseConfig = {
+            apiKey: "AIzaSyCK96DUaagUyDjs3lFW4-q29RvgpVCrMBU",
+            authDomain: "kylie-18th-rsvp.firebaseapp.com",
+            projectId: "kylie-18th-rsvp",
+            storageBucket: "kylie-18th-rsvp.firebasestorage.app",
+            messagingSenderId: "438094249212",
+            appId: "1:438094249212:web:6d5e87fc29a8baa0b0ab79",
+            measurementId: "G-H8VWBJ4N03"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let guestDatabase = [];
+        let currentGuest = null;
+        let countdownInterval = null;
+        let adminSnapshotUnsubscribe = null;
+        let authReady = false;
+        let inviteMode = false;
+
+        const DEBUT_EVENT_CONFIG = {
+            celebrant: "Kylie Fulla",
+            dateStr: "November 7, 2026 16:00:00 GMT+0800",
+            venue: "Tito's Restaurant, 546 Concha St., Tondo, Manila",
+            dressCode: "Party Dress"
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === '1') {
+                const adminBtn = document.getElementById('admin-console-btn');
+                if (adminBtn) adminBtn.classList.remove('hidden');
+            }
+
+            startCountdownTimer();
+
+            try {
+                await signInAnonymously(auth);
+                authReady = true;
+                await loadInvitationFromLink();
+            } catch (err) {
+                console.error("Firebase anonymous sign-in failed:", err);
+                alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                if (!user) return;
+
+                // Only a non-anonymous host account may read the entire RSVP collection.
+                if (!user.isAnonymous) {
+                    startAdminListener();
+                    const drawer = document.getElementById('db-drawer');
+                    if (drawer) drawer.classList.remove('translate-y-full');
+                    const btn = document.getElementById('admin-console-btn');
+                    if (btn) {
+                        btn.classList.remove('hidden');
+                        btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold"></i><span class="hidden sm:inline">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>';
+                    }
+                }
+            });
+        });
+
+        async function saveGuestToCloud(guest, createInvitationLink = false) {
+            if (!guest || !guest.id) throw new Error('Missing guest record.');
+            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+
+            const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
+            const guestRef = doc(db, "rsvps", guest.id);
+            await setDoc(guestRef, guestToSave, { merge: true });
+
+            // Only create the permanent invitation link AFTER the guest confirms attendance.
+            if (createInvitationLink && guest.rsvpStatus === 'Confirmed') {
+                const inviteRef = doc(db, "invites", guest.id);
+                await setDoc(inviteRef, {
+                    name: guest.name,
+                    numGuests: guest.numGuests || 1,
+                    ownerUid: auth.currentUser.uid,
+                    rsvpStatus: 'Confirmed'
+                }, { merge: true });
+            }
+
+            currentGuest = guestToSave;
+        }
+
+        function startAdminListener() {
+            if (adminSnapshotUnsubscribe) adminSnapshotUnsubscribe();
+            const rsvpsRef = collection(db, "rsvps");
+            adminSnapshotUnsubscribe = onSnapshot(rsvpsRef, (snapshot) => {
+                guestDatabase = [];
+                snapshot.forEach((docSnap) => {
+                    guestDatabase.push({ id: docSnap.id, ...docSnap.data() });
+                });
+                renderDatabaseTable();
+            }, (error) => {
+                console.error("Private Firestore listener error:", error);
+                alert("Host database could not be loaded. Check Firestore Rules and your host account.");
+            });
+        }
+
+        window.handleAdminLogin = async function(e) {
+            e.preventDefault();
+            const email = document.getElementById('admin-email').value.trim();
+            const password = document.getElementById('admin-password').value;
+            const errorEl = document.getElementById('admin-login-error');
+            errorEl.classList.add('hidden');
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                closeAdminLogin();
+                startAdminListener();
+                toggleDbDrawer();
+            } catch (err) {
+                console.error('Host login failed:', err);
+                errorEl.textContent = 'Login failed. Check the email/password and make sure Email/Password Authentication is enabled in Firebase.';
+                errorEl.classList.remove('hidden');
+            }
+        };
+
+        window.closeAdminLogin = function() {
+            const modal = document.getElementById('admin-login-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.toggleDbDrawer = function() {
+            const user = auth.currentUser;
+            if (!user || user.isAnonymous) {
+                const modal = document.getElementById('admin-login-modal');
+                if (modal) modal.classList.remove('hidden');
+                return;
+            }
+
+            const drawer = document.getElementById('db-drawer');
+            const icon = document.getElementById('drawer-toggle-icon');
+            if (drawer.classList.contains('translate-y-full')) {
+                drawer.classList.remove('translate-y-full');
+                if (icon) icon.className = "fa-solid fa-chevron-down";
+            } else {
+                drawer.classList.add('translate-y-full');
+                if (icon) icon.className = "fa-solid fa-chevron-up";
+            }
+        };
+
+        // Countdown Timer Logic
+        function startCountdownTimer() {
+            const targetTime = new Date(DEBUT_EVENT_CONFIG.dateStr).getTime();
+
+            function updateTimer() {
+                const now = new Date().getTime();
+                const distance = targetTime - now;
+
+                const daysEl = document.getElementById('count-days');
+                const hoursEl = document.getElementById('count-hours');
+                const minsEl = document.getElementById('count-minutes');
+                const secsEl = document.getElementById('count-seconds');
+                const endedMsg = document.getElementById('countdown-ended-msg');
+                const countdownBox = document.getElementById('countdown-container');
+
+                if (distance < 0) {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    if (countdownBox) countdownBox.classList.add('hidden');
+                    if (endedMsg) endedMsg.classList.remove('hidden');
+                    return;
+                }
+
+                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                if (daysEl) daysEl.innerText = days.toString().padStart(2, '0');
+                if (hoursEl) hoursEl.innerText = hours.toString().padStart(2, '0');
+                if (minsEl) minsEl.innerText = minutes.toString().padStart(2, '0');
+                if (secsEl) secsEl.innerText = seconds.toString().padStart(2, '0');
+            }
+
+            updateTimer();
+            countdownInterval = setInterval(updateTimer, 1000);
+        }
+
+        // Navigation Steps Handler
+        window.goToStep = function(stepNum) {
+            // A saved invitation link is view-only. It must never reopen registration, details-to-RSVP, or RSVP.
+            if (inviteMode && stepNum !== 2) {
+                stepNum = 2;
+            }
+
+            const stepMap = {
+                1: 'step-registration',
+                2: 'step-invitation',
+                3: 'step-details',
+                4: 'step-rsvp',
+                5: 'step-confirmation'
+            };
+
+            Object.values(stepMap).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.add('hidden');
+            });
+
+            const targetId = stepMap[stepNum];
+            if (targetId) {
+                document.getElementById(targetId).classList.remove('hidden');
+            }
+
+            for (let i = 1; i <= 4; i++) {
+                const ind = document.getElementById(`ind-${i}`);
+                if (ind) {
+                    if (i === stepNum || (stepNum === 5 && i === 4)) {
+                        ind.className = "px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition";
+                    } else if (i < stepNum) {
+                        ind.className = "px-3 py-1 rounded-full bg-blush-200 text-blush-800 font-medium transition";
+                    } else {
+                        ind.className = "px-3 py-1 rounded-full text-blush-400 font-normal transition";
+                    }
+                }
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        // Form Handlers
+        // Add the final names here when the 18 Roses, 18 Candles, and 18 Gifts lists are confirmed.
+        const MILESTONE_NAMES = {
+            roses: [
+                'Jairus', 'Lance', 'JB', 'Orly', 'Tito Rodel', 'Ninong Joven',
+                'Ninong Ruel', 'Tito Amer', 'Tito Gboy', 'Tito Nhuno', 'Tito Jeff',
+                'Tito Charles', 'Tito Christ', 'Tito Junjun', 'Tito Mamang', 'Tatay Roger',
+                'Papa Oca', 'Daddy Randy'
+            ],
+            candles: [
+                'Erich', 'Mikay', 'Aiyzhen', 'Cahley', 'Jinky', 'Mary', 'Elaine', 'Ashley',
+                'Stefione', 'Marga', 'Louise', 'Ate Nica', 'Tita Len', 'Tita Shane',
+                'Tita Clarisa', 'Nanay Lourdes', 'Mama Salve', 'Sister Ayah & Amber'
+            ],
+            gifts: [
+                'Ninang Mara', 'Ninang Cha', 'Ninang Cindy', 'Ninang Kid', 'Ninang Racquel',
+                'Ninang Em', 'Ninong Joven', 'Mama Luz', 'Mama Engga', 'Ninang Ella',
+                'Tita Carmi', 'Tita Leigh Anne', 'Tito Jeff', 'Tito Charles', 'Tito Junjun',
+                'Tito Mamang', 'Tito Christ', 'Cousin Harley Quinn'
+            ]
+        };
+
+        const MILESTONE_INFO = {
+            roses: { title: '18 Roses', subtitle: 'Grand Dance', icon: '🌹' },
+            candles: { title: '18 Candles', subtitle: 'Wishes & Speeches', icon: '🕯️' },
+            gifts: { title: '18 Gifts', subtitle: 'Gifts & Blessings', icon: '🎁' }
+        };
+
+        window.openMilestoneModal = function(type) {
+            const info = MILESTONE_INFO[type];
+            if (!info) return;
+            const modal = document.getElementById('milestone-modal');
+            const list = document.getElementById('milestone-name-list');
+            document.getElementById('milestone-modal-icon').textContent = info.icon;
+            document.getElementById('milestone-modal-title').textContent = info.title;
+            document.getElementById('milestone-modal-subtitle').textContent = info.subtitle;
+            const names = MILESTONE_NAMES[type] || [];
+            if (names.length) {
+                list.innerHTML = names.map((name, index) => `
+                    <div class="flex items-center gap-3 py-2.5 border-b border-blush-100 last:border-0">
+                        <span class="w-7 h-7 rounded-full bg-blush-100 text-blush-700 text-xs font-bold flex items-center justify-center">${index + 1}</span>
+                        <span class="text-sm font-medium text-blush-900">${escapeHtml(name)}</span>
+                    </div>`).join('');
+            } else {
+                list.innerHTML = '<p class="text-sm text-center text-blush-600 py-4">Names will be added here once the list is confirmed.</p>';
+            }
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        };
+
+        window.closeMilestoneModal = function() {
+            const modal = document.getElementById('milestone-modal');
+            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') window.closeMilestoneModal();
+        });
+
+        window.handleRegistration = async function(e) {
+            e.preventDefault();
+            inviteMode = false;
+            const fullName = document.getElementById('reg-fullname').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const guestCount = 1;
+
+            if (!fullName || !email) return;
+
+            currentGuest = {
+                id: 'KYLIE-' + Math.floor(1000 + Math.random() * 9000),
+                name: fullName,
+                email: email,
+                numGuests: guestCount,
+                guestNames: [fullName],
+                rsvpStatus: 'Pending',
+                createdAt: new Date().toLocaleString()
+            };
+
+            try {
+                await saveGuestToCloud(currentGuest);
+                populateInvitationView();
+                window.goToStep(2);
+            } catch (err) {
+                console.error(err);
+                alert("We could not save your registration. Please try again.");
+            }
+        };
+
+        function getInvitationLink() {
+            if (!currentGuest || !currentGuest.id) return window.location.href;
+            return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(currentGuest.id);
+        }
+
+        window.copyInvitationLink = async function() {
+            const link = getInvitationLink();
+            try {
+                await navigator.clipboard.writeText(link);
+            } catch (err) {
+                const temp = document.createElement('textarea');
+                temp.value = link;
+                document.body.appendChild(temp);
+                temp.select();
+                document.execCommand('copy');
+                temp.remove();
+            }
+            const status = document.getElementById('copy-link-status');
+            if (status) {
+                status.classList.remove('hidden');
+                setTimeout(() => status.classList.add('hidden'), 2500);
+            }
+        };
+
+        window.openInvitationLink = function() {
+            window.open(getInvitationLink(), '_blank');
+        };
+
+        async function loadInvitationFromLink() {
+            const inviteId = new URLSearchParams(window.location.search).get('invite');
+            if (!inviteId) return false;
+            if (!auth.currentUser) return false;
+
+            try {
+                const inviteSnap = await getDoc(doc(db, "invites", inviteId));
+                if (!inviteSnap.exists()) {
+                    console.warn('Invitation link not found:', inviteId);
+                    return false;
+                }
+
+                const invite = inviteSnap.data();
+                if (!invite.name) return false;
+
+                // A saved invitation is for a guest who already confirmed attendance.
+                // Open it in VIEW-ONLY mode so the guest cannot register/RSVP again.
+                inviteMode = true;
+                currentGuest = {
+                    id: inviteId,
+                    name: invite.name,
+                    email: '',
+                    numGuests: invite.numGuests || 1,
+                    guestNames: [invite.name],
+                    rsvpStatus: 'Confirmed'
+                };
+
+                const eventDetailsBtn = document.getElementById('view-event-details-btn');
+                if (eventDetailsBtn) eventDetailsBtn.classList.add('hidden');
+
+                populateInvitationView();
+                window.goToStep(2);
+                return true;
+            } catch (err) {
+                console.error('Could not load invitation link:', err);
+                return false;
+            }
+        }
+
+        function populateInvitationView() {
+            if (!currentGuest) return;
+            const greeting = document.getElementById('invitation-greeting');
+            if (greeting) {
+                greeting.textContent = `Dear ${currentGuest.name},`;
+            }
+
+            currentGuest.numGuests = 1;
+            currentGuest.guestNames = [currentGuest.name];
+        }
+
+        window.toggleAttendingDetails = function(isAttending) {
+            const detailsBox = document.getElementById('attending-details');
+            const labelYes = document.getElementById('opt-label-yes');
+            const labelNo = document.getElementById('opt-label-no');
+
+            if (isAttending) {
+                detailsBox.classList.remove('hidden');
+                labelYes.classList.add('border-blush-600', 'bg-blush-50');
+                labelNo.classList.remove('border-blush-600', 'bg-blush-50');
+                if (currentGuest) window.generateGuestNameInputs(currentGuest.numGuests);
+            } else {
+                detailsBox.classList.add('hidden');
+                labelNo.classList.add('border-blush-600', 'bg-blush-50');
+                labelYes.classList.remove('border-blush-600', 'bg-blush-50');
+            }
+        };
+
+        window.generateGuestNameInputs = function(count) {
+            count = parseInt(count);
+            const container = document.getElementById('guest-names-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const existingNames = (currentGuest && currentGuest.guestNames) ? currentGuest.guestNames : [];
+
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2";
+                const val = existingNames[i] || (i === 0 && currentGuest ? currentGuest.name : '');
+
+                div.innerHTML = `
+                    <span class="text-xs text-blush-600 w-16 font-medium">Guest ${i + 1}:</span>
+                    <input type="text" name="guest_name_${i}" required value="${escapeHtml(val)}" placeholder="Full Name" 
+                        class="flex-1 px-3 py-2 rounded-xl border border-blush-300 focus:border-rosegold outline-none text-xs bg-white text-blush-900">
+                `;
+                container.appendChild(div);
+            }
+        };
+
+        window.handleRsvpSubmit = async function(e) {
+            e.preventDefault();
+            if (!currentGuest) return;
+
+            const form = e.target;
+            const attendance = form.attendance.value;
+
+            if (attendance === 'Yes') {
+                currentGuest.rsvpStatus = 'Confirmed';
+                const count = 1;
+                currentGuest.numGuests = 1;
+                currentGuest.guestNames = [currentGuest.name];
+
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 90,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        colors: ['#F8A8B9', '#B76E79', '#F7E7CE', '#E84E72']
+                    });
+                }
+            } else {
+                currentGuest.rsvpStatus = 'Declined';
+                currentGuest.guestNames = [];
+            }
+
+            try {
+                await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
+                showConfirmationView();
+                window.goToStep(5);
+            } catch (err) {
+                console.error(err);
+                alert("We could not save your RSVP. Please try again.");
+            }
+        };
+
+        function showConfirmationView() {
+            if (!currentGuest) return;
+
+            const titleEl = document.getElementById('confirm-title');
+            const msgEl = document.getElementById('confirm-message');
+            const iconEl = document.getElementById('confirm-icon');
+            const sumName = document.getElementById('sum-name');
+            const sumEmail = document.getElementById('sum-email');
+            const sumStatus = document.getElementById('sum-status');
+            const sumGuestsList = document.getElementById('sum-guests-list');
+            const sumGuestsRow = document.getElementById('sum-guests-row');
+            const invitationLinks = document.getElementById('confirmation-invitation-links');
+
+            sumName.textContent = currentGuest.name;
+            sumEmail.textContent = currentGuest.email;
+
+            if (currentGuest.rsvpStatus === 'Confirmed') {
+                invitationLinks.classList.remove('hidden');
+                titleEl.textContent = `Thank You, ${currentGuest.name}!`;
+                msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Fulla's 18th Birthday Debut with you.";
+                iconEl.className = "fa-solid fa-wand-magic-sparkles text-rosegold";
+
+                sumStatus.textContent = "ATTENDING";
+                sumStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
+
+                sumGuestsRow.classList.remove('hidden');
+                sumGuestsList.textContent = currentGuest.guestNames.join(', ') + ` (${currentGuest.numGuests} total)`;
+            } else {
+                invitationLinks.classList.add('hidden');
+                titleEl.textContent = `Thank you for letting us know, ${currentGuest.name}.`;
+                msgEl.textContent = "We will miss your presence, but send our warmest love and blessings to Kylie!";
+                iconEl.className = "fa-solid fa-heart-crack text-blush-600";
+
+                sumStatus.textContent = "DECLINED";
+                sumStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800";
+
+                sumGuestsRow.classList.add('hidden');
+            }
+        }
+
+        window.restartRegistrationLoop = function() {
+            inviteMode = false;
+            currentGuest = null;
+            document.getElementById('registration-form').reset();
+            document.getElementById('rsvp-form').reset();
+            window.goToStep(1);
+        };
+
+        // Render Database Table
+        window.renderDatabaseTable = function() {
+            const tbody = document.getElementById('db-table-body');
+            const emptyMsg = document.getElementById('db-empty-msg');
+            const badge = document.getElementById('guest-count-badge');
+            const searchVal = (document.getElementById('db-search-input')?.value || '').toLowerCase();
+            const filterStatus = document.getElementById('db-filter-status')?.value || 'ALL';
+
+            if (badge) badge.textContent = guestDatabase.length;
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let filtered = guestDatabase.filter(g => {
+                const matchesSearch = (g.name || '').toLowerCase().includes(searchVal) || (g.email || '').toLowerCase().includes(searchVal);
+                const matchesFilter = filterStatus === 'ALL' || g.rsvpStatus === filterStatus;
+                return matchesSearch && matchesFilter;
+            });
+
+            if (filtered.length === 0) {
+                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                return;
+            } else {
+                if (emptyMsg) emptyMsg.classList.add('hidden');
+            }
+
+            filtered.forEach((guest) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-blush-100/60 transition";
+
+                let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blush-100 text-amber-800">Pending</span>`;
+                if (guest.rsvpStatus === 'Confirmed') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">Confirmed</span>`;
+                } else if (guest.rsvpStatus === 'Declined') {
+                    statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">Declined</span>`;
+                }
+
+                const namesStr = guest.guestNames && guest.guestNames.length > 0 ? guest.guestNames.join(', ') : '-';
+
+                tr.innerHTML = `
+                    <td class="p-3 font-mono text-blush-600">${guest.id}</td>
+                    <td class="p-3 font-semibold text-blush-900">${escapeHtml(guest.name)}</td>
+                    <td class="p-3 text-blush-700">${escapeHtml(guest.email)}</td>
+                    <td class="p-3 font-medium">${guest.numGuests || 1}</td>
+                    <td class="p-3 text-blush-700 max-w-[150px] truncate" title="${escapeHtml(namesStr)}">${escapeHtml(namesStr)}</td>
+                    <td class="p-3">${statusBadge}</td>
+                    <td class="p-3 text-[10px] text-blush-600">${guest.createdAt || '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.exportCsv = function() {
+            if (guestDatabase.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,ID,Name,Email,PartyCount,GuestNames,RSVPStatus,RegisteredAt\n";
+            guestDatabase.forEach(g => {
+                const party = (g.guestNames || []).join('; ');
+                csvContent += `"${g.id}","${g.name}","${g.email}",${g.numGuests},"${party}","${g.rsvpStatus}","${g.createdAt || ''}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Kylie_18th_Debut_Guest_List.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
 </html>
