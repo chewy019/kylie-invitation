@@ -947,15 +947,6 @@
                 </div>
 
 
-                <div id="confirmation-secret-note" class="secret-note-box">
-                    <div class="secret-note-title">A Note in Confidence</div>
-                    <p class="secret-note-text">
-                        Please keep this invitation and the details of this celebration private.
-                        This is a surprise celebration for Kylie, and we kindly ask that you keep
-                        the occasion confidential so we can preserve the surprise.
-                    </p>
-                </div>
-
                 <div id="confirmation-invitation-links" class="bg-blush-50 rounded-2xl p-5 border border-blush-200 mb-6 hidden">
                     <p class="text-sm font-semibold text-blush-900 mb-1">Save Your Invitation 💙</p>
                     <p class="text-xs text-blush-700 mb-4">Your RSVP is confirmed. Copy this personal link and save it so you can return later to see your invitation and countdown.</p>
@@ -1430,7 +1421,10 @@
         };
 
 
-        // Elegant surprise reminder for saved invitation links.
+        // Controls whether the confirmation invitation links should appear only after the reminder is acknowledged.
+        window.revealInvitationLinksAfterReminder = false;
+
+        // Elegant surprise reminder for saved invitation links and RSVP confirmation.
         window.openSecretReminder = function() {
             const modal = document.getElementById('secret-reminder-modal');
             if (!modal) return;
@@ -1443,6 +1437,13 @@
             if (!modal) return;
             modal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
+
+            // After a successful RSVP, reveal the invitation-link buttons only now.
+            if (window.revealInvitationLinksAfterReminder) {
+                const links = document.getElementById('confirmation-invitation-links');
+                if (links) links.classList.remove('hidden');
+                window.revealInvitationLinksAfterReminder = false;
+            }
         };
 
         document.addEventListener('keydown', (e) => {
@@ -1574,6 +1575,8 @@
                 await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
                 showConfirmationView();
                 window.goToStep(5);
+                // Show the note first. The invitation-link buttons appear only after "I Understand".
+                setTimeout(() => openSecretReminder(), 250);
             } catch (err) {
                 console.error(err);
                 alert("We could not save your RSVP. Please try again.");
@@ -1597,7 +1600,9 @@
             sumEmail.textContent = currentGuest.email;
 
             if (currentGuest.rsvpStatus === 'Confirmed') {
-                invitationLinks.classList.remove('hidden');
+                // Keep the invitation-link buttons hidden until the private reminder is acknowledged.
+                invitationLinks.classList.add('hidden');
+                window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
                 msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Fulla's 18th Birthday Debut with you.";
                 iconEl.className = "fa-solid fa-wand-magic-sparkles text-rosegold";
@@ -1609,6 +1614,7 @@
                 sumGuestsList.textContent = currentGuest.guestNames.join(', ') + ` (${currentGuest.numGuests} total)`;
             } else {
                 invitationLinks.classList.add('hidden');
+                window.revealInvitationLinksAfterReminder = false;
                 titleEl.textContent = `Thank you for letting us know, ${currentGuest.name}.`;
                 msgEl.textContent = "We will miss your presence, but send our warmest love and blessings to Kylie!";
                 iconEl.className = "fa-solid fa-heart-crack text-blush-600";
