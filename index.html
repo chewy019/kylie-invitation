@@ -11,6 +11,9 @@
     <!-- Canvas Confetti Library for RSVP celebration burst -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
+    <!-- QR Code Generator for personal invitation QR codes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -548,6 +551,42 @@
             }
         }
 
+        .invitation-qr-wrap {
+            background: rgba(255,255,255,.96);
+            border: 1px solid rgba(248,168,185,.55);
+            border-radius: 22px;
+            padding: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 12px 30px -18px rgba(126,61,79,.35);
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .invitation-qr-wrap img {
+            display: block;
+            width: 240px;
+            height: 240px;
+            max-width: 72vw;
+            max-height: 72vw;
+            image-rendering: pixelated;
+            background: #fff;
+        }
+
+        .invitation-qr-caption {
+            color: #76505b;
+            font-family: "Cormorant Garamond", Georgia, serif;
+            font-size: .98rem;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 640px) {
+            .invitation-qr-wrap { padding: 14px; }
+            .invitation-qr-wrap img { width: 210px; height: 210px; }
+        }
+
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900 pb-16">
@@ -955,15 +994,19 @@
 
 
                 <div id="confirmation-invitation-links" class="bg-blush-50 rounded-2xl p-5 border border-blush-200 mb-6 hidden">
-                    <p class="text-sm font-semibold text-blush-900 mb-1">Save Your Invitation 💙</p>
-                    <p class="text-xs text-blush-700 mb-4">Your RSVP is confirmed. Copy this personal link and save it so you can return later to see your invitation and countdown.</p>
-                    <div class="flex flex-col sm:flex-row items-center justify-center gap-2">
-                        <button type="button" onclick="copyInvitationLink()" class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
-                            <i class="fa-solid fa-link mr-1"></i><span id="copy-link-label-confirm">Copy My Invitation Link</span>
-                        </button>
-                        <button type="button" onclick="openInvitationLink()" class="w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition">
-                            <i class="fa-solid fa-heart mr-1"></i>Open My Invitation
-                        </button>
+                    <p class="text-sm font-semibold text-blush-900 mb-1">Your Personal Invitation QR Code 💙</p>
+                    <p class="text-xs text-blush-700 mb-4">Save this QR code. You can tap, long-press, or right-click the QR image to save it, or use the button below.</p>
+                    <div class="flex flex-col items-center justify-center gap-4">
+                        <div class="invitation-qr-wrap" id="confirmation-qr-wrap" aria-label="Personal invitation QR code"></div>
+                        <p class="invitation-qr-caption max-w-sm">Scan this QR code anytime to open your personalized invitation, countdown, and event details.</p>
+                        <div class="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
+                            <button type="button" onclick="saveConfirmationQRCode()" class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
+                                <i class="fa-solid fa-download mr-1"></i>Save My QR Code
+                            </button>
+                            <button type="button" onclick="openInvitationLink()" class="w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition">
+                                <i class="fa-solid fa-heart mr-1"></i>Open My Invitation
+                            </button>
+                        </div>
                     </div>
                     <p id="invitation-link-note" class="text-xs text-emerald-700 font-semibold mt-3"></p>
                 </div>
@@ -1428,12 +1471,15 @@
             const welcome = document.getElementById('recovery-welcome');
             const form = document.getElementById('recovery-form');
             const actions = document.getElementById('recovery-actions');
+            const qrWrap = document.getElementById('recovery-qr-wrap');
             if (emailInput) emailInput.value = prefillEmail;
             if (nameInput) nameInput.value = prefillName;
             errorEl.classList.add('hidden');
             welcome.classList.add('hidden');
             form.classList.remove('hidden');
             actions.classList.add('hidden');
+            if (qrWrap) qrWrap.innerHTML = '';
+            window.recoveredInvite = null;
             modal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
         };
@@ -1467,6 +1513,7 @@
                 form.classList.add('hidden');
                 welcome.classList.remove('hidden');
                 actions.classList.remove('hidden');
+                renderInvitationQRCode('recovery-qr-wrap', invite.id);
             } catch (err) {
                 console.error('Invitation recovery failed:', err);
                 errorEl.textContent = 'We could not recover your invitation right now. Please try again.';
@@ -1474,23 +1521,13 @@
             }
         };
 
-        window.copyRecoveredInvitationLink = async function() {
+        window.saveRecoveredQRCode = async function() {
             if (!window.recoveredInvite) return;
             const inviteId = window.recoveredInvite.id;
-            const link = window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteId);
-            try {
-                await navigator.clipboard.writeText(link);
-            } catch (err) {
-                const temp = document.createElement('textarea');
-                temp.value = link;
-                document.body.appendChild(temp);
-                temp.select();
-                document.execCommand('copy');
-                temp.remove();
-            }
+            await saveQRCodeFromContainer('recovery-qr-wrap', 'Kylie-18th-Invitation-' + inviteId + '.png');
             const status = document.getElementById('recovery-link-status');
             if (status) {
-                status.textContent = 'Invitation link copied successfully 💙';
+                status.textContent = 'Your invitation QR code has been saved 💙';
                 status.classList.remove('hidden');
                 setTimeout(() => status.classList.add('hidden'), 3000);
             }
@@ -1551,22 +1588,72 @@
             return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(currentGuest.id);
         }
 
-        window.copyInvitationLink = async function() {
-            const link = getInvitationLink();
-            try {
-                await navigator.clipboard.writeText(link);
-            } catch (err) {
-                const temp = document.createElement('textarea');
-                temp.value = link;
-                document.body.appendChild(temp);
-                temp.select();
-                document.execCommand('copy');
-                temp.remove();
-            }
-            const status = document.getElementById('copy-link-status');
+        function renderInvitationQRCode(containerId, inviteId) {
+            const container = document.getElementById(containerId);
+            if (!container || !inviteId || typeof QRCode === 'undefined') return false;
+
+            const link = window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteId);
+            container.innerHTML = '';
+
+            const qrHolder = document.createElement('div');
+            qrHolder.style.width = '240px';
+            qrHolder.style.height = '240px';
+            qrHolder.style.display = 'flex';
+            qrHolder.style.alignItems = 'center';
+            qrHolder.style.justifyContent = 'center';
+            container.appendChild(qrHolder);
+
+            new QRCode(qrHolder, {
+                text: link,
+                width: 240,
+                height: 240,
+                colorDark: '#4A2633',
+                colorLight: '#FFFFFF',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+
+            // Convert the generated canvas into a normal image so guests can
+            // long-press on mobile or right-click/save on desktop.
+            setTimeout(() => {
+                const canvas = qrHolder.querySelector('canvas');
+                if (canvas) {
+                    const img = document.createElement('img');
+                    img.src = canvas.toDataURL('image/png');
+                    img.alt = 'Personal invitation QR code';
+                    img.draggable = false;
+                    qrHolder.innerHTML = '';
+                    qrHolder.appendChild(img);
+                }
+            }, 60);
+
+            return true;
+        }
+
+        async function saveQRCodeFromContainer(containerId, fileName) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            const img = container.querySelector('img');
+            const canvas = container.querySelector('canvas');
+            let dataUrl = img && img.src ? img.src : null;
+
+            if (!dataUrl && canvas) dataUrl = canvas.toDataURL('image/png');
+            if (!dataUrl) return;
+
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = fileName || 'Kylie-18th-Invitation-QR.png';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        }
+
+        window.saveConfirmationQRCode = async function() {
+            if (!currentGuest || !currentGuest.id) return;
+            await saveQRCodeFromContainer('confirmation-qr-wrap', 'Kylie-18th-Invitation-' + currentGuest.id + '.png');
+            const status = document.getElementById('invitation-link-note');
             if (status) {
-                status.classList.remove('hidden');
-                setTimeout(() => status.classList.add('hidden'), 2500);
+                status.textContent = 'Your invitation QR code has been saved 💙';
+                setTimeout(() => { status.textContent = ''; }, 3000);
             }
         };
 
@@ -1575,7 +1662,7 @@
         };
 
 
-        // Controls whether the confirmation invitation links should appear only after the reminder is acknowledged.
+        // Controls whether the confirmation invitation QR section should appear only after the reminder is acknowledged.
         window.revealInvitationLinksAfterReminder = false;
 
         // Elegant surprise reminder for saved invitation links and RSVP confirmation.
@@ -1592,10 +1679,15 @@
             modal.classList.add('hidden');
             document.body.classList.remove('overflow-hidden');
 
-            // After a successful RSVP, reveal the invitation-link buttons only now.
+            // After a successful RSVP, reveal the invitation QR section only now.
             if (window.revealInvitationLinksAfterReminder) {
                 const links = document.getElementById('confirmation-invitation-links');
-                if (links) links.classList.remove('hidden');
+                if (links) {
+                    links.classList.remove('hidden');
+                    if (currentGuest && currentGuest.id) {
+                        renderInvitationQRCode('confirmation-qr-wrap', currentGuest.id);
+                    }
+                }
                 window.revealInvitationLinksAfterReminder = false;
             }
         };
@@ -1734,7 +1826,7 @@
             sumEmail.textContent = currentGuest.email;
 
             if (currentGuest.rsvpStatus === 'Confirmed') {
-                // Keep the invitation-link buttons hidden until the private reminder is acknowledged.
+                // Keep the invitation QR section hidden until the private reminder is acknowledged.
                 invitationLinks.classList.add('hidden');
                 window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
@@ -1938,12 +2030,15 @@
                 </div>
 
                 <div id="recovery-actions" class="hidden mt-5">
-                    <div class="flex flex-col gap-2">
-                        <button type="button" onclick="openRecoveredInvitation()" class="secret-modal-button">
-                            <i class="fa-solid fa-heart mr-1"></i> View My Invitation
+                    <div class="flex flex-col items-center gap-3">
+                        <p class="text-xs font-semibold text-blush-900">Your Personal Invitation QR Code 💙</p>
+                        <div class="invitation-qr-wrap" id="recovery-qr-wrap" aria-label="Personal invitation QR code"></div>
+                        <p class="invitation-qr-caption text-center">Save this QR code to open your personalized invitation anytime. You can tap, long-press, or right-click the QR image to save it.</p>
+                        <button type="button" onclick="saveRecoveredQRCode()" class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
+                            <i class="fa-solid fa-download mr-1"></i> Save My QR Code
                         </button>
-                        <button type="button" onclick="copyRecoveredInvitationLink()" class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition">
-                            <i class="fa-solid fa-link mr-1"></i> Copy My Invitation Link
+                        <button type="button" onclick="openRecoveredInvitation()" class="secret-modal-button w-full">
+                            <i class="fa-solid fa-heart mr-1"></i> View My Invitation
                         </button>
                         <p id="recovery-link-status" class="hidden text-xs text-emerald-700 font-semibold mt-1"></p>
                     </div>
