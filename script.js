@@ -28,7 +28,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             celebrant: "Kylie Aianna Fulla",
             dateStr: "November 7, 2026 16:30:00 GMT+0800",
             venue: "Tito's Restaurant, 546 Concha St., Tondo, Manila",
-            dressCode: "Party dress — Light Blue or Purple"
+            dressCode: "Casual Attire — Cream & Beige"
         };
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -55,8 +55,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 // Only a non-anonymous host account may read the entire RSVP collection.
                 if (!user.isAnonymous) {
                     startAdminListener();
-                    const drawer = document.getElementById('db-drawer');
-                    if (drawer) drawer.classList.remove('translate-y-full');
+                    openDbDrawer();
                     const btn = document.getElementById('admin-console-btn');
                     if (btn) {
                         btn.classList.remove('hidden');
@@ -116,7 +115,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 await signInWithEmailAndPassword(auth, email, password);
                 closeAdminLogin();
                 startAdminListener();
-                toggleDbDrawer();
+                openDbDrawer();
             } catch (err) {
                 console.error('Host login failed:', err);
                 errorEl.textContent = 'Login failed. Check the email/password and make sure Email/Password Authentication is enabled in Firebase.';
@@ -129,6 +128,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (modal) modal.classList.add('hidden');
         };
 
+        function openDbDrawer() {
+            const drawer = document.getElementById('db-drawer');
+            const icon = document.getElementById('drawer-toggle-icon');
+            if (drawer) drawer.classList.remove('translate-y-full');
+            if (icon) icon.className = "fa-solid fa-chevron-down";
+        }
+
         window.toggleDbDrawer = function() {
             const user = auth.currentUser;
             if (!user || user.isAnonymous) {
@@ -139,9 +145,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             const drawer = document.getElementById('db-drawer');
             const icon = document.getElementById('drawer-toggle-icon');
+            if (!drawer) return;
+
             if (drawer.classList.contains('translate-y-full')) {
-                drawer.classList.remove('translate-y-full');
-                if (icon) icon.className = "fa-solid fa-chevron-down";
+                openDbDrawer();
             } else {
                 drawer.classList.add('translate-y-full');
                 if (icon) icon.className = "fa-solid fa-chevron-up";
@@ -317,6 +324,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return match;
         }
 
+        async function findConfirmedInvitationByEmailAndName(email, name) {
+            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+            const emailLower = normalizeEmail(email);
+            const nameLower = normalizeName(name);
+            if (!emailLower || !nameLower) return null;
+
+            const invitesRef = collection(db, 'invites');
+            const snapshot = await getDocs(query(invitesRef, where('emailLower', '==', emailLower)));
+            let match = null;
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                if (!match && data.rsvpStatus === 'Confirmed' && normalizeName(data.name) === nameLower) {
+                    match = { id: docSnap.id, ...data };
+                }
+            });
+            return match;
+        }
+
         // A declined guest may register again using the same email + same name.
         // We reuse the original invitation ID instead of creating a second record.
         async function findDeclinedInvitationByEmailAndName(email, name) {
@@ -398,8 +423,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             errorEl.classList.add('hidden');
             try {
-                const invite = await findInvitationByEmail(email, true);
-                if (!invite || normalizeName(invite.name) !== normalizeName(name)) {
+                const ready = await waitForFirebaseAuth();
+                if (!ready) {
+                    errorEl.textContent = 'The RSVP connection is still loading. Please wait a moment and try again.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                const invite = await findConfirmedInvitationByEmailAndName(email, name);
+                if (!invite) {
                     errorEl.textContent = 'We could not find a confirmed invitation with those details.';
                     errorEl.classList.remove('hidden');
                     return;
@@ -467,12 +499,20 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const ready = await waitForFirebaseAuth();
                 if (!ready) {
                     alert('The RSVP connection is still loading. Please wait a moment and try again.');
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-70', 'cursor-wait');
+                    }
                     return false;
                 }
                 const existingInvite = await findInvitationByEmail(email, false);
                 if (existingInvite) {
                     alert('This email has already been registered. You can recover your invitation using your full name and email.');
                     openRecoveryModal(email, fullName);
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-70', 'cursor-wait');
+                    }
                     return;
                 }
 
@@ -492,11 +532,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     await saveGuestToCloud(currentGuest);
                     populateInvitationView();
                     window.goToStep(2);
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                        submitButton.classList.remove('opacity-70', 'cursor-wait');
+                    }
                     return;
                 }
             } catch (err) {
                 console.error('Could not check existing email:', err);
                 alert('We could not verify this email right now. Please try again.');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('opacity-70', 'cursor-wait');
+                }
                 return;
             }
 
@@ -684,33 +732,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 detailsBox.classList.remove('hidden');
                 labelYes.classList.add('border-blush-600', 'bg-blush-50');
                 labelNo.classList.remove('border-blush-600', 'bg-blush-50');
-                if (currentGuest) window.generateGuestNameInputs(currentGuest.numGuests);
             } else {
                 detailsBox.classList.add('hidden');
                 labelNo.classList.add('border-blush-600', 'bg-blush-50');
                 labelYes.classList.remove('border-blush-600', 'bg-blush-50');
-            }
-        };
-
-        window.generateGuestNameInputs = function(count) {
-            count = parseInt(count);
-            const container = document.getElementById('guest-names-container');
-            if (!container) return;
-            container.innerHTML = '';
-
-            const existingNames = (currentGuest && currentGuest.guestNames) ? currentGuest.guestNames : [];
-
-            for (let i = 0; i < count; i++) {
-                const div = document.createElement('div');
-                div.className = "flex items-center gap-2";
-                const val = existingNames[i] || (i === 0 && currentGuest ? currentGuest.name : '');
-
-                div.innerHTML = `
-                    <span class="text-xs text-blush-600 w-16 font-medium">Guest ${i + 1}:</span>
-                    <input type="text" name="guest_name_${i}" required value="${escapeHtml(val)}" placeholder="Full Name" 
-                        class="flex-1 px-3 py-2 rounded-xl border border-blush-300 focus:border-rosegold outline-none text-xs bg-white text-blush-900">
-                `;
-                container.appendChild(div);
             }
         };
 
