@@ -225,16 +225,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         // Keep this list in the order chosen for the slideshow.
         const DEBUT_PHOTO_SLIDES = [
-            { src: './photos/memory-01.png', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
-            { src: './photos/memory-02.png', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
-            { src: './photos/memory-03.png', alt: 'Young Kylie holding an ice cream', caption: 'A playful childhood moment' },
-            { src: './photos/memory-04.png', alt: 'Young Kylie in a red dress on a turquoise couch', caption: 'A favorite childhood photo' },
-            { src: './photos/memory-05.png', alt: 'Young Kylie wearing a pink polka dot shirt', caption: 'Growing up with a smile' },
-            { src: './photos/memory-06.png', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
-            { src: './photos/memory-07.jpg', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
-            { src: './photos/memory-08.jpg', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
-            { src: './photos/memory-09.jpg', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
-            { src: './photos/memory-10.jpg', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
+            { src: './photos/memory-01.png', webp: './photos/optimized/memory-01.webp', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
+            { src: './photos/memory-02.png', webp: './photos/optimized/memory-02.webp', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
+            { src: './photos/memory-03.png', webp: './photos/optimized/memory-03.webp', alt: 'Young Kylie holding an ice cream', caption: 'A playful childhood moment' },
+            { src: './photos/memory-04.png', webp: './photos/optimized/memory-04.webp', alt: 'Young Kylie in a red dress on a turquoise couch', caption: 'A favorite childhood photo' },
+            { src: './photos/memory-05.png', webp: './photos/optimized/memory-05.webp', alt: 'Young Kylie wearing a pink polka dot shirt', caption: 'Growing up with a smile' },
+            { src: './photos/memory-06.png', webp: './photos/optimized/memory-06.webp', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
+            { src: './photos/memory-07.jpg', webp: './photos/optimized/memory-07.webp', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
+            { src: './photos/memory-08.jpg', webp: './photos/optimized/memory-08.webp', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
+            { src: './photos/memory-09.jpg', webp: './photos/optimized/memory-09.webp', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
+            { src: './photos/memory-10.jpg', webp: './photos/optimized/memory-10.webp', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
         ];
         let photoSlideIndex = 0;
         let photoSlideTimer = null;
@@ -289,6 +289,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
             if (slides.length === 0) return;
+            const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
             placeholder.classList.add('hidden');
             viewport.classList.remove('hidden');
@@ -296,7 +297,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             slides.forEach((slide, index) => {
                 const figure = document.createElement('figure');
-                figure.className = 'page2-slideshow-slide';
+                figure.className = 'page2-slideshow-slide is-loading';
                 figure.setAttribute('aria-roledescription', 'slide');
                 figure.setAttribute('aria-label', `Photo ${index + 1} of ${slides.length}`);
 
@@ -306,13 +307,30 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 image.decoding = 'async';
                 image.dataset.src = slide.src;
                 image.draggable = false;
+                const webpSource = document.createElement('source');
+                webpSource.type = 'image/webp';
+                webpSource.dataset.srcset = slide.webp || '';
+                const picture = document.createElement('picture');
+                if (slide.webp) picture.appendChild(webpSource);
+                image.addEventListener('load', () => {
+                    figure.classList.remove('is-loading');
+                }, { once: true });
                 image.addEventListener('error', () => {
+                    if (webpSource.hasAttribute('srcset') && image.dataset.originalFallback !== 'true') {
+                        image.dataset.originalFallback = 'true';
+                        webpSource.removeAttribute('srcset');
+                        image.removeAttribute('src');
+                        image.src = image.dataset.src;
+                        return;
+                    }
+                    figure.classList.remove('is-loading');
                     const fallback = document.createElement('div');
                     fallback.className = 'page2-slideshow-image-error';
                     fallback.textContent = 'This photo is unavailable right now.';
                     image.replaceWith(fallback);
-                }, { once: true });
-                figure.appendChild(image);
+                });
+                picture.appendChild(image);
+                figure.appendChild(picture);
                 track.appendChild(figure);
             });
 
@@ -322,22 +340,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 if (!image || image.hasAttribute('src')) return;
                 image.loading = 'eager';
                 image.fetchPriority = slideIndex === photoSlideIndex ? 'high' : 'low';
+                const webpSource = image.parentElement?.querySelector('source[type="image/webp"]');
+                if (webpSource?.dataset.srcset) webpSource.srcset = webpSource.dataset.srcset;
                 image.src = image.dataset.src;
             }
 
-            function showPhotoSlide(index, announce = false) {
+            function showPhotoSlide(index, announce = false, loadImages = true) {
                 photoSlideIndex = (index + slides.length) % slides.length;
-                preloadPhotoSlide(photoSlideIndex);
-                if (slides.length > 1) {
-                    preloadPhotoSlide(photoSlideIndex + 1);
-                    preloadPhotoSlide(photoSlideIndex - 1);
+                if (loadImages) {
+                    preloadPhotoSlide(photoSlideIndex);
+                    if (slides.length > 1) {
+                        preloadPhotoSlide(photoSlideIndex + 1);
+                        preloadPhotoSlide(photoSlideIndex - 1);
+                    }
                 }
                 Array.from(track.children).forEach((slide, slideIndex) => {
                     slide.setAttribute('aria-hidden', slideIndex === photoSlideIndex ? 'false' : 'true');
                 });
                 const slideCaption = slides[photoSlideIndex].caption || '';
+                const captionChanged = caption.textContent !== slideCaption;
                 counter.textContent = `${photoSlideIndex + 1} / ${slides.length}`;
                 caption.textContent = slideCaption;
+                if (captionChanged && !reducedMotionQuery.matches) {
+                    caption.classList.remove('slide-caption-enter');
+                    void caption.offsetWidth;
+                    caption.classList.add('slide-caption-enter');
+                }
                 if (announce && slideshowStatus) {
                     slideshowStatus.textContent = `Photo ${photoSlideIndex + 1} of ${slides.length}${slideCaption ? `: ${slideCaption}` : ''}`;
                 }
@@ -352,14 +380,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 if (photoSlideTimer) clearTimeout(photoSlideTimer);
                 photoSlideTimer = null;
                 if (slides.length > 1 && photoSlideshowActive
-                    && document.visibilityState !== 'hidden') {
+                    && document.visibilityState !== 'hidden'
+                    && !reducedMotionQuery.matches) {
                     const advanceWhenReady = () => {
                         if (!photoSlideshowActive || document.visibilityState === 'hidden') return;
 
                         const nextIndex = (photoSlideIndex + 1) % slides.length;
                         const nextImage = track.children[nextIndex]?.querySelector('img');
                         if (nextImage && !nextImage.complete) {
-                            photoSlideTimer = window.setTimeout(advanceWhenReady, 120);
+                            // Back off while a slow mobile connection finishes the next photo.
+                            photoSlideTimer = window.setTimeout(advanceWhenReady, 500);
                             return;
                         }
 
@@ -372,7 +402,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             window.setPhotoSlideshowActive = function(isActive) {
-                photoSlideshowActive = Boolean(isActive);
+                const shouldActivate = Boolean(isActive);
+                if (shouldActivate && !photoSlideshowActive) {
+                    showPhotoSlide(photoSlideIndex);
+                }
+                photoSlideshowActive = shouldActivate;
                 restartPhotoSlideTimer();
             };
 
@@ -380,6 +414,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             // from the back-forward cache. Re-arm autoplay when the page becomes visible.
             document.addEventListener('visibilitychange', restartPhotoSlideTimer);
             window.addEventListener('pageshow', restartPhotoSlideTimer);
+            if (typeof reducedMotionQuery.addEventListener === 'function') {
+                reducedMotionQuery.addEventListener('change', restartPhotoSlideTimer);
+            } else if (typeof reducedMotionQuery.addListener === 'function') {
+                reducedMotionQuery.addListener(restartPhotoSlideTimer);
+            }
 
             let pointerStart = null;
             viewport.addEventListener('pointerdown', (event) => {
@@ -406,7 +445,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }
             });
 
-            showPhotoSlide(0);
+            // Keep the photos out of the initial registration-page network requests.
+            showPhotoSlide(0, false, false);
             restartPhotoSlideTimer();
         }
 
@@ -652,7 +692,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const btn = document.getElementById('admin-console-btn');
                 if (btn) {
                     btn.classList.remove('hidden');
-                    btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold"></i><span class="hidden sm:inline">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>';
+                    btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold" aria-hidden="true"></i><span class="guest-records-label">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" aria-hidden="true">0</span>';
                 }
             });
         });
@@ -785,7 +825,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 innerToggle.setAttribute('aria-expanded', String(isOpen));
                 innerToggle.setAttribute('aria-label', isOpen ? 'Close guest database' : 'Open guest database');
             }
-            if (outerToggle) outerToggle.setAttribute('aria-expanded', String(isOpen));
+            if (outerToggle) {
+                outerToggle.setAttribute('aria-expanded', String(isOpen));
+                outerToggle.setAttribute('aria-label', isOpen ? 'Close guest database' : 'Open guest database');
+            }
         }
 
         function openDbDrawer() {
@@ -1819,7 +1862,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             qrScannerLibraryPromise = new Promise((resolve, reject) => {
                 const script = document.createElement('script');
-                script.src = 'https://unpkg.com/html5-qrcode';
+                // Pin the scanner release so a CDN's moving "latest" alias cannot change behavior.
+                script.src = 'https://unpkg.com/html5-qrcode@2.3.8';
                 script.async = true;
                 script.onload = () => {
                     if (typeof Html5Qrcode !== 'undefined') resolve();

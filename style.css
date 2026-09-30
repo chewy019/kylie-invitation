@@ -15,6 +15,7 @@
             font-family: 'Montserrat', sans-serif;
             min-height: 100vh;
             min-height: 100dvh;
+            padding-bottom: env(safe-area-inset-bottom, 0px);
             background-color: #FFF5F7;
             color: #4A2E35;
             background-image: 
@@ -22,10 +23,6 @@
                 radial-gradient(#F8A8B9 0.8px, #FFF5F7 0.8px);
             background-size: 32px 32px;
             background-position: 0 0, 16px 16px;
-        }
-
-        body.pb-16 {
-            padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
         }
 
         .font-script {
@@ -454,6 +451,7 @@
 
         .page2-slideshow-slide {
             grid-area: 1 / 1;
+            position: relative;
             width: 100%;
             aspect-ratio: 3 / 4;
             margin: 0;
@@ -462,6 +460,25 @@
             pointer-events: none;
             transition: opacity .45s ease, transform .45s cubic-bezier(.22,.7,.25,1);
             background: linear-gradient(135deg, #fff7f7, #f1e4ef);
+        }
+
+        .page2-slideshow-slide.is-loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            border: 3px solid rgba(169, 79, 112, .2);
+            border-top-color: #A94F70;
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            animation: slideshowPhotoLoading .8s linear infinite;
+        }
+
+        @keyframes slideshowPhotoLoading {
+            to { transform: translate(-50%, -50%) rotate(360deg); }
         }
 
         .page2-slideshow-slide[aria-hidden="false"] {
@@ -477,6 +494,12 @@
             height: 100%;
             object-fit: cover;
             pointer-events: none;
+        }
+
+        .page2-slideshow-slide picture {
+            display: block;
+            width: 100%;
+            height: 100%;
         }
 
         .page2-slideshow-image-error {
@@ -526,6 +549,17 @@
             margin: 3px 0 0;
             color: #87545E;
             font: italic .98rem "Cormorant Garamond", Georgia, serif;
+            line-height: 1.3;
+            text-wrap: balance;
+        }
+
+        @keyframes slideshowCaptionEnter {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .page2-slideshow-caption.slide-caption-enter {
+            animation: slideshowCaptionEnter .28s ease-out both;
         }
 
         .page2-slideshow-status {
@@ -545,10 +579,13 @@
             .page2-slideshow-placeholder { min-height: 215px; padding: 28px 16px; }
             .page2-slideshow-slide { aspect-ratio: 3 / 4; }
             .page2-slideshow-image-error { min-height: 160px; }
+            .page2-slideshow-caption { min-height: 2.6em; }
         }
 
         @media (prefers-reduced-motion: reduce) {
             .page2-slideshow-slide { transition: none; }
+            .page2-slideshow-slide.is-loading::after { animation: none; }
+            .page2-slideshow-caption.slide-caption-enter { animation: none; }
         }
 
         .page2-countdown {
@@ -1020,6 +1057,28 @@
 /* Keep page and dialog switching reliable if the Tailwind CDN is unavailable. */
 .hidden { display: none !important; }
 .overflow-hidden { overflow: hidden !important; }
+
+/* Restore the responsive header labels even though .hidden is kept important
+   as a fallback for the site's dynamic step and dialog visibility. */
+.grand-debut-badge,
+.guest-records-label {
+    display: none !important;
+}
+
+@media (min-width: 640px) {
+    .grand-debut-badge { display: inline-block !important; }
+    .guest-records-label { display: inline !important; }
+}
+
+@media (min-width: 1024px) {
+    #step-indicator:not(.invitation-view-progress-hidden) {
+        display: flex !important;
+    }
+
+    #mobile-step-progress {
+        display: none !important;
+    }
+}
 
 /* Backgrounds */
 .bg-blush-50{background-color:var(--blush-50)!important}
@@ -1948,6 +2007,29 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     min-height: 44px;
 }
 
+.music-toggle-button {
+    display: inline-grid;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(184, 143, 99, .55);
+    border-radius: 50%;
+    background: rgba(255, 249, 250, .94);
+    color: #9A4D65;
+    box-shadow: 0 5px 14px rgba(126, 61, 79, .14);
+    cursor: pointer;
+    font-size: 16px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .music-toggle-button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(126, 61, 79, .2);
+    }
+}
+
 #drawer-toggle-btn {
     min-width: 44px;
 }
@@ -2040,6 +2122,12 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     overflow-wrap: anywhere;
 }
 
+/* Section headings receive programmatic focus after navigation. Keep the
+   screen-reader announcement without showing a browser outline on text. */
+:where(h1, h2, h3, [role="heading"])[tabindex="-1"]:focus {
+    outline: none;
+}
+
 .page2-script-message {
     max-width: 620px;
     color: #98556a;
@@ -2071,6 +2159,15 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     text-wrap: balance;
 }
 
+#confirm-title,
+#recovery-welcome-name,
+#sum-name,
+#sum-email,
+#sum-guests-list,
+#qr-scan-result {
+    overflow-wrap: anywhere;
+}
+
 .page2-floral-art {
     opacity: .82;
 }
@@ -2084,10 +2181,6 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     select,
     textarea {
         font-size: 16px !important;
-    }
-
-    body {
-        padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     .page2-slideshow-controls {
