@@ -185,82 +185,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 status.classList.toggle('is-error', isError);
                 status.classList.toggle('is-success', !isError);
             };
-            const escapeICalendarText = (value) => String(value)
-                .replace(/\\/g, '\\\\')
-                .replace(/\r?\n/g, '\\n')
-                .replace(/,/g, '\\,')
-                .replace(/;/g, '\\;');
-
             try {
                 const eventStart = new Date(DEBUT_EVENT_CONFIG.dateStr);
                 if (Number.isNaN(eventStart.getTime())) throw new Error('Invalid event date in DEBUT_EVENT_CONFIG.');
                 const eventEnd = new Date(eventStart.getTime() + DEBUT_EVENT_CONFIG.durationMinutes * 60 * 1000);
-                const toIcsUtc = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
-                const stamp = toIcsUtc(new Date());
                 const calendarTitle = `${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`;
                 const reminderAt = new Date(eventStart.getTime() - DEBUT_EVENT_CONFIG.reminderMinutes * 60 * 1000);
-                const reminderTime = new Intl.DateTimeFormat('en-US', {
+                const formatTime = (date) => new Intl.DateTimeFormat('en-US', {
                     hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
-                }).format(reminderAt);
-                const reminderNote = `Reminder window: ${reminderTime}–${new Intl.DateTimeFormat('en-US', {
-                    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
-                }).format(eventStart)}. The event begins at ${new Intl.DateTimeFormat('en-US', {
-                    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
-                }).format(eventStart)}. Set the calendar alert ${DEBUT_EVENT_CONFIG.reminderMinutes} minutes before the event.`;
+                }).format(date);
+                const reminderTime = formatTime(reminderAt);
+                const reminderNote = `Reminder window: ${reminderTime}–${formatTime(eventStart)}. The event begins at ${formatTime(eventStart)}. Set the calendar alert ${DEBUT_EVENT_CONFIG.reminderMinutes} minutes before the event.`;
                 const description = `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}. ${DEBUT_EVENT_CONFIG.dressCode}. ${reminderNote}`;
-                const calendarEvent = [
-                    'BEGIN:VCALENDAR',
-                    'VERSION:2.0',
-                    'PRODID:-//Kylie Aianna Fulla//18th Birthday Debut//EN',
-                    'CALSCALE:GREGORIAN',
-                    'METHOD:PUBLISH',
-                    'BEGIN:VEVENT',
-                    'UID:kylie-18th-debut@kylie-invitation',
-                    `DTSTAMP:${stamp}`,
-                    `DTSTART:${toIcsUtc(eventStart)}`,
-                    `DTEND:${toIcsUtc(eventEnd)}`,
-                    `SUMMARY:${escapeICalendarText(calendarTitle)}`,
-                    `LOCATION:${escapeICalendarText(DEBUT_EVENT_CONFIG.venue)}`,
-                    `DESCRIPTION:${escapeICalendarText(description)}`,
-                    'BEGIN:VALARM',
-                    `TRIGGER:-PT${DEBUT_EVENT_CONFIG.reminderMinutes}M`,
-                    'ACTION:DISPLAY',
-                    `DESCRIPTION:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s debut begins in ${DEBUT_EVENT_CONFIG.reminderMinutes} minutes. Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}.`)}`,
-                    'END:VALARM',
-                    'END:VEVENT',
-                    'END:VCALENDAR'
-                ].join('\r\n') + '\r\n';
-                // Share the actual calendar file so Messenger's in-app browser does not
-                // navigate to a blob URL and display the raw ICS text as a web page.
-                if (typeof File === 'function'
-                    && typeof navigator.share === 'function'
-                    && typeof navigator.canShare === 'function'
-                ) {
-                    const calendarFile = new File([calendarEvent], 'Kylie-18th-Birthday-Debut.ics', {
-                        type: 'text/calendar;charset=utf-8'
-                    });
-                    let canShareCalendarFile = false;
-                    try {
-                        canShareCalendarFile = navigator.canShare({ files: [calendarFile] });
-                    } catch (shareCheckError) {
-                        console.info('File sharing is unavailable; opening Google Calendar instead.', shareCheckError);
-                    }
-                    if (canShareCalendarFile) {
-                        navigator.share({
-                            files: [calendarFile],
-                            title: calendarTitle,
-                            text: 'Choose your Calendar app to save the event.'
-                        }).then(() => {
-                            showCalendarStatus('Choose your Calendar app in the share menu to save the event.');
-                        }).catch((error) => {
-                            if (error?.name === 'AbortError') return;
-                            console.warn('Could not share the calendar file; opening Google Calendar instead:', error);
-                            openGoogleCalendarTemplate(calendarTitle, description, eventStart, eventEnd);
-                        });
-                        return;
-                    }
-                }
-
                 openGoogleCalendarTemplate(calendarTitle, description, eventStart, eventEnd);
             } catch (error) {
                 console.error('Could not create calendar event:', error);
