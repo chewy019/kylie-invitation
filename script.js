@@ -155,7 +155,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 ['event-weekday-display', weekdayText],
                 ['event-start-time-display', startTime],
                 ['event-doors-open-display', `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}`],
-                ['add-calendar-note', `${startTime}–${endTime} · ${DEBUT_EVENT_CONFIG.reminderMinutes}-minute reminder included`]
+                ['add-calendar-note', `Reminder window: ${formatTime(new Date(eventStart.getTime() - DEBUT_EVENT_CONFIG.reminderMinutes * 60 * 1000))}–${startTime}`]
             ];
             labels.forEach(([id, value]) => {
                 const element = document.getElementById(id);
@@ -183,7 +183,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const eventEnd = new Date(eventStart.getTime() + DEBUT_EVENT_CONFIG.durationMinutes * 60 * 1000);
                 const toIcsUtc = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
                 const stamp = toIcsUtc(new Date());
-                const description = `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}. ${DEBUT_EVENT_CONFIG.dressCode}.`;
+                const calendarTitle = `${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`;
+                const reminderAt = new Date(eventStart.getTime() - DEBUT_EVENT_CONFIG.reminderMinutes * 60 * 1000);
+                const reminderTime = new Intl.DateTimeFormat('en-US', {
+                    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
+                }).format(reminderAt);
+                const reminderNote = `Reminder window: ${reminderTime}–${new Intl.DateTimeFormat('en-US', {
+                    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
+                }).format(eventStart)}. The event begins at ${new Intl.DateTimeFormat('en-US', {
+                    hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
+                }).format(eventStart)}. Set the calendar alert ${DEBUT_EVENT_CONFIG.reminderMinutes} minutes before the event.`;
+                const description = `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}. ${DEBUT_EVENT_CONFIG.dressCode}. ${reminderNote}`;
                 const calendarEvent = [
                     'BEGIN:VCALENDAR',
                     'VERSION:2.0',
@@ -195,7 +205,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     `DTSTAMP:${stamp}`,
                     `DTSTART:${toIcsUtc(eventStart)}`,
                     `DTEND:${toIcsUtc(eventEnd)}`,
-                    `SUMMARY:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`)}`,
+                    `SUMMARY:${escapeICalendarText(calendarTitle)}`,
                     `LOCATION:${escapeICalendarText(DEBUT_EVENT_CONFIG.venue)}`,
                     `DESCRIPTION:${escapeICalendarText(description)}`,
                     'BEGIN:VALARM',
@@ -206,22 +216,81 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     'END:VEVENT',
                     'END:VCALENDAR'
                 ].join('\r\n') + '\r\n';
-                const calendarFile = new Blob([calendarEvent], { type: 'text/calendar;charset=utf-8' });
-                const fileUrl = URL.createObjectURL(calendarFile);
-                const downloadLink = document.createElement('a');
-                downloadLink.href = fileUrl;
-                downloadLink.download = 'Kylie-18th-Birthday-Debut.ics';
-                downloadLink.style.display = 'none';
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                downloadLink.remove();
-                setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
-                showCalendarStatus(`Calendar file ready with a ${DEBUT_EVENT_CONFIG.reminderMinutes}-minute reminder. Open it to save the event.`);
+                // Share the actual calendar file so Messenger's in-app browser does not
+                // navigate to a blob URL and display the raw ICS text as a web page.
+                if (typeof File === 'function'
+                    && typeof navigator.share === 'function'
+                    && typeof navigator.canShare === 'function'
+                ) {
+                    const calendarFile = new File([calendarEvent], 'Kylie-18th-Birthday-Debut.ics', {
+                        type: 'text/calendar;charset=utf-8'
+                    });
+                    let canShareCalendarFile = false;
+                    try {
+                        canShareCalendarFile = navigator.canShare({ files: [calendarFile] });
+                    } catch (shareCheckError) {
+                        console.info('File sharing is unavailable; opening Google Calendar instead.', shareCheckError);
+                    }
+                    if (canShareCalendarFile) {
+                        navigator.share({
+                            files: [calendarFile],
+                            title: calendarTitle,
+                            text: 'Choose your Calendar app to save the event.'
+                        }).then(() => {
+                            showCalendarStatus('Choose your Calendar app in the share menu to save the event.');
+                        }).catch((error) => {
+                            if (error?.name === 'AbortError') return;
+                            console.warn('Could not share the calendar file; opening Google Calendar instead:', error);
+                            openGoogleCalendarTemplate(calendarTitle, description, eventStart, eventEnd);
+                        });
+                        return;
+                    }
+                }
+
+                openGoogleCalendarTemplate(calendarTitle, description, eventStart, eventEnd);
             } catch (error) {
                 console.error('Could not create calendar event:', error);
-                showCalendarStatus('Could not create the calendar file. Please try another browser.', true);
+                showCalendarStatus('Could not open a calendar event. Please try opening this invitation in your browser.', true);
             }
         };
+
+        function openGoogleCalendarTemplate(title, description, eventStart, eventEnd) {
+            const status = document.getElementById('calendar-download-status');
+            const showCalendarStatus = (message, isError = false) => {
+                if (!status) return;
+                status.textContent = message;
+                status.classList.toggle('is-error', isError);
+                status.classList.toggle('is-success', !isError);
+            };
+            const toManilaLocalDateTime = (date) => {
+                const parts = new Intl.DateTimeFormat('en-CA', {
+                    timeZone: 'Asia/Manila',
+                    year: 'numeric', month: '2-digit', day: '2-digit',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit',
+                    hourCycle: 'h23'
+                }).formatToParts(date).reduce((result, part) => {
+                    if (part.type !== 'literal') result[part.type] = part.value;
+                    return result;
+                }, {});
+                return `${parts.year}${parts.month}${parts.day}T${parts.hour}${parts.minute}${parts.second}`;
+            };
+
+            const calendarUrl = new URL('https://calendar.google.com/calendar/render');
+            calendarUrl.searchParams.set('action', 'TEMPLATE');
+            calendarUrl.searchParams.set('text', title);
+            calendarUrl.searchParams.set('dates', `${toManilaLocalDateTime(eventStart)}/${toManilaLocalDateTime(eventEnd)}`);
+            calendarUrl.searchParams.set('ctz', 'Asia/Manila');
+            calendarUrl.searchParams.set('details', description);
+            calendarUrl.searchParams.set('location', DEBUT_EVENT_CONFIG.venue);
+            const reminderAt = new Date(eventStart.getTime() - DEBUT_EVENT_CONFIG.reminderMinutes * 60 * 1000);
+            const reminderTime = new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
+            }).format(reminderAt);
+            showCalendarStatus(`Opening the calendar event. Reminder window: ${reminderTime}–${new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila'
+            }).format(eventStart)}. Confirm the ${DEBUT_EVENT_CONFIG.reminderMinutes}-minute alert before saving.`);
+            window.location.assign(calendarUrl.href);
+        }
 
         // Keep this list in the order chosen for the slideshow.
         const DEBUT_PHOTO_SLIDES = [
