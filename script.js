@@ -122,7 +122,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Aianna Fulla",
-            dateStr: "November 7, 2026 16:30:00 GMT+0800",
+            dateStr: "2026-11-07T16:30:00+08:00",
             durationMinutes: 30,
             reminderMinutes: 30,
             doorsOpenTime: "4:00 PM",
@@ -282,10 +282,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const viewport = document.getElementById('photo-slideshow-viewport');
             const track = document.getElementById('photo-slideshow-track');
             const controls = document.getElementById('photo-slideshow-controls');
-            const dots = document.getElementById('photo-slideshow-dots');
+            const counter = document.getElementById('photo-slideshow-counter');
             const caption = document.getElementById('photo-slideshow-caption');
             const slideshowStatus = document.getElementById('photo-slideshow-status');
-            if (!root || !placeholder || !viewport || !track || !controls || !dots || !caption) return;
+            if (!root || !placeholder || !viewport || !track || !controls || !counter || !caption) return;
 
             const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
             if (slides.length === 0) return;
@@ -302,7 +302,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
                 const image = document.createElement('img');
                 image.alt = slide.alt || `Kylie debut photo ${index + 1}`;
-                image.loading = index === 0 ? 'eager' : 'lazy';
+                image.loading = 'lazy';
+                image.decoding = 'async';
+                image.dataset.src = slide.src;
                 image.draggable = false;
                 image.addEventListener('error', () => {
                     const fallback = document.createElement('div');
@@ -312,29 +314,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }, { once: true });
                 figure.appendChild(image);
                 track.appendChild(figure);
-                image.src = slide.src;
-
-                const dot = document.createElement('button');
-                dot.type = 'button';
-                dot.className = 'page2-slideshow-dot';
-                dot.setAttribute('aria-label', `Show photo ${index + 1}`);
-                dot.addEventListener('click', () => {
-                    showPhotoSlide(index, true);
-                    restartPhotoSlideTimer();
-                });
-                dots.appendChild(dot);
             });
+
+            function preloadPhotoSlide(index) {
+                const slideIndex = (index + slides.length) % slides.length;
+                const image = track.children[slideIndex]?.querySelector('img');
+                if (!image || image.hasAttribute('src')) return;
+                image.loading = 'eager';
+                image.fetchPriority = slideIndex === photoSlideIndex ? 'high' : 'low';
+                image.src = image.dataset.src;
+            }
 
             function showPhotoSlide(index, announce = false) {
                 photoSlideIndex = (index + slides.length) % slides.length;
+                preloadPhotoSlide(photoSlideIndex);
+                if (slides.length > 1) {
+                    preloadPhotoSlide(photoSlideIndex + 1);
+                    preloadPhotoSlide(photoSlideIndex - 1);
+                }
                 Array.from(track.children).forEach((slide, slideIndex) => {
                     slide.setAttribute('aria-hidden', slideIndex === photoSlideIndex ? 'false' : 'true');
                 });
-                Array.from(dots.children).forEach((dot, dotIndex) => {
-                    dot.classList.toggle('is-active', dotIndex === photoSlideIndex);
-                    dot.setAttribute('aria-current', dotIndex === photoSlideIndex ? 'true' : 'false');
-                });
                 const slideCaption = slides[photoSlideIndex].caption || '';
+                counter.textContent = `${photoSlideIndex + 1} / ${slides.length}`;
                 caption.textContent = slideCaption;
                 if (announce && slideshowStatus) {
                     slideshowStatus.textContent = `Photo ${photoSlideIndex + 1} of ${slides.length}${slideCaption ? `: ${slideCaption}` : ''}`;
@@ -347,12 +349,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             };
 
             function restartPhotoSlideTimer() {
-                if (photoSlideTimer) clearInterval(photoSlideTimer);
+                if (photoSlideTimer) clearTimeout(photoSlideTimer);
                 photoSlideTimer = null;
                 if (slides.length > 1 && photoSlideshowActive
-                    && document.visibilityState !== 'hidden'
-                    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    photoSlideTimer = setInterval(() => showPhotoSlide(photoSlideIndex + 1), 3000);
+                    && document.visibilityState !== 'hidden') {
+                    const advanceWhenReady = () => {
+                        if (!photoSlideshowActive || document.visibilityState === 'hidden') return;
+
+                        const nextIndex = (photoSlideIndex + 1) % slides.length;
+                        const nextImage = track.children[nextIndex]?.querySelector('img');
+                        if (nextImage && !nextImage.complete) {
+                            photoSlideTimer = window.setTimeout(advanceWhenReady, 120);
+                            return;
+                        }
+
+                        showPhotoSlide(nextIndex);
+                        restartPhotoSlideTimer();
+                    };
+
+                    photoSlideTimer = window.setTimeout(advanceWhenReady, 3000);
                 }
             }
 
@@ -361,13 +376,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 restartPhotoSlideTimer();
             };
 
-            document.addEventListener('visibilitychange', () => restartPhotoSlideTimer());
-            const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-            if (typeof reducedMotionQuery.addEventListener === 'function') {
-                reducedMotionQuery.addEventListener('change', () => restartPhotoSlideTimer());
-            } else if (typeof reducedMotionQuery.addListener === 'function') {
-                reducedMotionQuery.addListener(() => restartPhotoSlideTimer());
-            }
+            // Mobile browsers may suspend timers when a tab is backgrounded or restored
+            // from the back-forward cache. Re-arm autoplay when the page becomes visible.
+            document.addEventListener('visibilitychange', restartPhotoSlideTimer);
+            window.addEventListener('pageshow', restartPhotoSlideTimer);
 
             let pointerStart = null;
             viewport.addEventListener('pointerdown', (event) => {
@@ -952,7 +964,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     } else if (i < stepNum) {
                         ind.className = "px-3 py-1 rounded-full bg-blush-200 text-blush-800 font-medium transition";
                     } else {
-                        ind.className = "px-3 py-1 rounded-full text-blush-400 font-normal transition";
+                        ind.className = "px-3 py-1 rounded-full text-blush-600 font-normal transition";
                     }
                 }
             }
@@ -1284,6 +1296,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }
                 const existingInvite = await findInvitationByEmail(email, false);
                 if (existingInvite) {
+                    if (existingInvite.rsvpStatus === 'Pending'
+                        && existingInvite.ownerUid === auth.currentUser.uid) {
+                        // The previous save may have reached Firestore even if a weak
+                        // mobile connection made the client report a failure. Restore
+                        // that guest's own pending record instead of blocking a retry.
+                        const restoredName = existingInvite.name || fullName;
+                        currentGuest = {
+                            id: existingInvite.id,
+                            name: restoredName,
+                            email: existingInvite.email || email,
+                            numGuests: 1,
+                            guestNames: [restoredName],
+                            rsvpStatus: 'Pending'
+                        };
+                        populateInvitationView();
+                        window.goToStep(2);
+                        setRegistrationBusy(false);
+                        return false;
+                    }
+
+                    if (existingInvite.rsvpStatus === 'Pending') {
+                        showRegistrationNotice('This email has a pending registration on another device. Please use that device or contact the host for help.');
+                        setRegistrationBusy(false);
+                        return false;
+                    }
+
                     showRegistrationNotice('This email has already been registered. Recover the invitation with the same full name and email.');
                     openRecoveryModal(email, fullName);
                     setRegistrationBusy(false);
@@ -1773,11 +1811,41 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let qrScanner = null;
         let qrScannerBusy = false;
         let qrScannerSession = 0;
+        let qrScannerLibraryPromise = null;
+
+        function loadQrScannerLibrary() {
+            if (typeof Html5Qrcode !== 'undefined') return Promise.resolve();
+            if (qrScannerLibraryPromise) return qrScannerLibraryPromise;
+
+            qrScannerLibraryPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/html5-qrcode';
+                script.async = true;
+                script.onload = () => {
+                    if (typeof Html5Qrcode !== 'undefined') resolve();
+                    else {
+                        script.remove();
+                        reject(new Error('QR scanner library loaded without its API.'));
+                    }
+                };
+                script.onerror = () => {
+                    script.remove();
+                    reject(new Error('Could not download QR scanner library.'));
+                };
+                document.head.appendChild(script);
+            }).catch((error) => {
+                qrScannerLibraryPromise = null;
+                throw error;
+            });
+
+            return qrScannerLibraryPromise;
+        }
 
         window.openQrScanner = async function() {
             const modal = document.getElementById('qr-scanner-modal');
             const status = document.getElementById('qr-scan-status');
             const result = document.getElementById('qr-scan-result');
+            const retryButton = document.getElementById('qr-scan-retry');
             const reader = document.getElementById('qr-reader');
 
             if (!isHostUser()) {
@@ -1791,28 +1859,35 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 return;
             }
 
-            if (typeof Html5Qrcode === 'undefined') {
-                openAccessibleDialog(modal);
-                status.classList.remove('qr-scan-status-loading');
-                status.setAttribute('aria-busy', 'false');
-                status.textContent = 'QR scanner is unavailable.';
-                result.textContent = 'The scanner could not load. Check your connection, then refresh the page.';
-                result.className = 'mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-rose-800';
-                result.classList.remove('hidden');
-                return;
-            }
-
             openAccessibleDialog(modal);
-            status.textContent = 'Starting camera…';
+            status.textContent = 'Loading scanner…';
             status.className = 'mt-4 text-center text-sm text-blush-800 font-medium';
             status.classList.add('qr-scan-status-loading');
             status.setAttribute('aria-busy', 'true');
             result.classList.add('hidden');
             result.innerHTML = '';
+            retryButton?.classList.add('hidden');
             reader.innerHTML = '';
             qrScannerBusy = false;
 
             const session = ++qrScannerSession;
+            try {
+                await loadQrScannerLibrary();
+            } catch (err) {
+                if (qrScannerSession !== session || modal.classList.contains('hidden')) return;
+                status.classList.remove('qr-scan-status-loading');
+                status.setAttribute('aria-busy', 'false');
+                status.textContent = 'QR scanner is unavailable.';
+                result.textContent = 'The scanner could not load. Check your connection, then try again.';
+                result.className = 'mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-rose-800';
+                result.classList.remove('hidden');
+                retryButton?.classList.remove('hidden');
+                retryButton?.focus({ preventScroll: true });
+                return;
+            }
+            if (qrScannerSession !== session || modal.classList.contains('hidden')) return;
+
+            status.textContent = 'Starting camera…';
             const scannerInstance = new Html5Qrcode('qr-reader');
             qrScanner = scannerInstance;
             const isCurrentSession = () => qrScannerSession === session && qrScanner === scannerInstance;
@@ -1891,6 +1966,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
             qrScannerBusy = false;
             const status = document.getElementById('qr-scan-status');
+            document.getElementById('qr-scan-retry')?.classList.add('hidden');
             status?.classList.remove('qr-scan-status-loading');
             status?.setAttribute('aria-busy', 'false');
             closeAccessibleDialog(modal);

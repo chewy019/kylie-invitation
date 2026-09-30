@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
+<meta name="theme-color" content="#fff5f7"/>
+<meta name="description" content="Join Kylie Aianna Fulla for her 18th birthday debut celebration on November 7, 2026."/>
 <script>
 if (!new URLSearchParams(window.location.search).has('invite') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.documentElement.classList.add('site-open-animate');
@@ -14,11 +16,9 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <!-- Tailwind CSS for utility styling -->
 <script src="https://cdn.tailwindcss.com"></script>
 <!-- Canvas Confetti Library for RSVP celebration burst -->
-<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <!-- QR Code Generator for personal invitation QR codes -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- QR scanner for event check-in -->
-<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -52,18 +52,18 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <span class="text-rosegold text-2xl sparkle-icon">✨</span>
 <div>
 <span class="font-script text-2xl sm:text-3xl font-bold text-blush-800">Kylie's 18th</span>
-<span class="hidden sm:inline-block text-[10px] uppercase tracking-widest text-rosegold font-bold ml-2 bg-blush-100 px-2.5 py-0.5 rounded-full border border-blush-200">Grand Debut</span>
+<span class="hidden sm:inline-block text-[10px] uppercase tracking-widest text-rosegold-dark font-bold ml-2 bg-blush-100 px-2.5 py-0.5 rounded-full border border-blush-200">Grand Debut</span>
 </div>
 </div>
 <!-- Responsive Step Progress Bar -->
 <div class="hidden md:flex items-center gap-2 text-xs font-medium text-blush-700" id="step-indicator">
 <span class="px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition" id="ind-1">1. Register</span>
 <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-2">2. Invitation</span>
+<span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-2">2. Invitation</span>
 <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-3">3. Details</span>
+<span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-3">3. Details</span>
 <i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
-<span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-4">4. RSVP</span>
+<span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-4">4. RSVP</span>
 </div>
 <!-- Host Console Button (Only visible if URL contains ?admin=1) -->
 <button aria-controls="db-drawer" aria-expanded="false" class="hidden text-xs flex items-center gap-2 px-3.5 py-2 rounded-full border border-blush-300 bg-white/90 text-blush-800 hover:bg-blush-100 transition shadow-sm font-medium" id="admin-console-btn" onclick="toggleDbDrawer()" type="button">
@@ -90,7 +90,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="absolute -top-12 -left-12 w-36 h-36 bg-blush-200/50 rounded-full blur-2xl pointer-events-none"></div>
 <div class="absolute -bottom-12 -right-12 w-36 h-36 bg-rosegold-light/50 rounded-full blur-2xl pointer-events-none"></div>
 <div class="mb-8">
-<span class="text-xs font-bold uppercase tracking-widest text-rosegold bg-blush-100 px-4 py-1.5 rounded-full border border-blush-200 inline-block mb-3">
+<span class="text-xs font-bold uppercase tracking-widest text-rosegold-dark bg-blush-100 px-4 py-1.5 rounded-full border border-blush-200 inline-block mb-3">
                         🌸 You Are Cordially Invited
                     </span>
 <h1 class="font-script text-5xl sm:text-6xl text-blush-800 font-bold mb-1">Kylie Aianna Fulla</h1>
@@ -103,11 +103,11 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { const notice = document.getElementById('invite-load-notice'); if (notice) { notice.textContent = 'The invitation script is still loading. Please refresh once and try again.'; notice.classList.remove('hidden'); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } } return false;">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-fullname">Your Full Name *</label>
-<input autocapitalize="words" autocomplete="name" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
+<input autocapitalize="words" autocomplete="name" enterkeyhint="next" maxlength="120" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
 </div>
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-email">Email Address *</label>
-<input autocapitalize="none" autocomplete="email" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
+<input autocapitalize="none" autocomplete="email" enterkeyhint="go" maxlength="254" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
 </div>
 <button class="registration-submit w-full py-4 px-6 mt-4 text-white font-semibold rounded-2xl shadow-lg transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
 <span>Unlock My Personalized Invitation</span>
@@ -250,9 +250,9 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 <div class="page2-slideshow-controls hidden" id="photo-slideshow-controls">
 <button aria-label="Previous photo" class="page2-slideshow-arrow" id="photo-slide-prev" onclick="changePhotoSlide(-1)" type="button"><i class="fa-solid fa-chevron-left"></i></button>
-<div aria-label="Choose a photo" class="page2-slideshow-dots" id="photo-slideshow-dots"></div>
 <button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button"><i class="fa-solid fa-chevron-right"></i></button>
 </div>
+<p class="page2-slideshow-counter" id="photo-slideshow-counter" aria-live="off"></p>
 <p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="off"></p>
 <p class="page2-slideshow-status" id="photo-slideshow-status" role="status" aria-live="polite" aria-atomic="true"></p>
 </section>
@@ -292,7 +292,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <section class="step-transition hidden space-y-6" id="step-details">
 <div class="debut-card p-6 sm:p-8 rounded-3xl space-y-6">
 <div class="text-center mb-6">
-<span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
+<span class="text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
 <h3 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h3>
 </div>
 <div class="event-details-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -396,7 +396,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <section class="step-transition hidden" id="step-rsvp">
 <div class="debut-card rounded-3xl p-6 sm:p-10 text-center border border-blush-300">
 <div class="mb-8">
-<span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
+<span class="text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
 <h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
 <p class="text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
 </div>
@@ -493,6 +493,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="w-full overflow-hidden rounded-2xl border border-blush-200 bg-blush-50" id="qr-reader"></div>
 <div aria-busy="false" aria-live="polite" class="mt-4 text-center text-sm text-blush-800 font-medium" id="qr-scan-status" role="status">Point the camera at the guest's QR code.</div>
 <div aria-live="polite" class="hidden mt-4 rounded-2xl border p-4 text-center" id="qr-scan-result" role="status"></div>
+<button class="hidden mt-3 w-full py-3 rounded-xl bg-blush-700 hover:bg-blush-800 text-white text-xs font-semibold" id="qr-scan-retry" onclick="openQrScanner()" type="button">Try Again</button>
 <button class="mt-4 w-full py-3 rounded-xl border border-blush-300 text-blush-800 hover:bg-blush-50 text-xs font-semibold" onclick="closeQrScanner()" type="button">
                     Close Scanner
                 </button>
@@ -550,7 +551,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <tbody class="divide-y divide-blush-200 text-blush-800" id="db-table-body"></tbody>
 </table>
 </div>
-<div class="text-center py-8 text-blush-400 italic text-xs" id="db-empty-msg">
+<div class="text-center py-8 text-blush-600 italic text-xs" id="db-empty-msg">
                 No guest registrations recorded in Firestore yet.
             </div>
 </div>
@@ -612,11 +613,11 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <form class="space-y-4 text-left" id="recovery-form" onsubmit="handleRecovery(event)">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-name">Full Name</label>
-<input autocapitalize="words" autocomplete="name" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-name" placeholder="Name used during registration" required="" type="text"/>
+<input autocapitalize="words" autocomplete="name" enterkeyhint="next" maxlength="120" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-name" placeholder="Name used during registration" required="" type="text"/>
 </div>
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-email">Email Address</label>
-<input autocapitalize="none" autocomplete="email" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" inputmode="email" placeholder="Email used during registration" required="" type="email"/>
+<input autocapitalize="none" autocomplete="email" enterkeyhint="search" maxlength="254" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" inputmode="email" placeholder="Email used during registration" required="" type="email"/>
 </div>
 <p aria-live="assertive" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="recovery-error" role="alert"></p>
 <button aria-busy="false" class="secret-modal-button" type="submit"><span aria-live="polite" id="recovery-submit-label">Find My Invitation</span></button>

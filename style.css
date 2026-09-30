@@ -7,6 +7,7 @@
 
         html {
             -webkit-text-size-adjust: 100%;
+            scrollbar-gutter: stable;
         }
 
         body {
@@ -440,8 +441,7 @@
         }
 
         .page2-slideshow-viewport:focus-visible,
-        .page2-slideshow-arrow:focus-visible,
-        .page2-slideshow-dot:focus-visible {
+        .page2-slideshow-arrow:focus-visible {
             outline: 3px solid rgba(169,79,112,.48);
             outline-offset: 2px;
         }
@@ -450,7 +450,6 @@
 
         .page2-slideshow-track {
             display: grid;
-            will-change: opacity;
         }
 
         .page2-slideshow-slide {
@@ -513,43 +512,19 @@
             color: #8E4B61;
         }
 
-        .page2-slideshow-dots { display: flex; align-items: center; justify-content: center; gap: 8px; }
-
-        .page2-slideshow-dot {
-            display: grid;
-            width: 44px;
-            height: 44px;
-            flex: 0 0 44px;
-            padding: 0;
-            border: 0;
-            border-radius: 50%;
-            background: transparent;
-            place-items: center;
-        }
-
-        .page2-slideshow-dot::before {
-            content: "";
-            width: 9px;
-            height: 9px;
-            border-radius: 50%;
-            background: #e2c7d0;
-            transition: width .2s ease, background-color .2s ease;
-        }
-
-        .page2-slideshow-dot.is-active {
-            border-radius: 50%;
-        }
-
-        .page2-slideshow-dot.is-active::before {
-            width: 22px;
-            border-radius: 999px;
-            background: #A94F70;
+        .page2-slideshow-counter {
+            margin: 9px 0 0;
+            color: #80613F;
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .16em;
+            font-variant-numeric: tabular-nums;
         }
 
         .page2-slideshow-caption {
             min-height: 1.3em;
-            margin: 10px 0 0;
-            color: #9B6A72;
+            margin: 3px 0 0;
+            color: #87545E;
             font: italic .98rem "Cormorant Garamond", Georgia, serif;
         }
 
@@ -570,15 +545,10 @@
             .page2-slideshow-placeholder { min-height: 215px; padding: 28px 16px; }
             .page2-slideshow-slide { aspect-ratio: 3 / 4; }
             .page2-slideshow-image-error { min-height: 160px; }
-            .page2-slideshow-dots {
-                max-width: calc(100vw - 232px);
-                flex-wrap: wrap;
-            }
         }
 
         @media (prefers-reduced-motion: reduce) {
             .page2-slideshow-slide { transition: none; }
-            .page2-slideshow-dot::before { transition: none; }
         }
 
         .page2-countdown {
@@ -642,6 +612,8 @@
             font-size: .72rem;
             font-weight: 700;
             box-shadow: 0 6px 16px -10px rgba(126,61,79,.7);
+            transition: transform .14s ease, filter .14s ease, box-shadow .14s ease;
+            touch-action: manipulation;
         }
 
         .get-directions-button {
@@ -659,10 +631,16 @@
             font-weight: 700;
             text-decoration: none;
             box-shadow: 0 6px 16px -12px rgba(126,61,79,.55);
+            transition: transform .14s ease, filter .14s ease, box-shadow .14s ease;
+            touch-action: manipulation;
         }
 
-        .add-calendar-button:hover,
-        .get-directions-button:hover { filter: brightness(.96); }
+        .add-calendar-button:active,
+        .get-directions-button:active {
+            transform: translateY(2px) scale(.97);
+            filter: brightness(.94);
+            box-shadow: inset 0 2px 5px rgba(70,32,45,.14);
+        }
 
         .add-calendar-note,
         .add-calendar-status {
@@ -1231,6 +1209,7 @@ button:disabled {
 #db-drawer {
     max-height: 80vh;
     max-height: min(80vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 #db-drawer > .overflow-y-auto {
@@ -1458,6 +1437,7 @@ button:disabled {
     .add-calendar-button:hover {
         transform: translateY(-2px);
         box-shadow: 0 10px 20px -13px rgba(126, 61, 79, .65);
+        filter: brightness(.96);
     }
 }
 
@@ -1475,15 +1455,16 @@ button:disabled {
     .primary-action-button,
     .get-directions-button,
     .add-calendar-button,
-    .page2-slideshow-arrow,
-    .page2-slideshow-dot {
+    .page2-slideshow-arrow {
         transition: none !important;
     }
     #step-details .grid > div:hover,
     #step-details .grid > button:hover,
     .primary-action-button:hover,
     .get-directions-button:hover,
-    .add-calendar-button:hover {
+    .add-calendar-button:hover,
+    .get-directions-button:active,
+    .add-calendar-button:active {
         transform: none !important;
     }
     #admin-login-modal:not(.hidden),
@@ -2099,6 +2080,12 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 }
 
 @media (max-width: 640px) {
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+
     body {
         padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px)) !important;
     }
