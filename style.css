@@ -649,3 +649,23 @@ button[type="submit"]:hover {
 .registration-submit i,
 button[type="submit"] span,
 button[type="submit"] i {color:#fff!important}
+
+/* =========================================================
+   BUTTON PRESS FEEDBACK — subtle "sink" effect
+   Visual-only: no functionality changes.
+   ========================================================= */
+button:not(:disabled) {
+    transition-property: transform, box-shadow, background-color, border-color, color;
+    transition-duration: 0.12s;
+    transition-timing-function: cubic-bezier(0.25, 0.8, 0.25, 1);
+    -webkit-tap-highlight-color: transparent;
+}
+
+button:not(:disabled):active {
+    transform: translateY(3px) scale(0.985);
+    filter: brightness(0.98);
+}
+
+button:disabled {
+    cursor: not-allowed;
+}

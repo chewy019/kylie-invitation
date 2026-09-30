@@ -23,6 +23,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let adminSnapshotUnsubscribe = null;
         let authReady = false;
         let inviteMode = false;
+        let registrationSavePromise = null;
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Aianna Fulla",
@@ -39,6 +40,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             startCountdownTimer();
+
+            // Open saved invitation links immediately so guests do not see the registration
+            // screen while Firebase authentication is still initializing.
+            if (urlParams.get('invite')) {
+                inviteMode = true;
+                window.goToStep(2);
+            }
 
             try {
                 await signInAnonymously(auth);
@@ -236,7 +244,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }
             }
 
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'auto' });
         };
 
         // Form Handlers
@@ -362,7 +370,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return match;
         }
 
-        async function openInvitationForGuest(inviteId, invite, showReminder = true) {
+        function openInvitationForGuest(inviteId, invite, showReminder = true) {
             inviteMode = true;
             currentGuest = {
                 id: inviteId,
@@ -466,7 +474,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const recovered = window.recoveredInvite;
             window.recoveredInvite = null;
             window.closeRecoveryModal();
-            await openInvitationForGuest(recovered.id, recovered.data, true);
+            openInvitationForGuest(recovered.id, recovered.data, true);
         };
 
         async function waitForFirebaseAuth(timeoutMs = 10000) {
@@ -529,9 +537,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                         createdAt: declinedInvite.createdAt || new Date().toLocaleString()
                     };
 
-                    await saveGuestToCloud(currentGuest);
                     populateInvitationView();
                     window.goToStep(2);
+                    registrationSavePromise = saveGuestToCloud(currentGuest);
+                    try {
+                        await registrationSavePromise;
+                    } finally {
+                        registrationSavePromise = null;
+                    }
                     if (submitButton) {
                         submitButton.disabled = false;
                         submitButton.classList.remove('opacity-70', 'cursor-wait');
@@ -559,13 +572,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             };
 
             try {
-                await saveGuestToCloud(currentGuest);
+                // Show the invitation immediately. Firebase persistence continues in the
+                // background so the interface does not feel frozen after registration.
                 populateInvitationView();
                 window.goToStep(2);
+                registrationSavePromise = saveGuestToCloud(currentGuest);
+                await registrationSavePromise;
             } catch (err) {
                 console.error(err);
                 alert("We could not save your registration. Please try again.");
+                window.goToStep(1);
             } finally {
+                registrationSavePromise = null;
                 if (submitButton) {
                     submitButton.disabled = false;
                     submitButton.classList.remove('opacity-70', 'cursor-wait');
@@ -696,11 +714,17 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const inviteSnap = await getDoc(doc(db, "invites", inviteId));
                 if (!inviteSnap.exists()) {
                     console.warn('Invitation link not found:', inviteId);
+                    inviteMode = false;
+                    window.goToStep(1);
                     return false;
                 }
 
                 const invite = inviteSnap.data();
-                if (!invite.name || invite.rsvpStatus !== 'Confirmed') return false;
+                if (!invite.name || invite.rsvpStatus !== 'Confirmed') {
+                    inviteMode = false;
+                    window.goToStep(1);
+                    return false;
+                }
 
                 // A saved invitation is for a guest who already confirmed attendance.
                 // Open it in VIEW-ONLY mode so the guest cannot register/RSVP again.
@@ -708,6 +732,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 return true;
             } catch (err) {
                 console.error('Could not load invitation link:', err);
+                inviteMode = false;
+                window.goToStep(1);
                 return false;
             }
         }
@@ -766,6 +792,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             try {
+                if (registrationSavePromise) {
+                    await registrationSavePromise;
+                    registrationSavePromise = null;
+                }
                 await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
                 showConfirmationView();
                 window.goToStep(5);
@@ -823,6 +853,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         window.restartRegistrationLoop = function() {
             inviteMode = false;
             currentGuest = null;
+            registrationSavePromise = null;
             document.getElementById('registration-form').reset();
             document.getElementById('rsvp-form').reset();
             window.goToStep(1);
