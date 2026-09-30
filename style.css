@@ -39,6 +39,94 @@ body {
             transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
+        @keyframes stepReveal {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes invitationReveal {
+            from { opacity: 0; transform: translateY(18px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes floralFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .step-transition.step-enter { animation: stepReveal .42s cubic-bezier(.2,.7,.25,1) both; }
+
+        #step-invitation.step-enter .page2-invitation-card {
+            animation: invitationReveal .7s cubic-bezier(.2,.7,.25,1) both;
+        }
+
+        #step-invitation.step-enter .page2-floral-tl {
+            animation: floralFloat 5.2s ease-in-out .15s infinite;
+        }
+
+        #step-invitation.step-enter .page2-floral-tr {
+            animation: floralFloat 5.8s ease-in-out .45s infinite reverse;
+        }
+
+        @keyframes countdownFlip {
+            0% { transform: perspective(260px) rotateX(58deg); opacity: .45; }
+            100% { transform: perspective(260px) rotateX(0); opacity: 1; }
+        }
+
+        .page2-time-number { transform-origin: 50% 70%; backface-visibility: hidden; }
+        .page2-time-number.countdown-flip { animation: countdownFlip .42s ease-out both; }
+
+        #opt-label-yes,
+        #opt-label-no {
+            transition: border-color .2s ease, background-color .2s ease, box-shadow .2s ease, transform .2s ease;
+        }
+
+        #opt-label-yes.is-selected,
+        #opt-label-no.is-selected {
+            box-shadow: 0 8px 20px -12px rgba(126,61,79,.55);
+            transform: translateY(-2px);
+        }
+
+        .is-saving {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            opacity: .88;
+        }
+
+        .is-saving::after {
+            content: "";
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,.72);
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: buttonSpinner .7s linear infinite;
+        }
+
+        @keyframes buttonSpinner { to { transform: rotate(360deg); } }
+
+        .milestone-name-item {
+            animation: stepReveal .36s cubic-bezier(.2,.7,.25,1) both;
+            animation-delay: calc(var(--milestone-index, 0) * 32ms);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .step-transition.step-enter,
+            #step-invitation.step-enter .page2-invitation-card,
+            #step-invitation.step-enter .page2-floral-tl,
+            #step-invitation.step-enter .page2-floral-tr,
+            .page2-time-number.countdown-flip,
+            .milestone-name-item,
+            .is-saving::after {
+                animation: none !important;
+            }
+
+            #opt-label-yes,
+            #opt-label-no { transition: none; }
+        }
+
         /* Custom scrollbars */
         ::-webkit-scrollbar {
             width: 6px;
@@ -231,6 +319,179 @@ body {
             pointer-events: none;
         }
 
+        .page2-slideshow {
+            padding: 24px;
+            border: 1px solid rgba(184, 143, 99, .42);
+            border-radius: 30px;
+            background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(255,239,245,.95));
+            box-shadow: 0 18px 42px -24px rgba(126,61,79,.35), inset 0 0 0 1px rgba(255,255,255,.7);
+            text-align: center;
+        }
+
+        .page2-slideshow-heading { margin-bottom: 16px; }
+
+        .page2-slideshow-eyebrow {
+            color: #A98255;
+            font-size: .65rem;
+            font-weight: 700;
+            letter-spacing: .19em;
+            text-transform: uppercase;
+        }
+
+        .page2-slideshow-title {
+            margin: 2px 0 0;
+            color: #8E4B61;
+            font-family: "Great Vibes", cursive;
+            font-size: clamp(2rem, 6vw, 2.8rem);
+            line-height: 1.1;
+        }
+
+        .page2-slideshow-frame {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(184,143,99,.4);
+            border-radius: 22px;
+            background: #fff8fa;
+            box-shadow: 0 10px 24px -18px rgba(126,61,79,.4);
+        }
+
+        .page2-slideshow-placeholder {
+            min-height: 260px;
+            padding: 36px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            background:
+                radial-gradient(ellipse at 16% 22%, rgba(255,255,255,.9), transparent 27%),
+                radial-gradient(ellipse at 85% 80%, rgba(227,207,239,.66), transparent 30%),
+                linear-gradient(135deg, #fff7f7, #f8e9ee 52%, #f5eef9);
+        }
+
+        .page2-slideshow-placeholder::before,
+        .page2-slideshow-placeholder::after {
+            content: "✦";
+            position: absolute;
+            color: rgba(169,130,85,.45);
+            font-size: 1.2rem;
+        }
+
+        .page2-slideshow-placeholder::before { top: 23%; left: 17%; }
+        .page2-slideshow-placeholder::after { right: 18%; bottom: 23%; font-size: .9rem; }
+
+        .page2-slideshow-placeholder-flower {
+            color: #B78398;
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .page2-slideshow-placeholder-age {
+            position: absolute;
+            right: 8%;
+            top: 3%;
+            color: rgba(193,121,145,.15);
+            font: 700 clamp(6rem, 24vw, 10rem)/1 "Cormorant Garamond", Georgia, serif;
+        }
+
+        .page2-slideshow-placeholder-title {
+            z-index: 1;
+            margin: 9px 0 2px;
+            color: #7D2948;
+            font: 700 clamp(1.3rem, 4vw, 1.7rem)/1.2 "Cormorant Garamond", Georgia, serif;
+        }
+
+        .page2-slideshow-placeholder-copy {
+            z-index: 1;
+            margin: 0;
+            color: #9B6A72;
+            font: italic 1rem "Cormorant Garamond", Georgia, serif;
+        }
+
+        .page2-slideshow-viewport {
+            overflow: hidden;
+            touch-action: pan-y;
+            cursor: grab;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .page2-slideshow-viewport:active { cursor: grabbing; }
+
+        .page2-slideshow-track {
+            display: flex;
+            transition: transform .55s cubic-bezier(.22,.7,.25,1);
+            will-change: transform;
+        }
+
+        .page2-slideshow-slide {
+            flex: 0 0 100%;
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            margin: 0;
+            background: linear-gradient(135deg, #fff7f7, #f1e4ef);
+        }
+
+        .page2-slideshow-slide img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            pointer-events: none;
+        }
+
+        .page2-slideshow-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 14px;
+        }
+
+        .page2-slideshow-arrow {
+            width: 38px;
+            height: 38px;
+            border: 1px solid rgba(184,143,99,.48);
+            border-radius: 50%;
+            background: rgba(255,255,255,.8);
+            color: #8E4B61;
+        }
+
+        .page2-slideshow-dots { display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+        .page2-slideshow-dot {
+            width: 9px;
+            height: 9px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: #e2c7d0;
+        }
+
+        .page2-slideshow-dot.is-active {
+            width: 22px;
+            border-radius: 999px;
+            background: #A94F70;
+        }
+
+        .page2-slideshow-caption {
+            min-height: 1.3em;
+            margin: 10px 0 0;
+            color: #9B6A72;
+            font: italic .98rem "Cormorant Garamond", Georgia, serif;
+        }
+
+        @media (max-width: 640px) {
+            .page2-slideshow { padding: 17px; border-radius: 24px; }
+            .page2-slideshow-placeholder { min-height: 215px; padding: 28px 16px; }
+            .page2-slideshow-slide { aspect-ratio: 4 / 3; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .page2-slideshow-track { transition: none; }
+        }
+
         .page2-countdown {
             background: linear-gradient(135deg, rgba(255,249,250,.98), rgba(248,224,234,.96));
             border: 1px solid rgba(184, 143, 99, .45);
@@ -277,6 +538,50 @@ body {
             background: linear-gradient(135deg, #A94F70, #C18491 55%, #A98255);
             box-shadow: 0 12px 30px -12px rgba(126,61,79,.5);
         }
+
+        .add-calendar-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border: 1px solid rgba(169,79,112,.35);
+            border-radius: 12px;
+            background: linear-gradient(135deg, #A94F70, #B76E79 60%, #A98255);
+            color: #fff;
+            font-size: .72rem;
+            font-weight: 700;
+            box-shadow: 0 6px 16px -10px rgba(126,61,79,.7);
+        }
+
+        .get-directions-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 8px 12px;
+            border: 1px solid rgba(169,79,112,.35);
+            border-radius: 12px;
+            background: rgba(255,255,255,.92);
+            color: #8E4B61;
+            font-size: .72rem;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 6px 16px -12px rgba(126,61,79,.55);
+        }
+
+        .add-calendar-button:hover,
+        .get-directions-button:hover { filter: brightness(.96); }
+
+        .add-calendar-note,
+        .add-calendar-status {
+            color: #9B6A72;
+            font-size: .65rem;
+            line-height: 1.45;
+            margin: 6px 0 0;
+        }
+
+        .add-calendar-status:empty { display: none; }
 
         @media (max-width: 640px) {
             .page2-invitation-card {
@@ -333,16 +638,40 @@ body {
             inset: 0;
             z-index: 80;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            padding: 20px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 20px 16px;
+            padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
             background: rgba(73, 37, 51, .48);
             backdrop-filter: blur(7px);
             -webkit-backdrop-filter: blur(7px);
         }
 
+        #qr-scanner-modal {
+            align-items: flex-start;
+            box-sizing: border-box;
+            overflow-x: hidden;
+            overflow-y: auto;
+            overscroll-behavior-y: contain;
+            -webkit-overflow-scrolling: touch;
+            padding: 16px;
+            padding: max(16px, env(safe-area-inset-top, 0px)) 16px max(16px, env(safe-area-inset-bottom, 0px));
+        }
+
+        #qr-scanner-modal > div {
+            flex: 0 0 auto;
+            margin: auto;
+        }
+
         .secret-modal-card {
             width: min(560px, 100%);
+            flex: 0 0 auto;
+            margin: auto;
             position: relative;
             overflow: hidden;
             border-radius: 28px;
@@ -444,7 +773,34 @@ body {
             transition: transform .2s ease, box-shadow .2s ease;
         }
 
-        .secret-modal-button:hover {
+#recovery-form > .secret-modal-button[type="submit"] {
+    display: block;
+    margin-inline: auto;
+}
+
+#recovery-form > .secret-modal-button[type="submit"].is-saving {
+    display: flex;
+    width: min(100%, 260px);
+    min-width: 210px;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-inline: auto;
+    cursor: wait;
+    opacity: .92;
+}
+
+#recovery-form > .secret-modal-button[type="submit"].is-saving::after {
+    display: inline-block;
+    flex: 0 0 14px;
+}
+
+#recovery-form > .secret-modal-button[type="submit"].is-saving:hover {
+    transform: none;
+    box-shadow: 0 12px 28px -10px rgba(126,61,79,.5);
+}
+
+.secret-modal-button:hover {
             transform: translateY(-1px);
             box-shadow: 0 16px 32px -10px rgba(126,61,79,.55);
         }
@@ -684,4 +1040,824 @@ button:not(:disabled):active {
 
 button:disabled {
     cursor: not-allowed;
+}
+
+/* Keep every site popup reachable when its contents are taller than the screen. */
+#admin-login-modal,
+#milestone-modal,
+#qr-scanner-modal,
+.secret-modal-backdrop {
+    box-sizing: border-box;
+    align-items: flex-start;
+    align-items: safe center;
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    padding-top: max(16px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+}
+
+#admin-login-modal > .debut-card,
+#qr-scanner-modal > div {
+    box-sizing: border-box;
+    flex: 0 0 auto;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - max(32px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    margin: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#milestone-modal > div {
+    box-sizing: border-box;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - max(32px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px)));
+    margin: auto;
+    overflow: hidden;
+}
+
+#milestone-name-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+#db-drawer {
+    max-height: 80vh;
+    max-height: min(80vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+}
+
+#db-drawer > .overflow-y-auto {
+    min-height: 0;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* A gentle reveal as invitation sections enter the viewport. */
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity .65s ease, transform .65s cubic-bezier(.2,.7,.25,1);
+}
+
+.scroll-reveal.is-revealed {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Quiet floral motion in the background, kept clear of clicks and scrolling. */
+.floating-petal-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    overflow: hidden;
+    pointer-events: none;
+    contain: layout paint;
+}
+
+.floating-petal {
+    position: absolute;
+    top: -8vh;
+    left: var(--petal-left);
+    color: rgba(169, 79, 112, .44);
+    font-size: clamp(13px, 2.4vw, 22px);
+    line-height: 1;
+    opacity: .42;
+    animation: petalDrift var(--petal-duration) linear var(--petal-delay) infinite;
+    will-change: transform;
+}
+
+@keyframes petalDrift {
+    from { transform: translate3d(0, -8vh, 0) rotate(0deg); }
+    to { transform: translate3d(var(--petal-drift), 112vh, 0) rotate(340deg); }
+}
+
+/* Mobile progress stays visible where the desktop step pills are hidden. */
+.mobile-step-progress {
+    width: min(100% - 32px, 80rem);
+    margin: 8px auto 0;
+    color: #7D2948;
+}
+
+.mobile-step-progress-copy {
+    margin-bottom: 5px;
+    text-align: right;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .035em;
+}
+
+.mobile-step-progress-track {
+    height: 3px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(232, 197, 200, .6);
+}
+
+.mobile-step-progress-fill {
+    display: block;
+    width: 25%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #A94F70, #B88D62);
+    transition: width .45s cubic-bezier(.2,.7,.25,1);
+}
+
+.invitation-view-progress-hidden {
+    display: none !important;
+}
+
+.invite-view-indicator {
+    width: max-content;
+    max-width: calc(100% - 32px);
+    align-items: center;
+    gap: 4px;
+    margin: 8px auto 0;
+    padding: 4px;
+    border: 1px solid rgba(184, 143, 98, .35);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .76);
+    box-shadow: 0 4px 14px rgba(126, 61, 79, .08);
+}
+
+.invite-view-indicator:not([hidden]) {
+    display: flex;
+}
+
+.invite-view-indicator-item {
+    display: block;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #8A6570;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .025em;
+    cursor: pointer;
+    transition: background-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.invite-view-indicator-item:hover:not([aria-current="page"]) {
+    background: rgba(232, 197, 200, .38);
+}
+
+.invite-view-indicator-item[aria-current="page"] {
+    color: #fff;
+    background: linear-gradient(120deg, #A94F70, #B88D62);
+    box-shadow: 0 3px 9px rgba(126, 61, 79, .2);
+}
+
+.invite-view-indicator-item:focus-visible {
+    outline: 3px solid rgba(169, 79, 112, .45);
+    outline-offset: 2px;
+}
+
+.primary-action-button {
+    display: inline-flex;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    box-shadow: 0 9px 22px -12px rgba(126, 61, 79, .68);
+    transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.primary-action-button:focus-visible {
+    outline: 3px solid rgba(169, 79, 112, .48);
+    outline-offset: 3px;
+}
+
+.event-detail-card {
+    min-width: 0;
+    min-height: 100%;
+    border-color: rgba(184, 143, 98, .34) !important;
+    background: rgba(255, 255, 255, .92) !important;
+}
+
+.event-detail-card h5 {
+    color: #825465;
+    font-size: .72rem;
+}
+
+.event-detail-card p:not(.add-calendar-note):not(.add-calendar-status) {
+    line-height: 1.5;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .primary-action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 14px 26px -12px rgba(126, 61, 79, .68);
+        filter: brightness(1.04);
+    }
+}
+
+@media (max-width: 640px) {
+    .event-detail-card {
+        gap: 12px;
+        padding: 16px;
+    }
+
+    .event-detail-card > div:first-child {
+        width: 38px;
+        height: 38px;
+    }
+
+    #details-rsvp-button {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
+
+/* Match the existing button press feedback with a small lift on desktop. */
+@media (hover: hover) and (pointer: fine) {
+    #step-details .grid > div,
+    #step-details .grid > button {
+        transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+    }
+
+    #step-details .grid > div:hover,
+    #step-details .grid > button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 24px -16px rgba(126, 61, 79, .5);
+    }
+
+    .get-directions-button:hover,
+    .add-calendar-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -13px rgba(126, 61, 79, .65);
+    }
+}
+
+.get-directions-button:focus-visible,
+.add-calendar-button:focus-visible,
+#step-details button:focus-visible {
+    outline: 3px solid rgba(169, 79, 112, .45);
+    outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto !important; }
+    .scroll-reveal,
+    .scroll-reveal.is-revealed {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+    .floating-petal-layer { display: none; }
+    .mobile-step-progress-fill { transition: none; }
+}
+
+/* Invitation envelope shown when the guest opens their invitation page. */
+@keyframes siteSoftReveal {
+    0% { opacity: 0; transform: translateY(12px); filter: blur(2px); }
+    70% { opacity: 1; transform: translateY(-2px); filter: blur(0); }
+    100% { opacity: 1; transform: translateY(0); filter: none; }
+}
+
+.site-open-animate body > header {
+    animation: siteSoftReveal .62s cubic-bezier(.2,.7,.25,1) both;
+}
+
+.site-open-animate #step-registration > .debut-card {
+    animation: siteSoftReveal .72s cubic-bezier(.2,.7,.25,1) .08s both;
+}
+
+.opening-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: max(24px, env(safe-area-inset-top, 0px)) 20px max(20px, env(safe-area-inset-bottom, 0px));
+    background: radial-gradient(ellipse at 50% 32%, #fff 0%, #fff7f9 48%, #f4e2e8 100%);
+}
+
+body.entry-animation-playing {
+    overflow: hidden;
+}
+
+body.entry-animation-playing > :not(#site-opening-overlay) {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s ease;
+}
+
+.opening-scene {
+    width: min(100%, 390px);
+    text-align: center;
+}
+
+.opening-eyebrow {
+    margin: 0 0 24px;
+    color: #A98255;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+}
+
+.opening-envelope-trigger {
+    display: block;
+    width: min(310px, 82vw);
+    margin: 0 auto 23px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    cursor: pointer;
+}
+
+.opening-envelope {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 198px;
+    margin: 0;
+    perspective: 900px;
+    border: 1px solid rgba(169, 79, 112, .26);
+    border-radius: 13px;
+    background: linear-gradient(145deg, #f2dce4, #e8c5d0 60%, #d8a8b6);
+    box-shadow: 0 24px 48px -20px rgba(101, 51, 70, .45), inset 0 1px rgba(255,255,255,.8);
+}
+
+.opening-letter {
+    position: absolute;
+    z-index: 2;
+    top: 12px;
+    left: 8%;
+    display: flex;
+    width: 84%;
+    height: 166px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(184, 143, 98, .44);
+    border-radius: 8px;
+    background: #fffaf9;
+    box-shadow: 0 5px 12px rgba(91, 42, 61, .12);
+    opacity: 0;
+    transform: translateY(28px);
+}
+
+.opening-letter-kicker {
+    color: #966776;
+    font-size: .6rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+}
+
+.opening-letter-name {
+    margin-top: 7px;
+    color: #7D2948;
+    font-family: "Great Vibes", cursive;
+    font-size: 2.55rem;
+    line-height: 1;
+}
+
+.opening-letter-flourish {
+    margin-top: 9px;
+    color: #B88D62;
+    font-size: .85rem;
+    letter-spacing: .24em;
+}
+
+.opening-envelope-pocket {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgba(255,239,244,.92), rgba(222,174,190,.9));
+    clip-path: polygon(0 0, 50% 49%, 100% 0, 100% 100%, 0 100%);
+}
+
+.opening-envelope-flap {
+    position: absolute;
+    z-index: 4;
+    inset: 0 0 auto;
+    height: 58%;
+    border-radius: 12px 12px 0 0;
+    background: linear-gradient(150deg, #f8e9ee, #dcaebc);
+    clip-path: polygon(0 0, 100% 0, 50% 78%);
+    transform-origin: 50% 0;
+    backface-visibility: hidden;
+}
+
+.opening-envelope-seal {
+    position: absolute;
+    z-index: 5;
+    top: 48%;
+    left: 50%;
+    display: grid;
+    width: 35px;
+    height: 35px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.7);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #A94F70, #B88D62);
+    color: white;
+    font-family: Georgia, serif;
+    font-size: 17px;
+    box-shadow: 0 4px 10px rgba(103, 45, 65, .24);
+    transform: translate(-50%, -50%);
+}
+
+.opening-tap-hint {
+    display: block;
+    margin-top: 12px;
+    color: #8A6570;
+    font-size: .7rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+}
+
+.opening-overlay.is-prompt .opening-envelope-seal {
+    animation: sealPulse 1.8s ease-in-out infinite;
+}
+
+.opening-envelope-trigger:focus-visible {
+    outline: 3px solid rgba(169, 79, 112, .5);
+    outline-offset: 8px;
+    border-radius: 16px;
+}
+
+.opening-envelope-trigger:active {
+    transform: none !important;
+    filter: none !important;
+}
+
+.opening-title {
+    margin: 0;
+    color: #7D2948;
+    font-family: "Cormorant Garamond", Georgia, serif;
+    font-size: clamp(1.45rem, 5vw, 1.9rem);
+    font-weight: 700;
+}
+
+.opening-overlay.is-prompt .opening-scene {
+    animation: openingSceneEnter .4s ease both;
+}
+
+.opening-overlay.is-opening .opening-envelope-flap {
+    animation: openingFlap .58s cubic-bezier(.2,.75,.25,1) .18s forwards;
+}
+
+.opening-overlay.is-opening .opening-envelope {
+    animation: envelopeRelease .82s cubic-bezier(.2,.7,.25,1) .42s forwards;
+}
+
+.opening-overlay.is-opening .opening-letter {
+    animation: openingLetter .72s cubic-bezier(.16,.82,.25,1) .48s forwards;
+}
+
+.opening-overlay.is-opening .opening-envelope-seal,
+.opening-overlay.is-opening .opening-tap-hint {
+    opacity: 0;
+    transition: opacity .18s ease;
+}
+
+.opening-overlay.is-closing {
+    animation: openingOverlayExit .44s ease forwards;
+}
+
+@keyframes openingSceneEnter {
+    from { opacity: 0; transform: translateY(8px) scale(.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes openingFlap {
+    to { transform: rotateX(180deg); opacity: .72; }
+}
+
+@keyframes envelopeRelease {
+    to { transform: translateY(10px) scale(.94); opacity: .42; }
+}
+
+@keyframes openingLetter {
+    to { opacity: 1; transform: translateY(-43px) scale(1.14); }
+}
+
+@keyframes openingOverlayExit {
+    to { opacity: 0; visibility: hidden; }
+}
+
+@keyframes sealPulse {
+    0%, 100% { box-shadow: 0 4px 10px rgba(103, 45, 65, .24); }
+    50% { box-shadow: 0 0 0 6px rgba(169, 79, 112, .12), 0 4px 14px rgba(103, 45, 65, .3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .site-open-animate body > header,
+    .site-open-animate #step-registration > .debut-card {
+        animation: none !important;
+    }
+    body.entry-animation-playing { overflow: auto; }
+    .opening-overlay.is-prompt .opening-scene,
+    .opening-overlay.is-prompt .opening-envelope-seal,
+    .opening-overlay.is-opening .opening-envelope,
+    .opening-overlay.is-opening .opening-envelope-flap,
+    .opening-overlay.is-opening .opening-letter,
+    .opening-overlay.is-closing { animation: none !important; }
+    body.entry-animation-playing > :not(#site-opening-overlay) { opacity: 1; }
+}
+
+/* Invitation card polish: clearer type hierarchy and calmer floral framing. */
+.page2-invitation-card {
+    min-height: 0;
+    border: 4px double rgba(184, 143, 99, .72) !important;
+    border-radius: 28px !important;
+    background:
+        radial-gradient(rgba(118,37,65,.025) .45px, transparent .7px),
+        radial-gradient(circle at 25px 25px, rgba(184,143,99,.62) 0 2px, transparent 3px),
+        radial-gradient(circle at calc(100% - 25px) 25px, rgba(184,143,99,.62) 0 2px, transparent 3px),
+        radial-gradient(circle at 25px calc(100% - 25px), rgba(184,143,99,.62) 0 2px, transparent 3px),
+        radial-gradient(circle at calc(100% - 25px) calc(100% - 25px), rgba(184,143,99,.62) 0 2px, transparent 3px),
+        radial-gradient(ellipse at 50% 8%, rgba(255,255,255,.99), rgba(255,247,249,.98) 52%, rgba(248,228,236,.96) 100%);
+    background-size: 6px 6px, auto, auto, auto, auto, auto;
+    box-shadow:
+        0 30px 66px -27px rgba(105, 48, 68, .38),
+        0 7px 0 -3px rgba(184,143,99,.20),
+        inset 0 0 0 4px rgba(255,255,255,.76),
+        inset 0 0 0 6px rgba(184,143,99,.10);
+}
+
+.page2-invitation-card::before {
+    inset: 16px;
+    border-color: rgba(184, 143, 99, .58);
+    border-radius: 20px;
+    box-shadow: 0 0 0 4px rgba(255,255,255,.42), 0 0 0 5px rgba(184,143,99,.16);
+}
+
+.page2-invitation-card::after {
+    content: "✧";
+    top: 17px;
+    right: auto;
+    left: 50%;
+    color: rgba(184,143,99,.82);
+    font-family: Georgia, serif;
+    font-size: 19px;
+    transform: translateX(-50%);
+}
+
+/* Continue the invitation's ivory-and-gold frame through the countdown and details. */
+.page2-countdown {
+    border: 3px double rgba(184, 143, 99, .68);
+    background:
+        radial-gradient(rgba(118,37,65,.022) .45px, transparent .7px),
+        radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.98), rgba(255,247,249,.97) 58%, rgba(248,228,236,.95) 100%);
+    background-size: 6px 6px, auto;
+    box-shadow:
+        0 24px 52px -24px rgba(105, 48, 68, .30),
+        inset 0 0 0 4px rgba(255,255,255,.72),
+        inset 0 0 0 6px rgba(184,143,99,.10);
+}
+
+.page2-time-box {
+    border-color: rgba(184,143,99,.42);
+    background: rgba(255,252,250,.76);
+    box-shadow: inset 0 0 0 2px rgba(255,255,255,.66), 0 5px 14px rgba(105,48,68,.06);
+}
+
+.page2-time-number { color: #762541; }
+.page2-time-label { color: #93616d; }
+
+#step-details > .debut-card {
+    border: 3px double rgba(184,143,99,.68);
+    background:
+        radial-gradient(rgba(118,37,65,.022) .45px, transparent .7px),
+        radial-gradient(ellipse at 50% 0%, #fff 0%, #fff8fa 58%, #f8e8ee 100%);
+    background-size: 6px 6px, auto;
+    box-shadow:
+        0 26px 58px -28px rgba(105,48,68,.32),
+        inset 0 0 0 4px rgba(255,255,255,.72),
+        inset 0 0 0 6px rgba(184,143,99,.10);
+}
+
+#step-details .event-detail-card {
+    border-color: rgba(184,143,99,.34);
+    background: rgba(255,253,251,.84);
+    box-shadow: 0 8px 22px -15px rgba(105,48,68,.28);
+}
+
+#step-details .event-detail-card > div:first-child {
+    background: linear-gradient(145deg, #fff5f6, #f1e6ee);
+    color: #9a6072;
+}
+
+#step-details .grid.grid-cols-3 > button {
+    border-color: rgba(184,143,99,.34);
+    background: rgba(255,252,250,.76);
+}
+
+#step-details .grid.grid-cols-3 > button:hover {
+    background: #fff6f7;
+    border-color: rgba(184,143,99,.66);
+}
+
+.page2-content {
+    max-width: 760px;
+    padding: clamp(30px, 5vw, 48px) clamp(20px, 5vw, 42px) 40px;
+}
+
+.page2-crown {
+    width: 66px;
+    height: 66px;
+    margin: 4px auto 15px;
+    font-size: 24px;
+    background: rgba(255, 251, 247, .9);
+    box-shadow: 0 8px 22px rgba(183,110,121,.12);
+}
+
+.page2-kicker {
+    display: inline-block;
+    padding: 7px 15px;
+    border-top: 1px solid rgba(184, 143, 99, .45);
+    border-bottom: 1px solid rgba(184, 143, 99, .45);
+    color: #93616d;
+    font-size: .68rem;
+    letter-spacing: .17em;
+}
+
+.page2-greeting {
+    max-width: 100%;
+    margin: 24px auto 20px;
+    color: #762541;
+    font-size: clamp(2rem, 5.7vw, 3.55rem);
+    line-height: 1.05;
+    letter-spacing: -.025em;
+    text-wrap: balance;
+    overflow-wrap: anywhere;
+}
+
+.page2-script-message {
+    max-width: 620px;
+    color: #98556a;
+    font-size: clamp(1.75rem, 3.55vw, 2.65rem);
+    line-height: 1.25;
+    text-wrap: balance;
+}
+
+.page2-ornament {
+    margin: 28px auto 20px;
+}
+
+.page2-ornament::before,
+.page2-ornament::after {
+    width: clamp(48px, 10vw, 90px);
+}
+
+.page2-honor-label {
+    color: #a52f58;
+    font-size: .72rem;
+    letter-spacing: .22em;
+}
+
+.page2-name {
+    margin-top: 3px;
+    color: #762541;
+    font-size: clamp(2.8rem, 6vw, 4rem);
+    line-height: 1.04;
+    text-wrap: balance;
+}
+
+.page2-floral-art {
+    opacity: .82;
+}
+
+.page2-18 {
+    color: rgba(193, 121, 145, .12);
+}
+
+@media (max-width: 640px) {
+    .page2-invitation-card {
+        min-height: 0;
+        border-width: 3px !important;
+        border-radius: 24px !important;
+    }
+
+    .page2-invitation-card::before {
+        inset: 12px;
+        border-radius: 17px;
+    }
+
+    .page2-content {
+        padding: 27px 19px 30px;
+    }
+
+    .page2-countdown {
+        padding: 1.15rem !important;
+        border-radius: 24px !important;
+    }
+
+    .page2-countdown .grid {
+        gap: .55rem;
+    }
+
+    .page2-time-box {
+        padding: .7rem .25rem !important;
+        border-radius: 15px !important;
+    }
+
+    #step-details > .debut-card {
+        padding: 1.15rem !important;
+        border-radius: 24px !important;
+    }
+
+    #step-details .event-details-grid {
+        gap: .75rem;
+    }
+
+    #step-details .event-detail-card {
+        gap: .75rem;
+        padding: 1rem;
+        border-radius: 18px;
+    }
+
+    #step-details .grid.grid-cols-3 {
+        gap: .5rem;
+    }
+
+    #step-details .grid.grid-cols-3 > button {
+        min-height: 112px;
+        padding: .7rem .45rem;
+    }
+
+    .page2-crown {
+        width: 58px;
+        height: 58px;
+        margin-bottom: 13px;
+        font-size: 21px;
+    }
+
+    .page2-kicker {
+        max-width: 86%;
+        padding: 6px 10px;
+        font-size: .58rem;
+        letter-spacing: .13em;
+    }
+
+    .page2-greeting {
+        margin: 21px auto 17px;
+        font-size: clamp(1.8rem, 8.2vw, 2.75rem);
+        line-height: 1.08;
+    }
+
+    .page2-script-message {
+        max-width: 32rem;
+        font-size: clamp(1.55rem, 6vw, 2.05rem);
+        line-height: 1.26;
+    }
+
+    .page2-ornament {
+        margin: 23px auto 17px;
+    }
+
+    .page2-honor-label {
+        font-size: .66rem;
+    }
+
+    .page2-name {
+        font-size: clamp(2.65rem, 9vw, 3.55rem);
+        line-height: 1.06;
+    }
+
+    .page2-floral-tl {
+        width: 125px;
+        height: 110px;
+    }
+
+    .page2-floral-tr {
+        width: 105px;
+        height: 96px;
+    }
+
+    .page2-ribbon-bl {
+        width: 88px;
+        height: 125px;
+        opacity: .62;
+    }
+
+    .page2-butterfly-br {
+        width: 72px;
+        height: 62px;
+        right: 2px;
+        bottom: 18px;
+        opacity: .72;
+    }
 }

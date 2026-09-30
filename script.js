@@ -24,6 +24,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let authReady = false;
         let inviteMode = false;
         let registrationSavePromise = null;
+        let scrollRevealObserver = null;
+        let invitationEnvelopeShown = false;
+        let invitationEnvelopeOpening = false;
+        let invitationEnvelopeBackground = [];
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Aianna Fulla",
@@ -32,7 +36,301 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             dressCode: "Casual Attire — Cream & Beige"
         };
 
+        window.addToCalendar = function() {
+            const status = document.getElementById('calendar-download-status');
+            const escapeICalendarText = (value) => String(value)
+                .replace(/\\/g, '\\\\')
+                .replace(/\r?\n/g, '\\n')
+                .replace(/,/g, '\\,')
+                .replace(/;/g, '\\;');
+            const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+            const description = 'Doors open at 4:00 PM. Casual attire: Cream & Beige.';
+            const calendarEvent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Kylie Aianna Fulla//18th Birthday Debut//EN',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH',
+                'BEGIN:VEVENT',
+                'UID:kylie-18th-debut-20261107@kylie-invitation',
+                `DTSTAMP:${stamp}`,
+                'DTSTART:20261107T083000Z',
+                'DTEND:20261107T090000Z',
+                `SUMMARY:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`)}`,
+                `LOCATION:${escapeICalendarText(DEBUT_EVENT_CONFIG.venue)}`,
+                `DESCRIPTION:${escapeICalendarText(description)}`,
+                'END:VEVENT',
+                'END:VCALENDAR'
+            ].join('\r\n') + '\r\n';
+
+            try {
+                const calendarFile = new Blob([calendarEvent], { type: 'text/calendar;charset=utf-8' });
+                const fileUrl = URL.createObjectURL(calendarFile);
+                const downloadLink = document.createElement('a');
+                downloadLink.href = fileUrl;
+                downloadLink.download = 'Kylie-18th-Birthday-Debut.ics';
+                downloadLink.style.display = 'none';
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                downloadLink.remove();
+                setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
+                if (status) status.textContent = 'Open the calendar file to save this event.';
+            } catch (error) {
+                console.error('Could not create calendar event:', error);
+                if (status) status.textContent = 'Could not create the calendar file. Please try another browser.';
+            }
+        };
+
+        // Add photos here when they are ready, for example:
+        // { src: './photos/kylie-01.jpg', alt: 'Kylie celebrating with family', caption: 'A day to remember' }
+        const DEBUT_PHOTO_SLIDES = [];
+        let photoSlideIndex = 0;
+        let photoSlideTimer = null;
+
+        function capitalizeNameWords(value) {
+            return value.replace(/(^|[\s'’\-])(\p{L})/gu, (_, separator, letter) =>
+                separator + letter.toLocaleUpperCase()
+            );
+        }
+
+        function initializeNameCapitalization() {
+            ['reg-fullname', 'recovery-name'].forEach((id) => {
+                const input = document.getElementById(id);
+                if (!input) return;
+
+                const capitalizeInput = () => {
+                    const start = input.selectionStart ?? input.value.length;
+                    const end = input.selectionEnd ?? start;
+                    const beforeCaret = capitalizeNameWords(input.value.slice(0, start)).length;
+                    const afterSelection = capitalizeNameWords(input.value.slice(0, end)).length;
+                    const nextValue = capitalizeNameWords(input.value);
+                    if (nextValue === input.value) return;
+
+                    input.value = nextValue;
+                    input.setSelectionRange(beforeCaret, afterSelection);
+                };
+
+                input.addEventListener('input', capitalizeInput);
+                input.addEventListener('blur', capitalizeInput);
+            });
+        }
+
+        function initializePhotoSlideshow() {
+            const root = document.getElementById('debut-photo-slideshow');
+            const placeholder = document.getElementById('photo-slideshow-placeholder');
+            const viewport = document.getElementById('photo-slideshow-viewport');
+            const track = document.getElementById('photo-slideshow-track');
+            const controls = document.getElementById('photo-slideshow-controls');
+            const dots = document.getElementById('photo-slideshow-dots');
+            const caption = document.getElementById('photo-slideshow-caption');
+            if (!root || !placeholder || !viewport || !track || !controls || !dots || !caption) return;
+
+            const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
+            if (slides.length === 0) return;
+
+            placeholder.classList.add('hidden');
+            viewport.classList.remove('hidden');
+            if (slides.length > 1) controls.classList.remove('hidden');
+
+            slides.forEach((slide, index) => {
+                const figure = document.createElement('figure');
+                figure.className = 'page2-slideshow-slide';
+                figure.setAttribute('aria-roledescription', 'slide');
+
+                const image = document.createElement('img');
+                image.src = slide.src;
+                image.alt = slide.alt || `Kylie debut photo ${index + 1}`;
+                image.loading = index === 0 ? 'eager' : 'lazy';
+                image.draggable = false;
+                figure.appendChild(image);
+                track.appendChild(figure);
+
+                const dot = document.createElement('button');
+                dot.type = 'button';
+                dot.className = 'page2-slideshow-dot';
+                dot.setAttribute('aria-label', `Show photo ${index + 1}`);
+                dot.addEventListener('click', () => showPhotoSlide(index));
+                dots.appendChild(dot);
+            });
+
+            function showPhotoSlide(index) {
+                photoSlideIndex = (index + slides.length) % slides.length;
+                track.style.transform = `translateX(-${photoSlideIndex * 100}%)`;
+                Array.from(track.children).forEach((slide, slideIndex) => {
+                    slide.setAttribute('aria-hidden', slideIndex === photoSlideIndex ? 'false' : 'true');
+                });
+                Array.from(dots.children).forEach((dot, dotIndex) => {
+                    dot.classList.toggle('is-active', dotIndex === photoSlideIndex);
+                    dot.setAttribute('aria-current', dotIndex === photoSlideIndex ? 'true' : 'false');
+                });
+                caption.textContent = slides[photoSlideIndex].caption || '';
+            }
+
+            window.changePhotoSlide = function(direction) {
+                showPhotoSlide(photoSlideIndex + direction);
+                restartPhotoSlideTimer();
+            };
+
+            function restartPhotoSlideTimer() {
+                if (photoSlideTimer) clearInterval(photoSlideTimer);
+                if (slides.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    photoSlideTimer = setInterval(() => showPhotoSlide(photoSlideIndex + 1), 5000);
+                }
+            }
+
+            let pointerStart = null;
+            viewport.addEventListener('pointerdown', (event) => {
+                if (event.isPrimary) pointerStart = { x: event.clientX, y: event.clientY };
+            });
+            viewport.addEventListener('pointerup', (event) => {
+                if (!pointerStart) return;
+                const deltaX = event.clientX - pointerStart.x;
+                const deltaY = event.clientY - pointerStart.y;
+                pointerStart = null;
+                if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY)) {
+                    window.changePhotoSlide(deltaX < 0 ? 1 : -1);
+                }
+            });
+            viewport.addEventListener('pointercancel', () => { pointerStart = null; });
+            viewport.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowLeft') window.changePhotoSlide(-1);
+                if (event.key === 'ArrowRight') window.changePhotoSlide(1);
+            });
+
+            showPhotoSlide(0);
+            restartPhotoSlideTimer();
+        }
+
+        function initializeScrollReveals() {
+            const revealTargets = document.querySelectorAll(
+                '#step-invitation > .page2-invitation-card, #step-invitation > #debut-photo-slideshow, #step-invitation > .page2-countdown, #step-details > .debut-card, #step-details .grid > div, #step-rsvp > .debut-card, #step-confirmation > .debut-card'
+            );
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            revealTargets.forEach((element) => element.classList.add('scroll-reveal'));
+            if (!('IntersectionObserver' in window)) {
+                revealTargets.forEach((element) => element.classList.add('is-revealed'));
+                return;
+            }
+
+            scrollRevealObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    entry.target.classList.add('is-revealed');
+                    observer.unobserve(entry.target);
+                });
+            }, { threshold: 0.12, rootMargin: '0px 0px -36px 0px' });
+
+            revealTargets.forEach((element) => scrollRevealObserver.observe(element));
+        }
+
+        function refreshScrollReveals(section) {
+            if (!scrollRevealObserver || !section) return;
+            section.querySelectorAll('.scroll-reveal:not(.is-revealed)').forEach((element) => {
+                scrollRevealObserver.unobserve(element);
+                scrollRevealObserver.observe(element);
+            });
+        }
+
+        function initializeFloatingPetals() {
+            const layer = document.getElementById('floating-petal-layer');
+            if (!layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const petals = [
+                [7, '-15s', '19s', '-24px'], [19, '-6s', '22s', '20px'],
+                [31, '-18s', '20s', '-18px'], [45, '-10s', '24s', '24px'],
+                [59, '-3s', '21s', '-22px'], [72, '-14s', '23s', '18px'],
+                [84, '-8s', '20s', '-20px'], [95, '-20s', '25s', '14px']
+            ];
+
+            petals.forEach(([left, delay, duration, drift], index) => {
+                const petal = document.createElement('span');
+                petal.className = 'floating-petal';
+                petal.textContent = index % 2 === 0 ? '✿' : '❀';
+                petal.style.setProperty('--petal-left', `${left}%`);
+                petal.style.setProperty('--petal-delay', delay);
+                petal.style.setProperty('--petal-duration', duration);
+                petal.style.setProperty('--petal-drift', drift);
+                layer.appendChild(petal);
+            });
+        }
+
+        function showInvitationEnvelope() {
+            const overlay = document.getElementById('site-opening-overlay');
+            if (!overlay || invitationEnvelopeShown) return;
+            invitationEnvelopeShown = true;
+            invitationEnvelopeOpening = false;
+            invitationEnvelopeBackground = Array.from(document.body.children)
+                .filter((element) => element !== overlay && !element.inert);
+            document.body.classList.add('entry-animation-playing');
+            invitationEnvelopeBackground.forEach((element) => { element.inert = true; });
+            overlay.classList.remove('hidden');
+            overlay.classList.remove('is-opening', 'is-closing');
+            overlay.classList.add('is-prompt');
+            const button = document.getElementById('open-invitation-envelope');
+            const title = document.getElementById('site-opening-title');
+            if (button) {
+                button.disabled = false;
+                button.setAttribute('aria-label', "Open Kylie's invitation");
+                button.focus();
+            }
+            if (title) title.textContent = 'Your invitation awaits';
+        }
+
+        function closeInvitationEnvelope() {
+            const overlay = document.getElementById('site-opening-overlay');
+            if (!overlay) return;
+            overlay.classList.add('is-closing');
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.setTimeout(() => {
+                overlay.classList.add('hidden');
+                overlay.classList.remove('is-prompt', 'is-opening', 'is-closing');
+                document.body.classList.remove('entry-animation-playing');
+                invitationEnvelopeBackground.forEach((element) => { element.inert = false; });
+                invitationEnvelopeBackground = [];
+                const invitationSection = document.getElementById('step-invitation');
+                if (invitationSection) {
+                    invitationSection.setAttribute('tabindex', '-1');
+                    invitationSection.focus({ preventScroll: true });
+                }
+            }, reduceMotion ? 0 : 320);
+        }
+
+        window.openInvitationEnvelope = function() {
+            const overlay = document.getElementById('site-opening-overlay');
+            const button = document.getElementById('open-invitation-envelope');
+            const title = document.getElementById('site-opening-title');
+            if (!overlay || invitationEnvelopeOpening || !invitationEnvelopeShown) return;
+            invitationEnvelopeOpening = true;
+            if (button) {
+                button.disabled = true;
+                button.setAttribute('aria-label', 'Opening your invitation');
+            }
+            if (title) title.textContent = 'Your invitation is ready';
+            overlay.classList.remove('is-prompt');
+            overlay.classList.add('is-opening');
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            // Let the letter rise and enlarge before the full invitation fades in behind it.
+            window.setTimeout(closeInvitationEnvelope, reduceMotion ? 0 : 1380);
+        };
+
+        function updateMobileStepProgress(stepNum) {
+            const stage = stepNum === 5 ? 4 : stepNum;
+            const labels = { 1: 'Register', 2: 'Invitation', 3: 'Event Details', 4: 'RSVP' };
+            const label = document.getElementById('mobile-step-label');
+            const fill = document.getElementById('mobile-step-fill');
+            const track = document.getElementById('mobile-step-track');
+            if (label) label.textContent = `Step ${stage} of 4 · ${labels[stage] || labels[1]}`;
+            if (fill) fill.style.width = `${stage * 25}%`;
+            if (track) track.setAttribute('aria-valuenow', String(stage));
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
+            initializePhotoSlideshow();
+            initializeNameCapitalization();
+            initializeScrollReveals();
+            initializeFloatingPetals();
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('admin') === '1') {
                 const adminBtn = document.getElementById('admin-console-btn');
@@ -190,14 +488,24 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                 const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-                if (daysEl) daysEl.innerText = days.toString().padStart(2, '0');
-                if (hoursEl) hoursEl.innerText = hours.toString().padStart(2, '0');
-                if (minsEl) minsEl.innerText = minutes.toString().padStart(2, '0');
-                if (secsEl) secsEl.innerText = seconds.toString().padStart(2, '0');
+                setCountdownValue(daysEl, days);
+                setCountdownValue(hoursEl, hours);
+                setCountdownValue(minsEl, minutes);
+                setCountdownValue(secsEl, seconds);
             }
 
             updateTimer();
             countdownInterval = setInterval(updateTimer, 1000);
+        }
+
+        function setCountdownValue(element, value) {
+            if (!element) return;
+            const nextValue = value.toString().padStart(2, '0');
+            if (element.textContent === nextValue) return;
+
+            element.textContent = nextValue;
+            element.classList.remove('countdown-flip');
+            requestAnimationFrame(() => element.classList.add('countdown-flip'));
         }
 
         // Navigation Steps Handler
@@ -218,12 +526,41 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             Object.values(stepMap).forEach(id => {
                 const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
+                if (el) {
+                    el.classList.add('hidden');
+                    el.classList.remove('step-enter');
+                }
             });
 
             const targetId = stepMap[stepNum];
             if (targetId) {
-                document.getElementById(targetId).classList.remove('hidden');
+                const target = document.getElementById(targetId);
+                if (target) {
+                    target.classList.remove('hidden');
+                    target.classList.add('step-enter');
+                    requestAnimationFrame(() => refreshScrollReveals(target));
+                }
+            }
+
+            if (stepNum === 2) showInvitationEnvelope();
+
+            updateMobileStepProgress(stepNum);
+
+            // Personal QR invitations are view-only and should not show registration steps.
+            ['step-indicator', 'mobile-step-progress'].forEach((id) => {
+                const progress = document.getElementById(id);
+                if (!progress) return;
+                progress.classList.toggle('invitation-view-progress-hidden', inviteMode);
+                progress.setAttribute('aria-hidden', inviteMode ? 'true' : 'false');
+            });
+
+            const inviteViewIndicator = document.getElementById('invite-view-indicator');
+            if (inviteViewIndicator) {
+                inviteViewIndicator.hidden = !inviteMode;
+                const onInvitation = document.getElementById('invite-view-invitation');
+                const onDetails = document.getElementById('invite-view-details');
+                if (onInvitation) onInvitation.setAttribute('aria-current', stepNum === 2 ? 'page' : 'false');
+                if (onDetails) onDetails.setAttribute('aria-current', stepNum === 3 ? 'page' : 'false');
             }
 
             const detailsRsvpButton = document.getElementById('details-rsvp-button');
@@ -244,7 +581,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }
             }
 
-            window.scrollTo({ top: 0, behavior: 'auto' });
+            const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
         };
 
         // Form Handlers
@@ -286,7 +624,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const names = MILESTONE_NAMES[type] || [];
             if (names.length) {
                 list.innerHTML = names.map((name, index) => `
-                    <div class="flex items-center gap-3 py-2.5 border-b border-blush-100 last:border-0">
+                    <div class="milestone-name-item flex items-center gap-3 py-2.5 border-b border-blush-100 last:border-0" style="--milestone-index:${index}">
                         <span class="w-7 h-7 rounded-full bg-blush-100 text-blush-700 text-xs font-bold flex items-center justify-center">${index + 1}</span>
                         <span class="text-sm font-medium text-blush-900">${escapeHtml(name)}</span>
                     </div>`).join('');
@@ -425,11 +763,21 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const name = document.getElementById('recovery-name').value.trim();
             const errorEl = document.getElementById('recovery-error');
             const form = document.getElementById('recovery-form');
+            if (form.getAttribute('aria-busy') === 'true') return;
             const welcome = document.getElementById('recovery-welcome');
             const actions = document.getElementById('recovery-actions');
             const welcomeName = document.getElementById('recovery-welcome-name');
+            const submitButton = form.querySelector('button[type="submit"]');
+            const submitLabel = document.getElementById('recovery-submit-label');
 
             errorEl.classList.add('hidden');
+            form.setAttribute('aria-busy', 'true');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('is-saving');
+                submitButton.setAttribute('aria-busy', 'true');
+            }
+            if (submitLabel) submitLabel.textContent = 'Searching…';
             try {
                 const ready = await waitForFirebaseAuth();
                 if (!ready) {
@@ -454,6 +802,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 console.error('Invitation recovery failed:', err);
                 errorEl.textContent = 'We could not recover your invitation right now. Please try again.';
                 errorEl.classList.remove('hidden');
+            } finally {
+                form.setAttribute('aria-busy', 'false');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.classList.remove('is-saving');
+                    submitButton.setAttribute('aria-busy', 'false');
+                }
+                if (submitLabel) submitLabel.textContent = 'Find My Invitation';
             }
         };
 
@@ -492,9 +848,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const fullNameEl = document.getElementById('reg-fullname');
             const emailEl = document.getElementById('reg-email');
             const submitButton = document.querySelector('#registration-form button[type=\"submit\"]');
-            const fullName = fullNameEl ? fullNameEl.value.trim() : '';
+            const fullName = fullNameEl ? capitalizeNameWords(fullNameEl.value.trim()) : '';
             const email = emailEl ? emailEl.value.trim() : '';
             const guestCount = 1;
+
+            if (fullNameEl) fullNameEl.value = fullName;
 
             if (!fullName || !email) return false;
 
@@ -740,6 +1098,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         function populateInvitationView() {
             if (!currentGuest) return;
+            currentGuest.name = capitalizeNameWords(currentGuest.name || '').trim();
             const greeting = document.getElementById('invitation-greeting');
             if (greeting) {
                 greeting.textContent = `Dear ${currentGuest.name},`;
@@ -756,12 +1115,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             if (isAttending) {
                 detailsBox.classList.remove('hidden');
-                labelYes.classList.add('border-blush-600', 'bg-blush-50');
-                labelNo.classList.remove('border-blush-600', 'bg-blush-50');
+                labelYes.classList.add('border-blush-600', 'bg-blush-50', 'is-selected');
+                labelNo.classList.remove('border-blush-600', 'bg-blush-50', 'is-selected');
             } else {
                 detailsBox.classList.add('hidden');
-                labelNo.classList.add('border-blush-600', 'bg-blush-50');
-                labelYes.classList.remove('border-blush-600', 'bg-blush-50');
+                labelNo.classList.add('border-blush-600', 'bg-blush-50', 'is-selected');
+                labelYes.classList.remove('border-blush-600', 'bg-blush-50', 'is-selected');
             }
         };
 
@@ -771,6 +1130,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             const form = e.target;
             const attendance = form.attendance.value;
+            const submitButton = form.querySelector('button[type="submit"]');
+            const submitLabel = submitButton ? submitButton.textContent.trim() : '';
+
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.setAttribute('aria-busy', 'true');
+                submitButton.classList.add('is-saving');
+                submitButton.textContent = 'Saving your RSVP…';
+            }
 
             if (attendance === 'Yes') {
                 currentGuest.rsvpStatus = 'Confirmed';
@@ -804,6 +1172,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             } catch (err) {
                 console.error(err);
                 alert("We could not save your RSVP. Please try again.");
+            } finally {
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.removeAttribute('aria-busy');
+                    submitButton.classList.remove('is-saving');
+                    submitButton.textContent = submitLabel;
+                }
             }
         };
 

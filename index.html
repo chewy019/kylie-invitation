@@ -3,6 +3,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script>
+if (!new URLSearchParams(window.location.search).has('invite') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    document.documentElement.classList.add('site-open-animate');
+}
+</script>
 <title>Kylie's 18th Birthday Debut - Personalized RSVP Invitation</title>
 <!-- Tailwind configuration MUST load before Tailwind CDN -->
 <script src="./tailwind.config.js"></script>
@@ -22,6 +27,25 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <link href="./style.css" rel="stylesheet"/></head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900 pb-16">
+<div aria-labelledby="site-opening-title" aria-modal="true" class="opening-overlay hidden" id="site-opening-overlay" role="dialog">
+<div class="opening-scene">
+<p class="opening-eyebrow">A little celebration awaits</p>
+<button aria-label="Open Kylie's invitation" class="opening-envelope-trigger" id="open-invitation-envelope" onclick="openInvitationEnvelope()" type="button">
+<span aria-hidden="true" class="opening-envelope">
+<span class="opening-letter">
+<span class="opening-letter-kicker">You are invited to</span>
+<span class="opening-letter-name">Kylie's 18th</span>
+<span class="opening-letter-flourish">♡ ✦ ♡</span>
+</span>
+<span class="opening-envelope-pocket"></span>
+<span class="opening-envelope-flap"></span>
+<span class="opening-envelope-seal">♡</span>
+</span>
+<span class="opening-tap-hint">Tap the envelope to open</span>
+</button>
+<h1 class="opening-title" id="site-opening-title">Your invitation awaits</h1>
+</div>
+</div>
 <header class="w-full py-4 px-4 sm:px-8 bg-white/85 backdrop-blur-md border-b border-blush-200 sticky top-0 z-30 shadow-sm">
 <div class="max-w-5xl mx-auto flex items-center justify-between">
 <div class="flex items-center gap-2">
@@ -48,7 +72,18 @@
 <span class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" id="guest-count-badge">0</span>
 </button>
 </div>
+<div class="mobile-step-progress md:hidden" id="mobile-step-progress" aria-label="Registration progress">
+<div class="mobile-step-progress-copy" id="mobile-step-label">Step 1 of 4 · Register</div>
+<div class="mobile-step-progress-track" id="mobile-step-track" role="progressbar" aria-label="Invitation steps" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1">
+<span class="mobile-step-progress-fill" id="mobile-step-fill"></span>
+</div>
+</div>
+<div aria-label="Personal invitation page" class="invite-view-indicator" id="invite-view-indicator" role="group" hidden>
+<button class="invite-view-indicator-item" id="invite-view-invitation" aria-current="page" onclick="goToStep(2)" type="button">Invitation</button>
+<button class="invite-view-indicator-item" id="invite-view-details" onclick="goToStep(3)" type="button">Details</button>
+</div>
 </header>
+<div aria-hidden="true" class="floating-petal-layer" id="floating-petal-layer"></div>
 <main class="w-full max-w-3xl mx-auto px-4 py-8 sm:py-10 flex-grow">
 <section class="step-transition block" id="step-registration">
 <div class="debut-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden">
@@ -195,6 +230,30 @@
 </div>
 </div>
 </div>
+<!-- Photo slideshow: add image entries to DEBUT_PHOTO_SLIDES in script.js when photos are ready. -->
+<section aria-label="Kylie's debut photo slideshow" class="page2-slideshow mb-8" id="debut-photo-slideshow">
+<div class="page2-slideshow-heading">
+<span class="page2-slideshow-eyebrow">A Little Collection of Memories</span>
+<h3 class="page2-slideshow-title">Kylie's Moments</h3>
+</div>
+<div class="page2-slideshow-frame">
+<div aria-live="polite" class="page2-slideshow-placeholder" id="photo-slideshow-placeholder">
+<span aria-hidden="true" class="page2-slideshow-placeholder-flower">✿</span>
+<span class="page2-slideshow-placeholder-age">18</span>
+<p class="page2-slideshow-placeholder-title">A Gallery of Memories</p>
+<p class="page2-slideshow-placeholder-copy">Kylie's photos will bloom here soon.</p>
+</div>
+<div aria-label="Photo gallery" aria-roledescription="carousel" class="page2-slideshow-viewport hidden" id="photo-slideshow-viewport" tabindex="0">
+<div class="page2-slideshow-track" id="photo-slideshow-track"></div>
+</div>
+</div>
+<div class="page2-slideshow-controls hidden" id="photo-slideshow-controls">
+<button aria-label="Previous photo" class="page2-slideshow-arrow" id="photo-slide-prev" onclick="changePhotoSlide(-1)" type="button"><i class="fa-solid fa-chevron-left"></i></button>
+<div aria-label="Choose a photo" class="page2-slideshow-dots" id="photo-slideshow-dots"></div>
+<button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button"><i class="fa-solid fa-chevron-right"></i></button>
+</div>
+<p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="polite"></p>
+</section>
 <!-- Live Countdown Timer — same information, redesigned to match Page 2 -->
 <div class="page2-countdown rounded-[2rem] p-6 sm:p-8 shadow-xl mb-8 text-center relative overflow-hidden">
 <h4 class="page2-countdown-title text-3xl sm:text-4xl mb-1">Counting Down To The Magic</h4>
@@ -222,7 +281,7 @@
                 </div>
 </div>
 <div class="text-center">
-<button class="page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)">
+<button class="primary-action-button page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)">
 <span>View Event Details &amp; Schedule</span>
 <i class="fa-solid fa-arrow-right text-xs"></i>
 </button>
@@ -234,9 +293,9 @@
 <span class="text-xs uppercase font-bold tracking-widest text-rosegold bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
 <h3 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h3>
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+<div class="event-details-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
 <!-- Date -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+<div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
 <i class="fa-regular fa-calendar-check"></i>
 </div>
@@ -244,10 +303,16 @@
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
 <p class="font-semibold text-blush-900 text-sm">November 7, 2026</p>
 <p class="text-xs text-blush-700 mt-0.5">Saturday</p>
+<button class="add-calendar-button mt-3" onclick="addToCalendar()" type="button">
+<i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
+<span>Add to Calendar</span>
+</button>
+<p class="add-calendar-note">4:30–5:00 PM · Doors open at 4:00 PM</p>
+<p aria-live="polite" class="add-calendar-status" id="calendar-download-status"></p>
 </div>
 </div>
 <!-- Time -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+<div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
 <i class="fa-regular fa-clock"></i>
 </div>
@@ -258,18 +323,22 @@
 </div>
 </div>
 <!-- Venue -->
-<div class="bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+<div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
 <i class="fa-solid fa-location-dot"></i>
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
-<a class="font-semibold text-blush-900 text-sm underline decoration-blush-300 underline-offset-2 hover:text-blush-700" href="https://www.google.com/maps/place/Tito%27s+Restaurant+Tondo/@14.6106759,120.9648302,17z/data=!3m1!4b1!4m6!3m5!1s0x3397cbe4edd4068f:0x56ebe0edd2cca682!8m2!3d14.6106759!4d120.9674105!16s%2Fg%2F11kj0d80_l?entry=ttu&amp;g_ep=EgoyMDI2MDkyMy4wIKXMDSoASAFQAw%3D%3D" rel="noopener noreferrer" target="_blank">Tito's Restaurant</a>
-<p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila · Tap for Google Maps</p>
+<p class="font-semibold text-blush-900 text-sm">Tito's Restaurant</p>
+<p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila</p>
+<a class="get-directions-button mt-3" href="https://www.google.com/maps/dir/?api=1&amp;destination=14.6106759%2C120.9674105" rel="noopener noreferrer" target="_blank">
+<i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i>
+<span>Get Directions</span>
+</a>
 </div>
 </div>
 <!-- Dress Code -->
-<div class="bg-white/90 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
+<div class="event-detail-card bg-white/90 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
 <i class="fa-solid fa-shirt"></i>
 </div>
@@ -316,8 +385,8 @@
 <button class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition" onclick="goToStep(2)">
 <i class="fa-solid fa-angle-left mr-1"></i> Back
                 </button>
-<button class="py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)">
-<span>Proceed to Confirm RSVP</span>
+<button class="primary-action-button py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)">
+<span>Continue to RSVP</span>
 <i class="fa-solid fa-check"></i>
 </button>
 </div>
@@ -356,7 +425,7 @@
 <button class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs" onclick="goToStep(3)" type="button">
                             Back
                         </button>
-<button class="flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm" type="submit">
+<button class="primary-action-button flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm" type="submit">
                             Confirm RSVP
                         </button>
 </div>
@@ -382,7 +451,7 @@
 </div>
 <div class="bg-blush-50 rounded-2xl p-5 border border-blush-200 mb-6 hidden" id="confirmation-invitation-links">
 <p class="text-sm font-semibold text-blush-900 mb-1">Your Personal Invitation QR Code 💙</p>
-<p class="text-xs text-blush-700 mb-4">Save this QR code. You can tap, long-press, or right-click the QR image to save it, or use the button below.</p>
+<p class="text-xs text-blush-700 mb-4">Save this QR code and show it at the venue for check-in. It also opens your personalized invitation.</p>
 <div class="flex flex-col items-center justify-center gap-4">
 <div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="confirmation-qr-wrap"></div>
 <p class="invitation-qr-caption max-w-sm">Scan this QR code anytime to open your personalized invitation, countdown, and event details.</p>
@@ -390,7 +459,7 @@
 <button class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveConfirmationQRCode()" type="button">
 <i class="fa-solid fa-download mr-1"></i>Save My QR Code
                             </button>
-<button class="w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition" onclick="openInvitationLink()" type="button">
+<button class="primary-action-button w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition" onclick="openInvitationLink()" type="button">
 <i class="fa-solid fa-heart mr-1"></i>Open My Invitation
                             </button>
 </div>
@@ -547,7 +616,7 @@
 <input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" placeholder="Email used during registration" required="" type="email"/>
 </div>
 <p class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="recovery-error"></p>
-<button class="secret-modal-button" type="submit">Find My Invitation</button>
+<button aria-busy="false" class="secret-modal-button" type="submit"><span aria-live="polite" id="recovery-submit-label">Find My Invitation</span></button>
 <button class="w-full py-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition" onclick="closeRecoveryModal()" type="button">Cancel</button>
 </form>
 <div class="hidden" id="recovery-welcome">
@@ -559,7 +628,7 @@
 <div class="flex flex-col items-center gap-3">
 <p class="text-xs font-semibold text-blush-900">Your Personal Invitation QR Code 💙</p>
 <div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="recovery-qr-wrap"></div>
-<p class="invitation-qr-caption text-center">Save this QR code to open your personalized invitation anytime. You can tap, long-press, or right-click the QR image to save it.</p>
+<p class="invitation-qr-caption text-center">Save this QR code and show it at the venue for check-in. It also opens your personalized invitation.</p>
 <button class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveRecoveredQRCode()" type="button">
 <i class="fa-solid fa-download mr-1"></i> Save My QR Code
                         </button>
