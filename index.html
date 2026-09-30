@@ -603,6 +603,19 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <audio aria-label="Background music" id="bg-music" loop="" preload="metadata">
 <source src="./kylie-wildest-dreams-bridgerton-30s.mp3" type="audio/mpeg"/>
 </audio>
+<!-- Ask before handing off to the guest's calendar app. -->
+<div aria-labelledby="calendar-app-confirm-title" aria-modal="true" class="secret-modal-backdrop hidden" id="calendar-app-confirm-modal" role="dialog">
+<div class="secret-modal-card">
+<div class="secret-modal-content">
+<div class="secret-modal-icon"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i></div>
+<h3 class="secret-modal-title" id="calendar-app-confirm-title">Add to Calendar?</h3>
+<div class="secret-modal-ornament">♡ ✦ ♡</div>
+<p class="secret-modal-message">Would you like to open your calendar?</p>
+<button class="secret-modal-button" onclick="confirmCalendarAppOpen()" type="button">Yes, Open Calendar</button>
+<button class="w-full py-3 mt-2 text-sm font-semibold text-blush-700 hover:text-blush-900 transition" onclick="closeCalendarAppConfirm()" type="button">Not now</button>
+</div>
+</div>
+</div>
 <!-- Invitation Recovery Popup -->
 <div aria-labelledby="recovery-title" aria-modal="true" class="secret-modal-backdrop hidden" id="recovery-modal" role="dialog">
 <div class="secret-modal-card">

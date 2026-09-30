@@ -58,6 +58,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         function getTopOpenDialog() {
             const entries = [
                 ['site-opening-overlay', () => {}],
+                ['calendar-app-confirm-modal', () => window.closeCalendarAppConfirm()],
                 ['milestone-modal', () => window.closeMilestoneModal()],
                 ['qr-scanner-modal', () => window.closeQrScanner()],
                 ['secret-reminder-modal', () => window.closeSecretReminder()],
@@ -111,7 +112,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         function syncModalScrollLock() {
             const modalIds = [
                 'admin-login-modal', 'milestone-modal', 'qr-scanner-modal',
-                'recovery-modal', 'secret-reminder-modal'
+                'recovery-modal', 'secret-reminder-modal', 'calendar-app-confirm-modal'
             ];
             const hasOpenModal = modalIds.some((id) => {
                 const modal = document.getElementById(id);
@@ -164,6 +165,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         }
 
         window.addToCalendar = function() {
+            openAccessibleDialog(document.getElementById('calendar-app-confirm-modal'));
+        };
+
+        window.closeCalendarAppConfirm = function() {
+            closeAccessibleDialog(document.getElementById('calendar-app-confirm-modal'));
+        };
+
+        window.confirmCalendarAppOpen = function() {
+            window.closeCalendarAppConfirm();
+            window.openCalendarEvent();
+        };
+
+        window.openCalendarEvent = function() {
             const status = document.getElementById('calendar-download-status');
             const showCalendarStatus = (message, isError = false) => {
                 if (!status) return;
