@@ -327,7 +327,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             function showPhotoSlide(index, announce = false) {
                 photoSlideIndex = (index + slides.length) % slides.length;
-                track.style.transform = `translateX(-${photoSlideIndex * 100}%)`;
                 Array.from(track.children).forEach((slide, slideIndex) => {
                     slide.setAttribute('aria-hidden', slideIndex === photoSlideIndex ? 'false' : 'true');
                 });
@@ -353,7 +352,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 if (slides.length > 1 && photoSlideshowActive
                     && document.visibilityState !== 'hidden'
                     && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    photoSlideTimer = setInterval(() => showPhotoSlide(photoSlideIndex + 1), 5000);
+                    photoSlideTimer = setInterval(() => showPhotoSlide(photoSlideIndex + 1), 3000);
                 }
             }
 
