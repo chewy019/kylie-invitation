@@ -379,7 +379,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             function restartPhotoSlideTimer() {
                 if (photoSlideTimer) clearTimeout(photoSlideTimer);
                 photoSlideTimer = null;
+                // Keep manual swipe/arrow navigation available, but avoid automatic
+                // image changes for visitors who request reduced motion.
                 if (slides.length > 1 && photoSlideshowActive
+                    && !reducedMotionQuery.matches
                     && document.visibilityState !== 'hidden') {
                     const advanceWhenReady = () => {
                         if (!photoSlideshowActive || document.visibilityState === 'hidden') return;

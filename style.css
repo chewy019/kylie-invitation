@@ -254,7 +254,7 @@
         }
 
         .page2-kicker {
-            color: #9B6A72;
+            color: var(--text-muted);
             letter-spacing: .20em;
             font-size: .78rem;
             font-weight: 700;
@@ -349,7 +349,7 @@
         .page2-slideshow-heading { margin-bottom: 16px; }
 
         .page2-slideshow-eyebrow {
-            color: #A98255;
+            color: #805A3B;
             font-size: .65rem;
             font-weight: 700;
             letter-spacing: .19em;
@@ -425,7 +425,7 @@
         .page2-slideshow-placeholder-copy {
             z-index: 1;
             margin: 0;
-            color: #9B6A72;
+            color: var(--text-muted);
             font: italic 1rem "Cormorant Garamond", Georgia, serif;
         }
 
@@ -547,7 +547,7 @@
         .page2-slideshow-caption {
             min-height: 1.3em;
             margin: 3px 0 0;
-            color: #87545E;
+            color: var(--text-muted);
             font: italic .98rem "Cormorant Garamond", Georgia, serif;
             line-height: 1.3;
             text-wrap: balance;
@@ -613,7 +613,7 @@
         }
 
         .page2-countdown-subtitle {
-            color: #9B6A72;
+            color: var(--text-muted);
         }
 
         .page2-time-box {
@@ -627,11 +627,11 @@
         }
 
         .page2-time-label {
-            color: #A77C86;
+            color: #76505B;
         }
 
         .page2-details-button {
-            background: linear-gradient(135deg, #A94F70, #C18491 55%, #A98255);
+            background: linear-gradient(135deg, #9A4160, #805A3B);
             box-shadow: 0 12px 30px -12px rgba(126,61,79,.5);
         }
 
@@ -644,7 +644,7 @@
             padding: 8px 12px;
             border: 1px solid rgba(169,79,112,.35);
             border-radius: 12px;
-            background: linear-gradient(135deg, #A94F70, #B76E79 60%, #A98255);
+            background: linear-gradient(135deg, #9A4160, #805A3B);
             color: #fff;
             font-size: .72rem;
             font-weight: 700;
@@ -681,7 +681,7 @@
 
         .add-calendar-note,
         .add-calendar-status {
-            color: #9B6A72;
+            color: var(--text-muted);
             font-size: .65rem;
             line-height: 1.45;
             margin: 6px 0 0;
@@ -883,7 +883,7 @@
         .secret-modal-button {
             position: relative;
             z-index: 3;
-            background: linear-gradient(135deg, #A94F70, #C18491 55%, #A98255);
+            background: linear-gradient(135deg, #9A4160, #805A3B);
             color: white;
             border: 0;
             border-radius: 15px;
@@ -1003,7 +1003,7 @@
 /* Fallback for gradient buttons so the design still works even if
    Tailwind's gradient utility classes are not generated. */
 .bg-gradient-to-r {
-    background-image: linear-gradient(90deg, #d42d57 0%, #B76E79 50%, #b21f43 100%) !important;
+    background-image: linear-gradient(90deg, var(--action-rose) 0%, var(--action-gold) 50%, #b21f43 100%) !important;
 }
 
 .bg-gradient-to-r:hover {
@@ -1015,7 +1015,7 @@
    if Tailwind custom utility generation changes. */
 .registration-submit {
     width: 100%;
-    background: linear-gradient(90deg, #d42d57 0%, #B76E79 50%, #b21f43 100%) !important;
+    background: linear-gradient(90deg, var(--action-rose) 0%, var(--action-gold) 50%, #b21f43 100%) !important;
     background-color: #d42d57 !important;
     color: #ffffff !important;
     border: 0 !important;
@@ -1052,6 +1052,9 @@
   --rosegold-light:#E8C5C8;
   --rosegold-dark:#8C4B54;
   --champagne:#F7E7CE;
+  --action-rose:#9A4160;
+  --action-gold:#805A3B;
+  --text-muted:#87545E;
 }
 
 /* Keep page and dialog switching reliable if the Tailwind CDN is unavailable. */
@@ -1121,7 +1124,7 @@
 .text-blush-900\\/80{color:rgba(125,29,55,.80)!important}
 
 /* Gradient utilities */
-.bg-gradient-to-r{background-image:linear-gradient(90deg,var(--blush-600),var(--rosegold),var(--blush-700))!important}
+.bg-gradient-to-r{background-image:linear-gradient(90deg,var(--action-rose),var(--action-gold),var(--blush-700))!important}
 .bg-gradient-to-br{background-image:linear-gradient(135deg,var(--blush-900),var(--blush-800),var(--rosegold-dark))!important}
 .from-blush-700{--tw-gradient-from:var(--blush-700)!important;--tw-gradient-stops:var(--tw-gradient-from),var(--tw-gradient-to,rgba(178,31,67,0))!important}
 .to-rosegold{--tw-gradient-to:var(--rosegold)!important}
@@ -1141,7 +1144,7 @@
 /* Registration and important action buttons */
 .registration-submit,
 button[type="submit"] {
-  background-image:linear-gradient(90deg,var(--blush-600),var(--rosegold),var(--blush-700))!important;
+  background-image:linear-gradient(90deg,var(--action-rose),var(--action-gold),var(--blush-700))!important;
   background-color:var(--blush-600)!important;
   color:#fff!important;
 }
@@ -1343,7 +1346,7 @@ button:disabled {
     width: 25%;
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #A94F70, #B88D62);
+    background: linear-gradient(90deg, var(--action-rose), var(--action-gold));
     transition: width .45s cubic-bezier(.2,.7,.25,1);
 }
 
@@ -1393,7 +1396,7 @@ button:disabled {
 
 .invite-view-indicator-item[aria-current="page"] {
     color: #fff;
-    background: linear-gradient(120deg, #A94F70, #B88D62);
+    background: linear-gradient(120deg, var(--action-rose), var(--action-gold));
     box-shadow: 0 3px 9px rgba(126, 61, 79, .2);
 }
 
@@ -1420,10 +1423,39 @@ button:disabled {
 }
 
 .event-detail-card {
+    position: relative;
+    isolation: isolate;
     min-width: 0;
     min-height: 100%;
     border-color: rgba(184, 143, 98, .34) !important;
     background: rgba(255, 255, 255, .92) !important;
+}
+
+.event-detail-card::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    top: 18px;
+    bottom: 18px;
+    left: 1px;
+    width: 3px;
+    border-radius: 0 999px 999px 0;
+    background: linear-gradient(180deg, var(--action-rose), #c69762 52%, var(--action-gold));
+    box-shadow: 0 0 10px rgba(154, 65, 96, .16);
+    opacity: .76;
+    transform: scaleY(1);
+    transform-origin: center;
+    transition: opacity .42s ease, transform .48s cubic-bezier(.2,.7,.25,1);
+}
+
+.event-detail-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+.event-detail-card.scroll-reveal:not(.is-revealed)::before {
+    opacity: .2;
+    transform: scaleY(.32);
 }
 
 .event-detail-card h5 {
@@ -1433,6 +1465,21 @@ button:disabled {
 
 .event-detail-card p:not(.add-calendar-note):not(.add-calendar-status) {
     line-height: 1.5;
+}
+
+/* Reveal event information in a short, staggered sequence on the Details page. */
+#step-details .event-details-grid > .event-detail-card:nth-child(1) { transition-delay: 0ms; }
+#step-details .event-details-grid > .event-detail-card:nth-child(2) { transition-delay: 55ms; }
+#step-details .event-details-grid > .event-detail-card:nth-child(3) { transition-delay: 110ms; }
+#step-details .event-details-grid > .event-detail-card:nth-child(4) { transition-delay: 165ms; }
+
+#step-details .event-detail-card > div:first-child {
+    transform: scale(.88) rotate(-8deg);
+    transition: transform .42s cubic-bezier(.2,.7,.25,1);
+}
+
+#step-details .event-detail-card.is-revealed > div:first-child {
+    transform: scale(1) rotate(0);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -1551,6 +1598,15 @@ button:disabled {
         transform: none;
         transition: none;
     }
+    #step-details .event-detail-card > div:first-child {
+        transform: none !important;
+        transition: none !important;
+    }
+    .event-detail-card::before {
+        opacity: .76 !important;
+        transform: scaleY(1) !important;
+        transition: none !important;
+    }
     .floating-petal-layer { display: none; }
     .mobile-step-progress-fill { transition: none; }
 }
@@ -1615,7 +1671,7 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 
 .opening-eyebrow {
     margin: 0 0 24px;
-    color: #A98255;
+    color: var(--action-gold);
     font-size: .68rem;
     font-weight: 700;
     letter-spacing: .22em;
@@ -1719,7 +1775,7 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     place-items: center;
     border: 1px solid rgba(255,255,255,.7);
     border-radius: 50%;
-    background: linear-gradient(135deg, #A94F70, #B88D62);
+    background: linear-gradient(135deg, var(--action-rose), var(--action-gold));
     color: white;
     font-family: Georgia, serif;
     font-size: 17px;
@@ -2129,7 +2185,7 @@ main.w-full.max-w-3xl {
     padding: 7px 15px;
     border-top: 1px solid rgba(184, 143, 99, .45);
     border-bottom: 1px solid rgba(184, 143, 99, .45);
-    color: #93616d;
+    color: var(--text-muted);
     font-size: .68rem;
     letter-spacing: .17em;
 }
