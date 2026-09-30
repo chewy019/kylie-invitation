@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
 <script>
 if (!new URLSearchParams(window.location.search).has('invite') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.documentElement.classList.add('site-open-animate');
@@ -66,7 +66,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <span class="px-3 py-1 rounded-full text-blush-400 font-normal transition" id="ind-4">4. RSVP</span>
 </div>
 <!-- Host Console Button (Only visible if URL contains ?admin=1) -->
-<button class="hidden text-xs flex items-center gap-2 px-3.5 py-2 rounded-full border border-blush-300 bg-white/90 text-blush-800 hover:bg-blush-100 transition shadow-sm font-medium" id="admin-console-btn" onclick="toggleDbDrawer()">
+<button aria-controls="db-drawer" aria-expanded="false" class="hidden text-xs flex items-center gap-2 px-3.5 py-2 rounded-full border border-blush-300 bg-white/90 text-blush-800 hover:bg-blush-100 transition shadow-sm font-medium" id="admin-console-btn" onclick="toggleDbDrawer()" type="button">
 <i class="fa-solid fa-crown text-rosegold"></i>
 <span class="hidden sm:inline">Guest Records</span>
 <span class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold" id="guest-count-badge">0</span>
@@ -74,7 +74,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 <div class="mobile-step-progress md:hidden" id="mobile-step-progress" aria-label="Registration progress">
 <div class="mobile-step-progress-copy" id="mobile-step-label">Step 1 of 4 · Register</div>
-<div class="mobile-step-progress-track" id="mobile-step-track" role="progressbar" aria-label="Invitation steps" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1">
+<div class="mobile-step-progress-track" id="mobile-step-track" role="progressbar" aria-label="Invitation steps" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-valuetext="Step 1 of 4: Register">
 <span class="mobile-step-progress-fill" id="mobile-step-fill"></span>
 </div>
 </div>
@@ -98,15 +98,16 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <p class="text-xs sm:text-sm text-blush-900/80 max-w-md mx-auto leading-relaxed">
                         Please register your details below to reveal your personalized invitation card, event countdown timer, and celebration details.
                     </p>
+<p aria-live="polite" class="hidden mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs leading-relaxed text-amber-900" id="invite-load-notice" role="status"></p>
 </div>
-<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } return false;">
+<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { const notice = document.getElementById('invite-load-notice'); if (notice) { notice.textContent = 'The invitation script is still loading. Please refresh once and try again.'; notice.classList.remove('hidden'); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } } return false;">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-fullname">Your Full Name *</label>
-<input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
+<input autocapitalize="words" autocomplete="name" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
 </div>
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-email">Email Address *</label>
-<input class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" placeholder="maria@example.com" required="" type="email"/>
+<input autocapitalize="none" autocomplete="email" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
 </div>
 <button class="registration-submit w-full py-4 px-6 mt-4 text-white font-semibold rounded-2xl shadow-lg transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
 <span>Unlock My Personalized Invitation</span>
@@ -115,7 +116,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </form>
 <div class="mt-5 pt-4 border-t border-blush-100 max-w-md mx-auto">
 <p class="text-xs text-blush-600 mb-1">Already registered or forgot to save your QR code?</p>
-<button class="text-sm font-semibold text-rosegold-dark hover:text-blush-800 underline underline-offset-4 transition" onclick="openRecoveryModal()" type="button">
+<button class="recovery-open-button text-sm font-semibold text-rosegold-dark hover:text-blush-800 underline underline-offset-4 transition" onclick="openRecoveryModal()" type="button">
                         Recover My Invitation &amp; QR Code
                     </button>
 </div>
@@ -215,7 +216,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <i class="fa-solid fa-crown"></i>
 </div>
 <p class="page2-kicker">18th Birthday Debut Celebration</p>
-<h2 class="page2-greeting" id="invitation-greeting">
+<h2 aria-busy="false" class="page2-greeting" id="invitation-greeting">
                         Dear Guest,
                     </h2>
 <p class="page2-script-message">
@@ -252,12 +253,13 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div aria-label="Choose a photo" class="page2-slideshow-dots" id="photo-slideshow-dots"></div>
 <button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button"><i class="fa-solid fa-chevron-right"></i></button>
 </div>
-<p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="polite"></p>
+<p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="off"></p>
+<p class="page2-slideshow-status" id="photo-slideshow-status" role="status" aria-live="polite" aria-atomic="true"></p>
 </section>
 <!-- Live Countdown Timer — same information, redesigned to match Page 2 -->
 <div class="page2-countdown rounded-[2rem] p-6 sm:p-8 shadow-xl mb-8 text-center relative overflow-hidden">
 <h4 class="page2-countdown-title text-3xl sm:text-4xl mb-1">Counting Down To The Magic</h4>
-<p class="page2-countdown-subtitle text-xs mb-6 uppercase tracking-wider font-semibold">Saturday, November 7, 2026 at 4:30 PM</p>
+<p class="page2-countdown-subtitle text-xs mb-6 uppercase tracking-wider font-semibold" id="countdown-subtitle">Saturday, November 7, 2026 at 4:30 PM</p>
 <div class="grid grid-cols-4 gap-3 sm:gap-4 max-w-md mx-auto" id="countdown-container">
 <div class="page2-time-box rounded-2xl p-3">
 <span class="page2-time-number block font-serif-debut text-2xl sm:text-4xl font-bold" id="count-days">00</span>
@@ -281,7 +283,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
                 </div>
 </div>
 <div class="text-center">
-<button class="primary-action-button page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)">
+<button class="primary-action-button page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)" type="button">
 <span>View Event Details &amp; Schedule</span>
 <i class="fa-solid fa-arrow-right text-xs"></i>
 </button>
@@ -301,14 +303,14 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
-<p class="font-semibold text-blush-900 text-sm">November 7, 2026</p>
-<p class="text-xs text-blush-700 mt-0.5">Saturday</p>
+<p class="font-semibold text-blush-900 text-sm" id="event-date-display">November 7, 2026</p>
+<p class="text-xs text-blush-700 mt-0.5" id="event-weekday-display">Saturday</p>
 <button class="add-calendar-button mt-3" onclick="addToCalendar()" type="button">
 <i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
 <span>Add to Calendar</span>
 </button>
-<p class="add-calendar-note">4:30–5:00 PM · Doors open at 4:00 PM</p>
-<p aria-live="polite" class="add-calendar-status" id="calendar-download-status"></p>
+<p class="add-calendar-note" id="add-calendar-note">4:30–5:00 PM · 30-minute reminder included</p>
+<p aria-atomic="true" aria-live="polite" class="add-calendar-status" id="calendar-download-status"></p>
 </div>
 </div>
 <!-- Time -->
@@ -318,8 +320,8 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
-<p class="font-semibold text-blush-900 text-sm">4:30 PM</p>
-<p class="text-xs text-blush-700 mt-0.5">Doors open at 4:00 PM</p>
+<p class="font-semibold text-blush-900 text-sm" id="event-start-time-display">4:30 PM</p>
+<p class="text-xs text-blush-700 mt-0.5" id="event-doors-open-display">Doors open at 4:00 PM</p>
 </div>
 </div>
 <!-- Venue -->
@@ -381,11 +383,11 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 </div>
 </div>
-<div class="flex items-center justify-between gap-4">
-<button class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition" onclick="goToStep(2)">
+<div class="flex items-center justify-between gap-4 details-navigation">
+<button class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition" onclick="goToStep(2)" type="button">
 <i class="fa-solid fa-angle-left mr-1"></i> Back
                 </button>
-<button class="primary-action-button py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)">
+<button class="primary-action-button py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)" type="button">
 <span>Continue to RSVP</span>
 <i class="fa-solid fa-check"></i>
 </button>
@@ -421,6 +423,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <p class="text-xs text-blush-600 mt-1">This RSVP is for you only.</p>
 </div>
 </div>
+<p aria-live="polite" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-relaxed text-rose-800" id="rsvp-save-status" role="status"></p>
 <div class="flex items-center gap-3 pt-4">
 <button class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs" onclick="goToStep(3)" type="button">
                             Back
@@ -467,7 +470,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <p class="text-xs text-emerald-700 font-semibold mt-3" id="invitation-link-note"></p>
 </div>
 <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-<button class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition" onclick="restartRegistrationLoop()">
+<button class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition" onclick="restartRegistrationLoop()" type="button">
 <i class="fa-solid fa-plus text-xs mr-1.5"></i> Register Another Guest
                     </button>
 </div>
@@ -475,41 +478,41 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </section>
 </main>
 <!-- Guest QR check-in scanner -->
-<div class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" id="qr-scanner-modal">
+<div aria-labelledby="qr-scanner-title" aria-modal="true" class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" id="qr-scanner-modal" role="dialog">
 <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-blush-200">
 <div class="px-5 py-4 bg-blush-900 text-white flex items-center justify-between">
 <div>
-<div class="font-serif-debut font-bold text-lg">Guest Check-In</div>
+<div class="font-serif-debut font-bold text-lg" id="qr-scanner-title">Guest Check-In</div>
 <div class="text-[11px] text-blush-100">Scan the guest's personal invitation QR code</div>
 </div>
-<button class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20" onclick="closeQrScanner()" type="button">
+<button aria-label="Close QR scanner" class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20" onclick="closeQrScanner()" type="button">
 <i class="fa-solid fa-xmark"></i>
 </button>
 </div>
 <div class="p-5">
 <div class="w-full overflow-hidden rounded-2xl border border-blush-200 bg-blush-50" id="qr-reader"></div>
-<div class="mt-4 text-center text-sm text-blush-800 font-medium" id="qr-scan-status">Point the camera at the guest's QR code.</div>
-<div class="hidden mt-4 rounded-2xl border p-4 text-center" id="qr-scan-result"></div>
+<div aria-busy="false" aria-live="polite" class="mt-4 text-center text-sm text-blush-800 font-medium" id="qr-scan-status" role="status">Point the camera at the guest's QR code.</div>
+<div aria-live="polite" class="hidden mt-4 rounded-2xl border p-4 text-center" id="qr-scan-result" role="status"></div>
 <button class="mt-4 w-full py-3 rounded-xl border border-blush-300 text-blush-800 hover:bg-blush-50 text-xs font-semibold" onclick="closeQrScanner()" type="button">
                     Close Scanner
                 </button>
 </div>
 </div>
 </div>
-<div class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blush-300 shadow-2xl transition-transform duration-300 transform translate-y-full z-40 max-h-[80vh] flex flex-col" id="db-drawer">
-<div class="px-6 py-4 bg-blush-900 text-white flex flex-wrap items-center justify-between gap-2 cursor-pointer" onclick="toggleDbDrawer()">
+<div aria-hidden="true" class="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-blush-300 shadow-2xl transition-transform duration-300 transform translate-y-full z-40 max-h-[80vh] flex flex-col" id="db-drawer" inert>
+<div class="db-drawer-header px-6 py-4 bg-blush-900 text-white flex flex-wrap items-center justify-between gap-2">
 <div class="flex items-center gap-2">
 <i class="fa-solid fa-crown text-champagne"></i>
 <span class="font-serif-debut font-bold text-base sm:text-lg">Kylie's Debut - Host Database Console</span>
 </div>
 <div class="flex items-center gap-2">
-<button class="text-[11px] bg-blush-700 hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); exportCsv()">
+<button class="text-[11px] bg-blush-700 hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); exportCsv()" type="button">
 <i class="fa-solid fa-download mr-1"></i> Export CSV
                 </button>
-<button class="text-[11px] bg-rosegold hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); openQrScanner()">
+<button class="text-[11px] bg-rosegold hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); openQrScanner()" type="button">
 <i class="fa-solid fa-qrcode mr-1"></i> Scan Guest QR
                 </button>
-<button class="text-blush-200 hover:text-white ml-2">
+<button aria-label="Open guest database" aria-expanded="false" class="text-blush-200 hover:text-white ml-2" id="drawer-toggle-btn" onclick="toggleDbDrawer()" type="button">
 <i class="fa-solid fa-chevron-up" id="drawer-toggle-icon"></i>
 </button>
 </div>
@@ -553,22 +556,22 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 </div>
 <!-- Host Login Modal -->
-<div class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" id="admin-login-modal">
+<div aria-labelledby="admin-login-title" aria-modal="true" class="hidden fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" id="admin-login-modal" role="dialog">
 <div class="debut-card w-full max-w-md rounded-3xl p-6 sm:p-8 relative">
-<button class="absolute top-4 right-4 w-9 h-9 rounded-full bg-blush-100 text-blush-700 hover:bg-blush-200" onclick="closeAdminLogin()" type="button">
+<button aria-label="Close host login" class="absolute top-4 right-4 w-9 h-9 rounded-full bg-blush-100 text-blush-700 hover:bg-blush-200" onclick="closeAdminLogin()" type="button">
 <i class="fa-solid fa-xmark"></i>
 </button>
 <div class="text-center mb-6">
 <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-xl">
 <i class="fa-solid fa-crown"></i>
 </div>
-<h3 class="font-serif-debut text-2xl font-bold text-blush-900">Host Login</h3>
+<h3 class="font-serif-debut text-2xl font-bold text-blush-900" id="admin-login-title">Host Login</h3>
 <p class="text-xs text-blush-700 mt-1">Sign in to view the private guest database.</p>
 </div>
 <form class="space-y-4" onsubmit="handleAdminLogin(event)">
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-email" placeholder="Host email" required="" type="email"/>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-password" placeholder="Password" required="" type="password"/>
-<p class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="admin-login-error"></p>
+<input autocapitalize="none" autocomplete="username" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-email" inputmode="email" placeholder="Host email" required="" type="email"/>
+<input autocomplete="current-password" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none text-sm bg-white text-blush-900" id="admin-password" placeholder="Password" required="" type="password"/>
+<p aria-live="assertive" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="admin-login-error" role="alert"></p>
 <button class="w-full py-3.5 bg-gradient-to-r from-blush-700 to-rosegold text-white font-semibold rounded-2xl shadow-md text-sm" type="submit">
                     Sign In
                 </button>
@@ -594,10 +597,10 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <audio aria-label="Background music" id="bg-music" loop="" preload="auto">
 <source src="./kylie-wildest-dreams-bridgerton-30s.mp3" type="audio/mpeg"/>
 </audio>
-<button aria-label="Mute background music" id="music-toggle" style="position:fixed;right:18px;bottom:18px;bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:20; width:48px;height:48px;border-radius:999px;
+<button aria-label="Play background music" id="music-toggle" style="position:fixed;right:calc(18px + env(safe-area-inset-right, 0px));bottom:18px;bottom:calc(18px + env(safe-area-inset-bottom, 0px));z-index:20; width:48px;height:48px;border-radius:999px;
            border:1px solid rgba(184,143,99,.55);background:rgba(255,249,250,.94);color:#9A4D65;
-           box-shadow:0 8px 24px rgba(126,61,79,.22);cursor:pointer;font-size:17px;" title="Mute music" type="button">
-<i class="fa-solid fa-volume-high"></i>
+           box-shadow:0 8px 24px rgba(126,61,79,.22);cursor:pointer;font-size:17px;" title="Play music" type="button">
+<i class="fa-solid fa-volume-xmark"></i>
 </button>
 <!-- Invitation Recovery Popup -->
 <div aria-labelledby="recovery-title" aria-modal="true" class="secret-modal-backdrop hidden" id="recovery-modal" role="dialog">
@@ -609,19 +612,19 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <form class="space-y-4 text-left" id="recovery-form" onsubmit="handleRecovery(event)">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-name">Full Name</label>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-name" placeholder="Name used during registration" required="" type="text"/>
+<input autocapitalize="words" autocomplete="name" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-name" placeholder="Name used during registration" required="" type="text"/>
 </div>
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-email">Email Address</label>
-<input class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" placeholder="Email used during registration" required="" type="email"/>
+<input autocapitalize="none" autocomplete="email" class="w-full px-4 py-3 rounded-2xl border border-blush-300 outline-none bg-white text-blush-900 text-sm" id="recovery-email" inputmode="email" placeholder="Email used during registration" required="" type="email"/>
 </div>
-<p class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="recovery-error"></p>
+<p aria-live="assertive" class="hidden text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl p-3" id="recovery-error" role="alert"></p>
 <button aria-busy="false" class="secret-modal-button" type="submit"><span aria-live="polite" id="recovery-submit-label">Find My Invitation</span></button>
 <button class="w-full py-2 text-xs font-semibold text-blush-600 hover:text-blush-900 transition" onclick="closeRecoveryModal()" type="button">Cancel</button>
 </form>
 <div class="hidden" id="recovery-welcome">
 <p class="text-sm text-blush-700 mb-2">Welcome back,</p>
-<p class="font-serif-debut text-2xl font-bold text-blush-900 mb-3" id="recovery-welcome-name"></p>
+<p class="font-serif-debut text-2xl font-bold text-blush-900 mb-3" id="recovery-welcome-name" tabindex="-1"></p>
 <p class="text-sm text-blush-700 leading-relaxed">Here is your personalized invitation.</p>
 </div>
 <div class="hidden mt-5" id="recovery-actions">

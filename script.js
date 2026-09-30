@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const firebaseConfig = {
@@ -16,8 +16,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const HOST_UID = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
+
+        function isHostUser(user = auth.currentUser) {
+            return Boolean(user && !user.isAnonymous && user.uid === HOST_UID);
+        }
 
         let guestDatabase = [];
+        let guestDatabaseLoading = false;
+        let guestDatabaseError = false;
         let currentGuest = null;
         let countdownInterval = null;
         let adminSnapshotUnsubscribe = null;
@@ -28,42 +35,177 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         let invitationEnvelopeShown = false;
         let invitationEnvelopeOpening = false;
         let invitationEnvelopeBackground = [];
+        let invitationEnvelopeCloseTimer = null;
+        let invitationEnvelopeExitTimer = null;
+        let showInvitationReminderAfterEnvelope = false;
+        const dialogFocusReturn = new Map();
+
+        function getDialogFocusableElements(dialog) {
+            if (!dialog) return [];
+            return Array.from(dialog.querySelectorAll(
+                'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )).filter((element) => !element.closest('.hidden, [hidden], [inert], [aria-hidden="true"]')
+                && element.getClientRects().length > 0);
+        }
+
+        function focusIntoDialog(dialog) {
+            const focusableElements = getDialogFocusableElements(dialog);
+            const initialTarget = focusableElements.find((element) => element.matches('input, select, textarea'))
+                || focusableElements[0];
+            if (initialTarget) initialTarget.focus({ preventScroll: true });
+        }
+
+        function getTopOpenDialog() {
+            const entries = [
+                ['site-opening-overlay', () => {}],
+                ['milestone-modal', () => window.closeMilestoneModal()],
+                ['qr-scanner-modal', () => window.closeQrScanner()],
+                ['secret-reminder-modal', () => window.closeSecretReminder()],
+                ['recovery-modal', () => window.closeRecoveryModal()],
+                ['admin-login-modal', () => window.closeAdminLogin()]
+            ];
+            return entries.map(([id, close]) => ({
+                dialog: document.getElementById(id),
+                close
+            })).find(({ dialog }) => dialog && !dialog.classList.contains('hidden')) || null;
+        }
+
+        function openAccessibleDialog(dialog) {
+            if (!dialog) return;
+            if (dialog.classList.contains('hidden')) {
+                dialogFocusReturn.set(dialog.id, document.activeElement);
+            }
+            dialog.classList.remove('hidden');
+            if (dialog.id === 'milestone-modal') dialog.classList.add('flex');
+            syncModalScrollLock();
+            focusIntoDialog(dialog);
+        }
+
+        function closeAccessibleDialog(dialog) {
+            if (!dialog) return;
+            dialog.classList.add('hidden');
+            if (dialog.id === 'milestone-modal') dialog.classList.remove('flex');
+            syncModalScrollLock();
+
+            const returnTarget = dialogFocusReturn.get(dialog.id);
+            dialogFocusReturn.delete(dialog.id);
+            const remainingDialog = getTopOpenDialog();
+            if (remainingDialog) {
+                if (returnTarget instanceof HTMLElement && returnTarget.isConnected
+                    && remainingDialog.dialog.contains(returnTarget)) {
+                    returnTarget.focus({ preventScroll: true });
+                } else {
+                    focusIntoDialog(remainingDialog.dialog);
+                }
+                return;
+            }
+
+            if (returnTarget instanceof HTMLElement && returnTarget.isConnected
+                && returnTarget !== document.body
+                && !returnTarget.closest('.hidden, [hidden], [inert], [aria-hidden="true"]')
+                && !returnTarget.disabled) {
+                returnTarget.focus({ preventScroll: true });
+            }
+        }
+
+        function syncModalScrollLock() {
+            const modalIds = [
+                'admin-login-modal', 'milestone-modal', 'qr-scanner-modal',
+                'recovery-modal', 'secret-reminder-modal'
+            ];
+            const hasOpenModal = modalIds.some((id) => {
+                const modal = document.getElementById(id);
+                return modal && !modal.classList.contains('hidden');
+            });
+            document.body.classList.toggle('overflow-hidden', hasOpenModal);
+        }
 
         const DEBUT_EVENT_CONFIG = {
             celebrant: "Kylie Aianna Fulla",
             dateStr: "November 7, 2026 16:30:00 GMT+0800",
+            durationMinutes: 30,
+            reminderMinutes: 30,
+            doorsOpenTime: "4:00 PM",
             venue: "Tito's Restaurant, 546 Concha St., Tondo, Manila",
             dressCode: "Casual Attire — Cream & Beige"
         };
 
+        function initializeEventDateLabels() {
+            const eventStart = new Date(DEBUT_EVENT_CONFIG.dateStr);
+            if (Number.isNaN(eventStart.getTime())) return;
+
+            const eventEnd = new Date(eventStart.getTime() + DEBUT_EVENT_CONFIG.durationMinutes * 60 * 1000);
+            const timeZone = 'Asia/Manila';
+            const dateText = new Intl.DateTimeFormat('en-US', {
+                month: 'long', day: 'numeric', year: 'numeric', timeZone
+            }).format(eventStart);
+            const weekdayText = new Intl.DateTimeFormat('en-US', {
+                weekday: 'long', timeZone
+            }).format(eventStart);
+            const formatTime = (date) => new Intl.DateTimeFormat('en-US', {
+                hour: 'numeric', minute: '2-digit', timeZone
+            }).format(date);
+            const startTime = formatTime(eventStart);
+            const endTime = formatTime(eventEnd);
+            const formattedCountdownDate = `${weekdayText}, ${dateText} at ${startTime}`;
+
+            const labels = [
+                ['countdown-subtitle', formattedCountdownDate],
+                ['event-date-display', dateText],
+                ['event-weekday-display', weekdayText],
+                ['event-start-time-display', startTime],
+                ['event-doors-open-display', `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}`],
+                ['add-calendar-note', `${startTime}–${endTime} · ${DEBUT_EVENT_CONFIG.reminderMinutes}-minute reminder included`]
+            ];
+            labels.forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) element.textContent = value;
+            });
+        }
+
         window.addToCalendar = function() {
             const status = document.getElementById('calendar-download-status');
+            const showCalendarStatus = (message, isError = false) => {
+                if (!status) return;
+                status.textContent = message;
+                status.classList.toggle('is-error', isError);
+                status.classList.toggle('is-success', !isError);
+            };
             const escapeICalendarText = (value) => String(value)
                 .replace(/\\/g, '\\\\')
                 .replace(/\r?\n/g, '\\n')
                 .replace(/,/g, '\\,')
                 .replace(/;/g, '\\;');
-            const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-            const description = 'Doors open at 4:00 PM. Casual attire: Cream & Beige.';
-            const calendarEvent = [
-                'BEGIN:VCALENDAR',
-                'VERSION:2.0',
-                'PRODID:-//Kylie Aianna Fulla//18th Birthday Debut//EN',
-                'CALSCALE:GREGORIAN',
-                'METHOD:PUBLISH',
-                'BEGIN:VEVENT',
-                'UID:kylie-18th-debut-20261107@kylie-invitation',
-                `DTSTAMP:${stamp}`,
-                'DTSTART:20261107T083000Z',
-                'DTEND:20261107T090000Z',
-                `SUMMARY:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`)}`,
-                `LOCATION:${escapeICalendarText(DEBUT_EVENT_CONFIG.venue)}`,
-                `DESCRIPTION:${escapeICalendarText(description)}`,
-                'END:VEVENT',
-                'END:VCALENDAR'
-            ].join('\r\n') + '\r\n';
 
             try {
+                const eventStart = new Date(DEBUT_EVENT_CONFIG.dateStr);
+                if (Number.isNaN(eventStart.getTime())) throw new Error('Invalid event date in DEBUT_EVENT_CONFIG.');
+                const eventEnd = new Date(eventStart.getTime() + DEBUT_EVENT_CONFIG.durationMinutes * 60 * 1000);
+                const toIcsUtc = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+                const stamp = toIcsUtc(new Date());
+                const description = `Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}. ${DEBUT_EVENT_CONFIG.dressCode}.`;
+                const calendarEvent = [
+                    'BEGIN:VCALENDAR',
+                    'VERSION:2.0',
+                    'PRODID:-//Kylie Aianna Fulla//18th Birthday Debut//EN',
+                    'CALSCALE:GREGORIAN',
+                    'METHOD:PUBLISH',
+                    'BEGIN:VEVENT',
+                    'UID:kylie-18th-debut@kylie-invitation',
+                    `DTSTAMP:${stamp}`,
+                    `DTSTART:${toIcsUtc(eventStart)}`,
+                    `DTEND:${toIcsUtc(eventEnd)}`,
+                    `SUMMARY:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s 18th Birthday Debut`)}`,
+                    `LOCATION:${escapeICalendarText(DEBUT_EVENT_CONFIG.venue)}`,
+                    `DESCRIPTION:${escapeICalendarText(description)}`,
+                    'BEGIN:VALARM',
+                    `TRIGGER:-PT${DEBUT_EVENT_CONFIG.reminderMinutes}M`,
+                    'ACTION:DISPLAY',
+                    `DESCRIPTION:${escapeICalendarText(`${DEBUT_EVENT_CONFIG.celebrant}'s debut begins in ${DEBUT_EVENT_CONFIG.reminderMinutes} minutes. Doors open at ${DEBUT_EVENT_CONFIG.doorsOpenTime}.`)}`,
+                    'END:VALARM',
+                    'END:VEVENT',
+                    'END:VCALENDAR'
+                ].join('\r\n') + '\r\n';
                 const calendarFile = new Blob([calendarEvent], { type: 'text/calendar;charset=utf-8' });
                 const fileUrl = URL.createObjectURL(calendarFile);
                 const downloadLink = document.createElement('a');
@@ -74,18 +216,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 downloadLink.click();
                 downloadLink.remove();
                 setTimeout(() => URL.revokeObjectURL(fileUrl), 60000);
-                if (status) status.textContent = 'Open the calendar file to save this event.';
+                showCalendarStatus(`Calendar file ready with a ${DEBUT_EVENT_CONFIG.reminderMinutes}-minute reminder. Open it to save the event.`);
             } catch (error) {
                 console.error('Could not create calendar event:', error);
-                if (status) status.textContent = 'Could not create the calendar file. Please try another browser.';
+                showCalendarStatus('Could not create the calendar file. Please try another browser.', true);
             }
         };
 
-        // Add photos here when they are ready, for example:
-        // { src: './photos/kylie-01.jpg', alt: 'Kylie celebrating with family', caption: 'A day to remember' }
-        const DEBUT_PHOTO_SLIDES = [];
+        // Keep this list in the order chosen for the slideshow.
+        const DEBUT_PHOTO_SLIDES = [
+            { src: './photos/memory-01.png', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
+            { src: './photos/memory-02.png', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
+            { src: './photos/memory-03.png', alt: 'Young Kylie holding an ice cream', caption: 'A playful childhood moment' },
+            { src: './photos/memory-04.png', alt: 'Young Kylie in a red dress on a turquoise couch', caption: 'A favorite childhood photo' },
+            { src: './photos/memory-05.png', alt: 'Young Kylie wearing a pink polka dot shirt', caption: 'Growing up with a smile' },
+            { src: './photos/memory-06.png', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
+            { src: './photos/memory-07.jpg', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
+            { src: './photos/memory-08.jpg', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
+            { src: './photos/memory-09.jpg', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
+            { src: './photos/memory-10.jpg', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
+        ];
         let photoSlideIndex = 0;
         let photoSlideTimer = null;
+        let photoSlideshowActive = false;
 
         function capitalizeNameWords(value) {
             return value.replace(/(^|[\s'’\-])(\p{L})/gu, (_, separator, letter) =>
@@ -97,6 +250,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             ['reg-fullname', 'recovery-name'].forEach((id) => {
                 const input = document.getElementById(id);
                 if (!input) return;
+                let isComposing = false;
 
                 const capitalizeInput = () => {
                     const start = input.selectionStart ?? input.value.length;
@@ -110,7 +264,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     input.setSelectionRange(beforeCaret, afterSelection);
                 };
 
-                input.addEventListener('input', capitalizeInput);
+                input.addEventListener('compositionstart', () => { isComposing = true; });
+                input.addEventListener('compositionend', () => {
+                    isComposing = false;
+                    capitalizeInput();
+                });
+                input.addEventListener('input', () => {
+                    if (!isComposing) capitalizeInput();
+                });
                 input.addEventListener('blur', capitalizeInput);
             });
         }
@@ -123,6 +284,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const controls = document.getElementById('photo-slideshow-controls');
             const dots = document.getElementById('photo-slideshow-dots');
             const caption = document.getElementById('photo-slideshow-caption');
+            const slideshowStatus = document.getElementById('photo-slideshow-status');
             if (!root || !placeholder || !viewport || !track || !controls || !dots || !caption) return;
 
             const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
@@ -136,24 +298,34 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const figure = document.createElement('figure');
                 figure.className = 'page2-slideshow-slide';
                 figure.setAttribute('aria-roledescription', 'slide');
+                figure.setAttribute('aria-label', `Photo ${index + 1} of ${slides.length}`);
 
                 const image = document.createElement('img');
-                image.src = slide.src;
                 image.alt = slide.alt || `Kylie debut photo ${index + 1}`;
                 image.loading = index === 0 ? 'eager' : 'lazy';
                 image.draggable = false;
+                image.addEventListener('error', () => {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'page2-slideshow-image-error';
+                    fallback.textContent = 'This photo is unavailable right now.';
+                    image.replaceWith(fallback);
+                }, { once: true });
                 figure.appendChild(image);
                 track.appendChild(figure);
+                image.src = slide.src;
 
                 const dot = document.createElement('button');
                 dot.type = 'button';
                 dot.className = 'page2-slideshow-dot';
                 dot.setAttribute('aria-label', `Show photo ${index + 1}`);
-                dot.addEventListener('click', () => showPhotoSlide(index));
+                dot.addEventListener('click', () => {
+                    showPhotoSlide(index, true);
+                    restartPhotoSlideTimer();
+                });
                 dots.appendChild(dot);
             });
 
-            function showPhotoSlide(index) {
+            function showPhotoSlide(index, announce = false) {
                 photoSlideIndex = (index + slides.length) % slides.length;
                 track.style.transform = `translateX(-${photoSlideIndex * 100}%)`;
                 Array.from(track.children).forEach((slide, slideIndex) => {
@@ -163,19 +335,39 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     dot.classList.toggle('is-active', dotIndex === photoSlideIndex);
                     dot.setAttribute('aria-current', dotIndex === photoSlideIndex ? 'true' : 'false');
                 });
-                caption.textContent = slides[photoSlideIndex].caption || '';
+                const slideCaption = slides[photoSlideIndex].caption || '';
+                caption.textContent = slideCaption;
+                if (announce && slideshowStatus) {
+                    slideshowStatus.textContent = `Photo ${photoSlideIndex + 1} of ${slides.length}${slideCaption ? `: ${slideCaption}` : ''}`;
+                }
             }
 
             window.changePhotoSlide = function(direction) {
-                showPhotoSlide(photoSlideIndex + direction);
+                showPhotoSlide(photoSlideIndex + direction, true);
                 restartPhotoSlideTimer();
             };
 
             function restartPhotoSlideTimer() {
                 if (photoSlideTimer) clearInterval(photoSlideTimer);
-                if (slides.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                photoSlideTimer = null;
+                if (slides.length > 1 && photoSlideshowActive
+                    && document.visibilityState !== 'hidden'
+                    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
                     photoSlideTimer = setInterval(() => showPhotoSlide(photoSlideIndex + 1), 5000);
                 }
+            }
+
+            window.setPhotoSlideshowActive = function(isActive) {
+                photoSlideshowActive = Boolean(isActive);
+                restartPhotoSlideTimer();
+            };
+
+            document.addEventListener('visibilitychange', () => restartPhotoSlideTimer());
+            const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+            if (typeof reducedMotionQuery.addEventListener === 'function') {
+                reducedMotionQuery.addEventListener('change', () => restartPhotoSlideTimer());
+            } else if (typeof reducedMotionQuery.addListener === 'function') {
+                reducedMotionQuery.addListener(() => restartPhotoSlideTimer());
             }
 
             let pointerStart = null;
@@ -193,8 +385,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             });
             viewport.addEventListener('pointercancel', () => { pointerStart = null; });
             viewport.addEventListener('keydown', (event) => {
-                if (event.key === 'ArrowLeft') window.changePhotoSlide(-1);
-                if (event.key === 'ArrowRight') window.changePhotoSlide(1);
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    window.changePhotoSlide(-1);
+                }
+                if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    window.changePhotoSlide(1);
+                }
             });
 
             showPhotoSlide(0);
@@ -278,23 +476,44 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (title) title.textContent = 'Your invitation awaits';
         }
 
-        function closeInvitationEnvelope() {
+        function focusStepHeading(section) {
+            if (!section) return;
+            const target = section.querySelector('h1, h2, h3, [role="heading"]') || section;
+            if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+            target.focus({ preventScroll: true });
+        }
+
+        function closeInvitationEnvelope(focusTargetId = 'step-invitation', allowReplay = false) {
             const overlay = document.getElementById('site-opening-overlay');
             if (!overlay) return;
+            if (invitationEnvelopeCloseTimer) {
+                window.clearTimeout(invitationEnvelopeCloseTimer);
+                invitationEnvelopeCloseTimer = null;
+            }
+            if (invitationEnvelopeExitTimer) window.clearTimeout(invitationEnvelopeExitTimer);
             overlay.classList.add('is-closing');
             const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-            window.setTimeout(() => {
+            invitationEnvelopeExitTimer = window.setTimeout(() => {
+                invitationEnvelopeExitTimer = null;
                 overlay.classList.add('hidden');
                 overlay.classList.remove('is-prompt', 'is-opening', 'is-closing');
                 document.body.classList.remove('entry-animation-playing');
                 invitationEnvelopeBackground.forEach((element) => { element.inert = false; });
                 invitationEnvelopeBackground = [];
-                const invitationSection = document.getElementById('step-invitation');
-                if (invitationSection) {
-                    invitationSection.setAttribute('tabindex', '-1');
-                    invitationSection.focus({ preventScroll: true });
+                if (allowReplay) {
+                    invitationEnvelopeShown = false;
+                    invitationEnvelopeOpening = false;
                 }
-            }, reduceMotion ? 0 : 320);
+                const focusTarget = document.getElementById(focusTargetId);
+                if (focusTarget && !focusTarget.classList.contains('hidden')) focusStepHeading(focusTarget);
+                if (typeof window.setPhotoSlideshowActive === 'function') {
+                    window.setPhotoSlideshowActive(focusTargetId === 'step-invitation' && !allowReplay);
+                }
+                if (showInvitationReminderAfterEnvelope) {
+                    showInvitationReminderAfterEnvelope = false;
+                    window.openSecretReminder();
+                }
+            }, reduceMotion ? 0 : 440);
         }
 
         window.openInvitationEnvelope = function() {
@@ -312,7 +531,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             overlay.classList.add('is-opening');
             const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             // Let the letter rise and enlarge before the full invitation fades in behind it.
-            window.setTimeout(closeInvitationEnvelope, reduceMotion ? 0 : 1380);
+            invitationEnvelopeCloseTimer = window.setTimeout(() => {
+                invitationEnvelopeCloseTimer = null;
+                closeInvitationEnvelope();
+            }, reduceMotion ? 0 : 1380);
         };
 
         function updateMobileStepProgress(stepNum) {
@@ -323,10 +545,27 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const track = document.getElementById('mobile-step-track');
             if (label) label.textContent = `Step ${stage} of 4 · ${labels[stage] || labels[1]}`;
             if (fill) fill.style.width = `${stage * 25}%`;
-            if (track) track.setAttribute('aria-valuenow', String(stage));
+            if (track) {
+                track.setAttribute('aria-valuenow', String(stage));
+                track.setAttribute('aria-valuetext', `Step ${stage} of 4: ${labels[stage] || labels[1]}`);
+            }
+        }
+
+        function waitForInitialAuthState() {
+            return new Promise((resolve, reject) => {
+                let unsubscribe;
+                let initialized = false;
+                unsubscribe = onAuthStateChanged(auth, (user) => {
+                    initialized = true;
+                    unsubscribe?.();
+                    resolve(user);
+                }, reject);
+                if (initialized) unsubscribe();
+            });
         }
 
         window.addEventListener('DOMContentLoaded', async () => {
+            initializeEventDateLabels();
             initializePhotoSlideshow();
             initializeNameCapitalization();
             initializeScrollReveals();
@@ -343,30 +582,66 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             // screen while Firebase authentication is still initializing.
             if (urlParams.get('invite')) {
                 inviteMode = true;
+                const greeting = document.getElementById('invitation-greeting');
+                if (greeting) {
+                    greeting.textContent = 'Preparing your invitation…';
+                    greeting.setAttribute('aria-busy', 'true');
+                }
                 window.goToStep(2);
             }
 
             try {
-                await signInAnonymously(auth);
+                // Firebase restores its saved account asynchronously. Wait for that first
+                // state before creating an anonymous guest, so a persisted host session
+                // is never replaced when the host opens or refreshes a personal link.
+                const initialUser = await waitForInitialAuthState();
+                if (!initialUser || (!initialUser.isAnonymous && !isHostUser(initialUser))) {
+                    await signInAnonymously(auth);
+                }
                 authReady = true;
                 await loadInvitationFromLink();
             } catch (err) {
                 console.error("Firebase anonymous sign-in failed:", err);
-                alert("The RSVP database is not ready yet. Please enable Anonymous Authentication in Firebase.");
+                if (urlParams.has('invite')) {
+                    returnToRegistrationAfterInviteFailure("We couldn't load this invitation right now. Please check your connection or recover your invitation below.");
+                    return;
+                }
+                const inviteNotice = document.getElementById('invite-load-notice');
+                if (inviteNotice) {
+                    inviteNotice.textContent = 'The invitation service is not ready right now. Please wait a moment and try again.';
+                    inviteNotice.classList.remove('hidden');
+                } else {
+                    alert('The invitation service is not ready right now. Please wait a moment and try again.');
+                }
             }
 
             onAuthStateChanged(auth, (user) => {
-                if (!user) return;
-
-                // Only a non-anonymous host account may read the entire RSVP collection.
-                if (!user.isAnonymous) {
-                    startAdminListener();
-                    openDbDrawer();
-                    const btn = document.getElementById('admin-console-btn');
-                    if (btn) {
-                        btn.classList.remove('hidden');
-                        btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold"></i><span class="hidden sm:inline">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>';
+                if (!isHostUser(user)) {
+                    if (adminSnapshotUnsubscribe) {
+                        adminSnapshotUnsubscribe();
+                        adminSnapshotUnsubscribe = null;
                     }
+                    guestDatabase = [];
+                    guestDatabaseLoading = false;
+                    guestDatabaseError = false;
+                    const drawer = document.getElementById('db-drawer');
+                    if (drawer?.contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
+                        document.activeElement.blur();
+                    }
+                    setDbDrawerOpen(false);
+                    const adminBtn = document.getElementById('admin-console-btn');
+                    if (adminBtn && urlParams.get('admin') !== '1') adminBtn.classList.add('hidden');
+                    renderDatabaseTable();
+                    return;
+                }
+
+                // Firestore rules remain the authority for every database read/write.
+                startAdminListener();
+                openDbDrawer();
+                const btn = document.getElementById('admin-console-btn');
+                if (btn) {
+                    btn.classList.remove('hidden');
+                    btn.innerHTML = '<i class="fa-solid fa-crown text-rosegold"></i><span class="hidden sm:inline">Guest Records</span><span id="guest-count-badge" class="bg-blush-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">0</span>';
                 }
             });
         });
@@ -375,50 +650,92 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (!guest || !guest.id) throw new Error('Missing guest record.');
             if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
 
-            const guestToSave = { ...guest, ownerUid: auth.currentUser.uid };
+            const ownerUid = auth.currentUser.uid;
+            const guestToSave = { ...guest, ownerUid };
             const guestRef = doc(db, "rsvps", guest.id);
-            await setDoc(guestRef, guestToSave, { merge: true });
 
             // Keep a lightweight registration record in invites. Pending/Confirmed emails
             // are locked; Declined emails are reusable. Only Confirmed records open as invitations.
             const inviteRef = doc(db, "invites", guest.id);
-            await setDoc(inviteRef, {
+            const inviteRecord = {
                 name: guest.name,
                 nameLower: normalizeName(guest.name),
                 email: guest.email,
                 emailLower: normalizeEmail(guest.email),
                 numGuests: guest.numGuests || 1,
-                ownerUid: auth.currentUser.uid,
+                ownerUid,
                 rsvpStatus: guest.rsvpStatus
-            }, { merge: true });
+            };
 
-            currentGuest = guestToSave;
+            // Keep the RSVP and lookup record in sync: either both writes commit or neither does.
+            const batch = writeBatch(db);
+            batch.set(guestRef, guestToSave, { merge: true });
+            batch.set(inviteRef, inviteRecord, { merge: true });
+            await batch.commit();
+
+            // Preserve changes made while this write was pending (for example, a fast
+            // RSVP submission) and never restore an older guest after the flow changed.
+            if (currentGuest && currentGuest.id === guestToSave.id) {
+                currentGuest = { ...currentGuest, ownerUid };
+            }
         }
 
         function startAdminListener() {
+            if (!isHostUser()) return;
             if (adminSnapshotUnsubscribe) adminSnapshotUnsubscribe();
+            guestDatabase = [];
+            guestDatabaseLoading = true;
+            guestDatabaseError = false;
+            renderDatabaseTable();
             const rsvpsRef = collection(db, "rsvps");
             adminSnapshotUnsubscribe = onSnapshot(rsvpsRef, (snapshot) => {
+                guestDatabaseLoading = false;
+                guestDatabaseError = false;
                 guestDatabase = [];
                 snapshot.forEach((docSnap) => {
-                    guestDatabase.push({ id: docSnap.id, ...docSnap.data() });
+                    guestDatabase.push({ ...docSnap.data(), id: docSnap.id });
                 });
                 renderDatabaseTable();
             }, (error) => {
                 console.error("Private Firestore listener error:", error);
-                alert("Host database could not be loaded. Check Firestore Rules and your host account.");
+                guestDatabaseLoading = false;
+                guestDatabaseError = true;
+                guestDatabase = [];
+                renderDatabaseTable();
             });
         }
 
         window.handleAdminLogin = async function(e) {
             e.preventDefault();
+            const form = e.currentTarget;
+            if (form?.getAttribute('aria-busy') === 'true') return;
             const email = document.getElementById('admin-email').value.trim();
             const password = document.getElementById('admin-password').value;
             const errorEl = document.getElementById('admin-login-error');
+            const submitButton = form?.querySelector('button[type="submit"]');
+            const submitLabel = submitButton?.textContent.trim() || 'Sign In';
             errorEl.classList.add('hidden');
+            form?.setAttribute('aria-busy', 'true');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.setAttribute('aria-busy', 'true');
+                submitButton.classList.add('is-saving');
+                submitButton.textContent = 'Signing in…';
+            }
 
             try {
-                await signInWithEmailAndPassword(auth, email, password);
+                const credential = await signInWithEmailAndPassword(auth, email, password);
+                if (!isHostUser(credential.user)) {
+                    await signOut(auth);
+                    try {
+                        await signInAnonymously(auth);
+                    } catch (restoreError) {
+                        console.error('Could not restore guest session after rejected host login:', restoreError);
+                    }
+                    errorEl.textContent = 'This account is not authorized to access the host console.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
                 closeAdminLogin();
                 startAdminListener();
                 openDbDrawer();
@@ -426,47 +743,72 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 console.error('Host login failed:', err);
                 errorEl.textContent = 'Login failed. Check the email/password and make sure Email/Password Authentication is enabled in Firebase.';
                 errorEl.classList.remove('hidden');
+            } finally {
+                form?.setAttribute('aria-busy', 'false');
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.removeAttribute('aria-busy');
+                    submitButton.classList.remove('is-saving');
+                    submitButton.textContent = submitLabel;
+                }
             }
         };
 
         window.closeAdminLogin = function() {
             const modal = document.getElementById('admin-login-modal');
-            if (modal) modal.classList.add('hidden');
+            closeAccessibleDialog(modal);
         };
 
-        function openDbDrawer() {
+        function setDbDrawerOpen(isOpen) {
             const drawer = document.getElementById('db-drawer');
             const icon = document.getElementById('drawer-toggle-icon');
-            if (drawer) drawer.classList.remove('translate-y-full');
-            if (icon) icon.className = "fa-solid fa-chevron-down";
+            const innerToggle = document.getElementById('drawer-toggle-btn');
+            const outerToggle = document.getElementById('admin-console-btn');
+            if (drawer) {
+                drawer.classList.toggle('translate-y-full', !isOpen);
+                drawer.inert = !isOpen;
+                drawer.setAttribute('aria-hidden', String(!isOpen));
+            }
+            if (icon) icon.className = isOpen ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-up';
+            if (innerToggle) {
+                innerToggle.setAttribute('aria-expanded', String(isOpen));
+                innerToggle.setAttribute('aria-label', isOpen ? 'Close guest database' : 'Open guest database');
+            }
+            if (outerToggle) outerToggle.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        function openDbDrawer() {
+            if (!isHostUser()) return;
+            setDbDrawerOpen(true);
         }
 
         window.toggleDbDrawer = function() {
-            const user = auth.currentUser;
-            if (!user || user.isAnonymous) {
+            if (!isHostUser()) {
                 const modal = document.getElementById('admin-login-modal');
-                if (modal) modal.classList.remove('hidden');
+                openAccessibleDialog(modal);
                 return;
             }
 
             const drawer = document.getElementById('db-drawer');
-            const icon = document.getElementById('drawer-toggle-icon');
             if (!drawer) return;
 
             if (drawer.classList.contains('translate-y-full')) {
                 openDbDrawer();
             } else {
-                drawer.classList.add('translate-y-full');
-                if (icon) icon.className = "fa-solid fa-chevron-up";
+                setDbDrawerOpen(false);
+                if (document.activeElement?.id === 'drawer-toggle-btn') {
+                    document.getElementById('admin-console-btn')?.focus();
+                }
             }
         };
 
         // Countdown Timer Logic
         function startCountdownTimer() {
             const targetTime = new Date(DEBUT_EVENT_CONFIG.dateStr).getTime();
+            const eventEndTime = targetTime + DEBUT_EVENT_CONFIG.durationMinutes * 60 * 1000;
 
             function updateTimer() {
-                const now = new Date().getTime();
+                const now = Date.now();
                 const distance = targetTime - now;
 
                 const daysEl = document.getElementById('count-days');
@@ -476,10 +818,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const endedMsg = document.getElementById('countdown-ended-msg');
                 const countdownBox = document.getElementById('countdown-container');
 
-                if (distance < 0) {
-                    if (countdownInterval) clearInterval(countdownInterval);
+                if (distance <= 0) {
                     if (countdownBox) countdownBox.classList.add('hidden');
-                    if (endedMsg) endedMsg.classList.remove('hidden');
+                    if (endedMsg) {
+                        endedMsg.textContent = now < eventEndTime
+                            ? '✨ The Event Has Started! ✨'
+                            : '✨ Thank You for Celebrating With Us! ✨';
+                        endedMsg.classList.remove('hidden');
+                    }
+                    if (now >= eventEndTime && countdownInterval) {
+                        clearInterval(countdownInterval);
+                        countdownInterval = null;
+                    }
                     return;
                 }
 
@@ -494,8 +844,21 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 setCountdownValue(secsEl, seconds);
             }
 
-            updateTimer();
-            countdownInterval = setInterval(updateTimer, 1000);
+            function syncCountdownTimer() {
+                if (document.visibilityState === 'hidden') {
+                    if (countdownInterval) clearInterval(countdownInterval);
+                    countdownInterval = null;
+                    return;
+                }
+
+                updateTimer();
+                if (Date.now() < eventEndTime && !countdownInterval) {
+                    countdownInterval = setInterval(updateTimer, 1000);
+                }
+            }
+
+            document.addEventListener('visibilitychange', syncCountdownTimer);
+            syncCountdownTimer();
         }
 
         function setCountdownValue(element, value) {
@@ -524,6 +887,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 5: 'step-confirmation'
             };
 
+            const previousStep = Object.values(stepMap)
+                .map((id) => document.getElementById(id))
+                .find((section) => section && !section.classList.contains('hidden')
+                    && section.contains(document.activeElement));
+            const envelopeWillOpen = stepNum === 2 && !invitationEnvelopeShown;
+
             Object.values(stepMap).forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -539,10 +908,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     target.classList.remove('hidden');
                     target.classList.add('step-enter');
                     requestAnimationFrame(() => refreshScrollReveals(target));
+                    if (previousStep && previousStep !== target && !envelopeWillOpen) {
+                        focusStepHeading(target);
+                    }
                 }
             }
 
             if (stepNum === 2) showInvitationEnvelope();
+            if (typeof window.setPhotoSlideshowActive === 'function') {
+                const openingOverlay = document.getElementById('site-opening-overlay');
+                window.setPhotoSlideshowActive(stepNum === 2
+                    && (!openingOverlay || openingOverlay.classList.contains('hidden')));
+            }
 
             updateMobileStepProgress(stepNum);
 
@@ -631,25 +1008,20 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             } else {
                 list.innerHTML = '<p class="text-sm text-center text-blush-600 py-4">Names will be added here once the list is confirmed.</p>';
             }
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            openAccessibleDialog(modal);
         };
 
         window.closeMilestoneModal = function() {
             const modal = document.getElementById('milestone-modal');
-            if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+            closeAccessibleDialog(modal);
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') window.closeMilestoneModal();
-        });
-
         function normalizeEmail(email) {
-            return (email || '').trim().toLowerCase();
+            return typeof email === 'string' ? email.trim().toLowerCase() : '';
         }
 
         function normalizeName(name) {
-            return (name || '').trim().replace(/\s+/g, ' ').toLowerCase();
+            return typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toLowerCase() : '';
         }
 
         async function findInvitationByEmail(email, confirmedOnly = false) {
@@ -664,7 +1036,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 const data = docSnap.data();
                 const usable = confirmedOnly ? data.rsvpStatus === 'Confirmed' : ['Pending', 'Confirmed'].includes(data.rsvpStatus);
                 if (!match && usable) {
-                    match = { id: docSnap.id, ...data };
+                    match = { ...data, id: docSnap.id };
                 }
             });
             return match;
@@ -682,7 +1054,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
                 if (!match && data.rsvpStatus === 'Confirmed' && normalizeName(data.name) === nameLower) {
-                    match = { id: docSnap.id, ...data };
+                    match = { ...data, id: docSnap.id };
                 }
             });
             return match;
@@ -702,7 +1074,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
                 if (!match && data.rsvpStatus === 'Declined' && normalizeName(data.name) === nameLower) {
-                    match = { id: docSnap.id, ...data };
+                    match = { ...data, id: docSnap.id };
                 }
             });
             return match;
@@ -726,7 +1098,14 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             populateInvitationView();
             window.goToStep(2);
-            if (showReminder) setTimeout(() => openSecretReminder(), 250);
+            if (showReminder) {
+                const openingOverlay = document.getElementById('site-opening-overlay');
+                if (openingOverlay && !openingOverlay.classList.contains('hidden')) {
+                    showInvitationReminderAfterEnvelope = true;
+                } else {
+                    setTimeout(() => openSecretReminder(), 250);
+                }
+            }
         }
 
         window.openRecoveryModal = function(prefillEmail = '', prefillName = '') {
@@ -739,6 +1118,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const form = document.getElementById('recovery-form');
             const actions = document.getElementById('recovery-actions');
             const qrWrap = document.getElementById('recovery-qr-wrap');
+            const linkStatus = document.getElementById('recovery-link-status');
             if (emailInput) emailInput.value = prefillEmail;
             if (nameInput) nameInput.value = prefillName;
             errorEl.classList.add('hidden');
@@ -746,15 +1126,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             form.classList.remove('hidden');
             actions.classList.add('hidden');
             if (qrWrap) qrWrap.innerHTML = '';
+            if (linkStatus) {
+                linkStatus.textContent = '';
+                linkStatus.classList.add('hidden');
+                linkStatus.classList.remove('text-rose-700');
+                linkStatus.classList.add('text-emerald-700');
+            }
             window.recoveredInvite = null;
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
+            openAccessibleDialog(modal);
         };
 
         window.closeRecoveryModal = function() {
             const modal = document.getElementById('recovery-modal');
-            if (modal) modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
+            closeAccessibleDialog(modal);
         };
 
         window.handleRecovery = async function(e) {
@@ -798,6 +1182,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 welcome.classList.remove('hidden');
                 actions.classList.remove('hidden');
                 renderInvitationQRCode('recovery-qr-wrap', invite.id);
+                welcomeName.focus({ preventScroll: true });
             } catch (err) {
                 console.error('Invitation recovery failed:', err);
                 errorEl.textContent = 'We could not recover your invitation right now. Please try again.';
@@ -813,15 +1198,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
         };
 
-        window.saveRecoveredQRCode = async function() {
+        window.saveRecoveredQRCode = function() {
             if (!window.recoveredInvite) return;
             const inviteId = window.recoveredInvite.id;
-            await saveQRCodeFromContainer('recovery-qr-wrap', 'Kylie-18th-Invitation-' + inviteId + '.png');
-            const status = document.getElementById('recovery-link-status');
-            if (status) {
-                status.textContent = 'Your invitation QR code has been saved 💙';
-                status.classList.remove('hidden');
-                setTimeout(() => status.classList.add('hidden'), 3000);
+            try {
+                const saved = saveQRCodeFromContainer('recovery-qr-wrap', 'Kylie-18th-Invitation-' + inviteId + '.png');
+                setQRCodeSaveStatus('recovery-link-status', saved,
+                    saved ? 'Your invitation QR code has been saved 💙' : 'The QR code is not ready yet. Please wait a moment and try again.');
+            } catch (error) {
+                console.error('Could not save recovered invitation QR:', error);
+                setQRCodeSaveStatus('recovery-link-status', false, 'Could not save the QR code. Please try again or long-press the image.');
             }
         };
 
@@ -844,47 +1230,72 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         window.handleRegistration = async function(e) {
             if (e) e.preventDefault();
+            const registrationForm = document.getElementById('registration-form');
+            if (registrationForm?.getAttribute('aria-busy') === 'true') return false;
             inviteMode = false;
+            const inviteNotice = document.getElementById('invite-load-notice');
+            if (inviteNotice) inviteNotice.classList.add('hidden');
             const fullNameEl = document.getElementById('reg-fullname');
             const emailEl = document.getElementById('reg-email');
+            const showRegistrationNotice = (message) => {
+                if (!inviteNotice) {
+                    alert(message);
+                    return;
+                }
+                inviteNotice.textContent = message;
+                inviteNotice.classList.remove('hidden');
+            };
             const submitButton = document.querySelector('#registration-form button[type=\"submit\"]');
+            const submitLabel = submitButton?.querySelector('span');
+            const originalSubmitLabel = submitLabel?.textContent || 'Unlock My Personalized Invitation';
+            const setRegistrationBusy = (isBusy) => {
+                registrationForm?.setAttribute('aria-busy', String(isBusy));
+                if (!submitButton) return;
+                submitButton.disabled = isBusy;
+                submitButton.classList.toggle('is-saving', isBusy);
+                submitButton.classList.toggle('opacity-70', isBusy);
+                submitButton.classList.toggle('cursor-wait', isBusy);
+                submitButton.setAttribute('aria-busy', String(isBusy));
+                if (submitLabel) {
+                    submitLabel.textContent = isBusy ? 'Preparing your invitation…' : originalSubmitLabel;
+                }
+            };
             const fullName = fullNameEl ? capitalizeNameWords(fullNameEl.value.trim()) : '';
             const email = emailEl ? emailEl.value.trim() : '';
             const guestCount = 1;
 
             if (fullNameEl) fullNameEl.value = fullName;
 
-            if (!fullName || !email) return false;
-
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.classList.add('opacity-70', 'cursor-wait');
+            if (!fullName || !email) {
+                showRegistrationNotice(!fullName
+                    ? 'Please enter your name; spaces alone are not enough.'
+                    : 'Please enter your email address.');
+                (fullName ? emailEl : fullNameEl)?.focus();
+                return false;
             }
+
+            setRegistrationBusy(true);
 
             try {
                 const ready = await waitForFirebaseAuth();
                 if (!ready) {
-                    alert('The RSVP connection is still loading. Please wait a moment and try again.');
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                        submitButton.classList.remove('opacity-70', 'cursor-wait');
-                    }
+                    showRegistrationNotice('The RSVP connection is still loading. Please wait a moment and try again.');
+                    setRegistrationBusy(false);
                     return false;
                 }
                 const existingInvite = await findInvitationByEmail(email, false);
                 if (existingInvite) {
-                    alert('This email has already been registered. You can recover your invitation using your full name and email.');
+                    showRegistrationNotice('This email has already been registered. Recover the invitation with the same full name and email.');
                     openRecoveryModal(email, fullName);
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                        submitButton.classList.remove('opacity-70', 'cursor-wait');
-                    }
+                    setRegistrationBusy(false);
                     return;
                 }
 
-                // If this exact guest previously declined, reuse that record.
+                // Reuse a declined record only when this anonymous account owns it.
+                // Firestore rules allow an owner to update their own document, but a
+                // different device/session must create a new guest record instead.
                 const declinedInvite = await findDeclinedInvitationByEmailAndName(email, fullName);
-                if (declinedInvite) {
+                if (declinedInvite && declinedInvite.ownerUid === auth.currentUser.uid) {
                     currentGuest = {
                         id: declinedInvite.id,
                         name: declinedInvite.name || fullName,
@@ -900,27 +1311,31 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     registrationSavePromise = saveGuestToCloud(currentGuest);
                     try {
                         await registrationSavePromise;
+                    } catch (err) {
+                        console.error('Could not save the returning guest registration:', err);
+                        currentGuest = null;
+                        window.goToStep(1);
+                        closeInvitationEnvelope('step-registration', true);
+                        showRegistrationNotice('We could not save your registration. Check your connection, then try again.');
+                        setRegistrationBusy(false);
+                        return false;
                     } finally {
                         registrationSavePromise = null;
                     }
-                    if (submitButton) {
-                        submitButton.disabled = false;
-                        submitButton.classList.remove('opacity-70', 'cursor-wait');
-                    }
+                    setRegistrationBusy(false);
                     return;
                 }
             } catch (err) {
                 console.error('Could not check existing email:', err);
-                alert('We could not verify this email right now. Please try again.');
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.classList.remove('opacity-70', 'cursor-wait');
-                }
+                showRegistrationNotice('We could not verify this email right now. Check your connection, then try again.');
+                setRegistrationBusy(false);
                 return;
             }
 
             currentGuest = {
-                id: 'KYLIE-' + Math.floor(1000 + Math.random() * 9000),
+                // Let Firestore generate a collision-resistant ID so one guest cannot
+                // accidentally overwrite another guest's RSVP record.
+                id: doc(collection(db, 'rsvps')).id,
                 name: fullName,
                 email: email,
                 numGuests: guestCount,
@@ -938,29 +1353,51 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 await registrationSavePromise;
             } catch (err) {
                 console.error(err);
-                alert("We could not save your registration. Please try again.");
+                currentGuest = null;
                 window.goToStep(1);
+                closeInvitationEnvelope('step-registration', true);
+                showRegistrationNotice('We could not save your registration. Check your connection, then try again.');
             } finally {
                 registrationSavePromise = null;
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.classList.remove('opacity-70', 'cursor-wait');
-                }
+                setRegistrationBusy(false);
             }
             return false;
         };
 
+        function buildInvitationLink(inviteId) {
+            const invitationUrl = new URL(window.location.href);
+            invitationUrl.search = '';
+            invitationUrl.hash = '';
+            invitationUrl.searchParams.set('invite', String(inviteId));
+            return invitationUrl.href;
+        }
+
         function getInvitationLink() {
             if (!currentGuest || !currentGuest.id) return window.location.href;
-            return window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(currentGuest.id);
+            return buildInvitationLink(currentGuest.id);
         }
 
         function renderInvitationQRCode(containerId, inviteId) {
             const container = document.getElementById(containerId);
-            if (!container || !inviteId || typeof QRCode === 'undefined') return false;
-
-            const link = window.location.origin + window.location.pathname + '?invite=' + encodeURIComponent(inviteId);
+            if (!container) return false;
             container.innerHTML = '';
+
+            const showQrError = (message) => {
+                const notice = document.createElement('p');
+                notice.className = 'max-w-xs px-4 py-3 text-center text-xs leading-relaxed text-rose-700';
+                notice.setAttribute('role', 'status');
+                notice.textContent = message;
+                container.appendChild(notice);
+            };
+
+            if (!inviteId) {
+                showQrError('This invitation QR code is unavailable. Please reopen your invitation.');
+                return false;
+            }
+            if (typeof QRCode === 'undefined') {
+                showQrError('The QR code could not load. You can still open your personal invitation link.');
+                return false;
+            }
 
             const qrHolder = document.createElement('div');
             qrHolder.style.width = '240px';
@@ -970,41 +1407,51 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             qrHolder.style.justifyContent = 'center';
             container.appendChild(qrHolder);
 
-            new QRCode(qrHolder, {
-                text: link,
-                width: 240,
-                height: 240,
-                colorDark: '#4A2633',
-                colorLight: '#FFFFFF',
-                correctLevel: QRCode.CorrectLevel.H
-            });
+            try {
+                new QRCode(qrHolder, {
+                    text: buildInvitationLink(inviteId),
+                    width: 240,
+                    height: 240,
+                    colorDark: '#4A2633',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            } catch (error) {
+                console.error('Could not generate invitation QR code:', error);
+                showQrError('The QR code could not be generated. You can still open your personal invitation link.');
+                return false;
+            }
 
             // Convert the generated canvas into a normal image so guests can
             // long-press on mobile or right-click/save on desktop.
             setTimeout(() => {
                 const canvas = qrHolder.querySelector('canvas');
                 if (canvas) {
-                    const img = document.createElement('img');
-                    img.src = canvas.toDataURL('image/png');
-                    img.alt = 'Personal invitation QR code';
-                    img.draggable = false;
-                    qrHolder.innerHTML = '';
-                    qrHolder.appendChild(img);
+                    try {
+                        const img = document.createElement('img');
+                        img.src = canvas.toDataURL('image/png');
+                        img.alt = 'Personal invitation QR code';
+                        img.draggable = false;
+                        qrHolder.innerHTML = '';
+                        qrHolder.appendChild(img);
+                    } catch (error) {
+                        console.warn('Could not convert invitation QR canvas to image:', error);
+                    }
                 }
             }, 60);
 
             return true;
         }
 
-        async function saveQRCodeFromContainer(containerId, fileName) {
+        function saveQRCodeFromContainer(containerId, fileName) {
             const container = document.getElementById(containerId);
-            if (!container) return;
+            if (!container) return false;
             const img = container.querySelector('img');
             const canvas = container.querySelector('canvas');
             let dataUrl = img && img.src ? img.src : null;
 
             if (!dataUrl && canvas) dataUrl = canvas.toDataURL('image/png');
-            if (!dataUrl) return;
+            if (!dataUrl) return false;
 
             const link = document.createElement('a');
             link.href = dataUrl;
@@ -1012,20 +1459,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             document.body.appendChild(link);
             link.click();
             link.remove();
+            return true;
         }
 
-        window.saveConfirmationQRCode = async function() {
+        function setQRCodeSaveStatus(statusId, saved, message) {
+            const status = document.getElementById(statusId);
+            if (!status) return;
+            status.textContent = message;
+            status.classList.toggle('text-emerald-700', saved);
+            status.classList.toggle('text-rose-700', !saved);
+            status.classList.remove('hidden');
+        }
+
+        window.saveConfirmationQRCode = function() {
             if (!currentGuest || !currentGuest.id) return;
-            await saveQRCodeFromContainer('confirmation-qr-wrap', 'Kylie-18th-Invitation-' + currentGuest.id + '.png');
-            const status = document.getElementById('invitation-link-note');
-            if (status) {
-                status.textContent = 'Your invitation QR code has been saved 💙';
-                setTimeout(() => { status.textContent = ''; }, 3000);
+            try {
+                const saved = saveQRCodeFromContainer('confirmation-qr-wrap', 'Kylie-18th-Invitation-' + currentGuest.id + '.png');
+                setQRCodeSaveStatus('invitation-link-note', saved,
+                    saved ? 'Your invitation QR code has been saved 💙' : 'The QR code is not ready yet. Please wait a moment and try again.');
+            } catch (error) {
+                console.error('Could not save confirmation invitation QR:', error);
+                setQRCodeSaveStatus('invitation-link-note', false, 'Could not save the QR code. Please try again or long-press the image.');
             }
         };
 
         window.openInvitationLink = function() {
-            window.open(getInvitationLink(), '_blank');
+            window.open(getInvitationLink(), '_blank', 'noopener,noreferrer');
         };
 
 
@@ -1036,15 +1495,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         window.openSecretReminder = function() {
             const modal = document.getElementById('secret-reminder-modal');
             if (!modal) return;
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
+            openAccessibleDialog(modal);
         };
 
         window.closeSecretReminder = function() {
             const modal = document.getElementById('secret-reminder-modal');
             if (!modal) return;
-            modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
+            closeAccessibleDialog(modal);
 
             // After a successful RSVP, reveal the invitation QR section only now.
             if (window.revealInvitationLinksAfterReminder) {
@@ -1059,9 +1516,39 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
         };
 
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') window.closeSecretReminder();
-        });
+        document.addEventListener('keydown', (event) => {
+            const topDialog = getTopOpenDialog();
+            if (!topDialog) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                topDialog.close();
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+
+            const focusableElements = getDialogFocusableElements(topDialog.dialog);
+            if (!focusableElements.length) {
+                event.preventDefault();
+                return;
+            }
+
+            const firstFocusable = focusableElements[0];
+            const lastFocusable = focusableElements[focusableElements.length - 1];
+            const activeElement = document.activeElement;
+            const activeIndex = focusableElements.indexOf(activeElement);
+            if (activeIndex === -1) {
+                event.preventDefault();
+                (event.shiftKey ? lastFocusable : firstFocusable).focus();
+            } else if (event.shiftKey && activeIndex === 0) {
+                event.preventDefault();
+                lastFocusable.focus();
+            } else if (!event.shiftKey && activeIndex === focusableElements.length - 1) {
+                event.preventDefault();
+                firstFocusable.focus();
+            }
+        }, true);
 
         async function loadInvitationFromLink() {
             const inviteId = new URLSearchParams(window.location.search).get('invite');
@@ -1069,18 +1556,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (!auth.currentUser) return false;
 
             try {
-                const inviteSnap = await getDoc(doc(db, "invites", inviteId));
+                // Guests read the lightweight invite record. The configured host can
+                // read RSVP records, so use that permitted source for host previews.
+                const isHost = auth.currentUser.uid === HOST_UID;
+                const inviteSnap = await getDoc(doc(db, isHost ? "rsvps" : "invites", inviteId));
                 if (!inviteSnap.exists()) {
                     console.warn('Invitation link not found:', inviteId);
-                    inviteMode = false;
-                    window.goToStep(1);
+                    returnToRegistrationAfterInviteFailure("We couldn't find an invitation for this link. You can recover your invitation below or register again.");
                     return false;
                 }
 
                 const invite = inviteSnap.data();
                 if (!invite.name || invite.rsvpStatus !== 'Confirmed') {
-                    inviteMode = false;
-                    window.goToStep(1);
+                    returnToRegistrationAfterInviteFailure("This invitation isn't confirmed yet. You can recover an existing invitation below or register again.");
                     return false;
                 }
 
@@ -1090,10 +1578,26 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 return true;
             } catch (err) {
                 console.error('Could not load invitation link:', err);
-                inviteMode = false;
-                window.goToStep(1);
+                returnToRegistrationAfterInviteFailure("We couldn't load this invitation right now. Please check your connection or recover your invitation below.");
                 return false;
             }
+        }
+
+        function returnToRegistrationAfterInviteFailure(message) {
+            inviteMode = false;
+            currentGuest = null;
+            const greeting = document.getElementById('invitation-greeting');
+            if (greeting) {
+                greeting.textContent = 'Dear Guest,';
+                greeting.setAttribute('aria-busy', 'false');
+            }
+            const notice = document.getElementById('invite-load-notice');
+            if (notice) {
+                notice.textContent = message;
+                notice.classList.remove('hidden');
+            }
+            window.goToStep(1);
+            closeInvitationEnvelope('step-registration', true);
         }
 
         function populateInvitationView() {
@@ -1102,6 +1606,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const greeting = document.getElementById('invitation-greeting');
             if (greeting) {
                 greeting.textContent = `Dear ${currentGuest.name},`;
+                greeting.setAttribute('aria-busy', 'false');
             }
 
             currentGuest.numGuests = 1;
@@ -1129,9 +1634,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             if (!currentGuest) return;
 
             const form = e.target;
+            if (form.getAttribute('aria-busy') === 'true') return;
             const attendance = form.attendance.value;
             const submitButton = form.querySelector('button[type="submit"]');
             const submitLabel = submitButton ? submitButton.textContent.trim() : '';
+            const status = document.getElementById('rsvp-save-status');
+            if (status) {
+                status.textContent = '';
+                status.classList.add('hidden');
+            }
+            form.setAttribute('aria-busy', 'true');
 
             if (submitButton) {
                 submitButton.disabled = true;
@@ -1142,18 +1654,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
             if (attendance === 'Yes') {
                 currentGuest.rsvpStatus = 'Confirmed';
-                const count = 1;
                 currentGuest.numGuests = 1;
                 currentGuest.guestNames = [currentGuest.name];
-
-                if (typeof confetti === 'function') {
-                    confetti({
-                        particleCount: 90,
-                        spread: 70,
-                        origin: { y: 0.6 },
-                        colors: ['#F8A8B9', '#B76E79', '#F7E7CE', '#E84E72']
-                    });
-                }
             } else {
                 currentGuest.rsvpStatus = 'Declined';
                 currentGuest.guestNames = [];
@@ -1165,14 +1667,34 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     registrationSavePromise = null;
                 }
                 await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
+                if (currentGuest.rsvpStatus === 'Confirmed'
+                    && typeof confetti === 'function'
+                    && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    try {
+                        confetti({
+                            particleCount: 90,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                            colors: ['#F8A8B9', '#B76E79', '#F7E7CE', '#E84E72']
+                        });
+                    } catch (motionError) {
+                        console.warn('RSVP saved; celebration animation could not start:', motionError);
+                    }
+                }
                 showConfirmationView();
                 window.goToStep(5);
                 // Show the note first. The invitation-link buttons appear only after "I Understand".
                 setTimeout(() => openSecretReminder(), 250);
             } catch (err) {
                 console.error(err);
-                alert("We could not save your RSVP. Please try again.");
+                if (status) {
+                    status.textContent = 'We could not save your RSVP. Check your connection, then try again.';
+                    status.classList.remove('hidden');
+                } else {
+                    alert('We could not save your RSVP. Please try again.');
+                }
             } finally {
+                form.setAttribute('aria-busy', 'false');
                 if (submitButton) {
                     submitButton.disabled = false;
                     submitButton.removeAttribute('aria-busy');
@@ -1229,8 +1751,20 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             inviteMode = false;
             currentGuest = null;
             registrationSavePromise = null;
+            invitationEnvelopeShown = false;
+            invitationEnvelopeOpening = false;
+            showInvitationReminderAfterEnvelope = false;
             document.getElementById('registration-form').reset();
             document.getElementById('rsvp-form').reset();
+            document.getElementById('attending-details')?.classList.add('hidden');
+            ['opt-label-yes', 'opt-label-no'].forEach((id) => {
+                document.getElementById(id)?.classList.remove('border-blush-600', 'bg-blush-50', 'is-selected');
+            });
+            const rsvpStatus = document.getElementById('rsvp-save-status');
+            if (rsvpStatus) {
+                rsvpStatus.textContent = '';
+                rsvpStatus.classList.add('hidden');
+            }
             window.goToStep(1);
         };
 
@@ -1239,53 +1773,103 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         // ------------------------------
         let qrScanner = null;
         let qrScannerBusy = false;
+        let qrScannerSession = 0;
 
         window.openQrScanner = async function() {
             const modal = document.getElementById('qr-scanner-modal');
             const status = document.getElementById('qr-scan-status');
             const result = document.getElementById('qr-scan-result');
             const reader = document.getElementById('qr-reader');
-            const user = auth.currentUser;
 
-            if (!user || user.isAnonymous) {
+            if (!isHostUser()) {
                 const loginModal = document.getElementById('admin-login-modal');
-                if (loginModal) loginModal.classList.remove('hidden');
+                openAccessibleDialog(loginModal);
                 return;
             }
-            if (!modal || typeof Html5Qrcode === 'undefined') {
+            if (qrScanner) return;
+            if (!modal || !status || !result || !reader) {
                 alert('QR scanner is not available. Please refresh the page and try again.');
                 return;
             }
 
-            modal.classList.remove('hidden');
-            document.body.classList.add('overflow-hidden');
+            if (typeof Html5Qrcode === 'undefined') {
+                openAccessibleDialog(modal);
+                status.classList.remove('qr-scan-status-loading');
+                status.setAttribute('aria-busy', 'false');
+                status.textContent = 'QR scanner is unavailable.';
+                result.textContent = 'The scanner could not load. Check your connection, then refresh the page.';
+                result.className = 'mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-rose-800';
+                result.classList.remove('hidden');
+                return;
+            }
+
+            openAccessibleDialog(modal);
             status.textContent = 'Starting camera…';
             status.className = 'mt-4 text-center text-sm text-blush-800 font-medium';
+            status.classList.add('qr-scan-status-loading');
+            status.setAttribute('aria-busy', 'true');
             result.classList.add('hidden');
             result.innerHTML = '';
             reader.innerHTML = '';
             qrScannerBusy = false;
 
-            qrScanner = new Html5Qrcode('qr-reader');
+            const session = ++qrScannerSession;
+            const scannerInstance = new Html5Qrcode('qr-reader');
+            qrScanner = scannerInstance;
+            const isCurrentSession = () => qrScannerSession === session && qrScanner === scannerInstance;
+            const availableReaderWidth = reader.clientWidth;
+            const qrBoxSize = availableReaderWidth
+                ? Math.max(120, Math.min(240, Math.floor(availableReaderWidth * 0.88)))
+                : 240;
             try {
-                await qrScanner.start(
+                await scannerInstance.start(
                     { facingMode: 'environment' },
-                    { fps: 10, qrbox: { width: 240, height: 240 } },
+                    { fps: 10, qrbox: { width: qrBoxSize, height: qrBoxSize } },
                     async (decodedText) => {
-                        if (qrScannerBusy) return;
+                        if (!isCurrentSession() || qrScannerBusy) return;
                         qrScannerBusy = true;
+                        result.classList.add('hidden');
+                        result.innerHTML = '';
+                        status.classList.add('qr-scan-status-loading');
+                        status.setAttribute('aria-busy', 'true');
                         status.textContent = 'Checking guest…';
                         try {
                             await processScannedGuestQr(decodedText);
                         } finally {
-                            setTimeout(() => { qrScannerBusy = false; }, 1200);
+                            if (isCurrentSession()) {
+                                status.classList.remove('qr-scan-status-loading');
+                                status.setAttribute('aria-busy', 'false');
+                                if (status.textContent === 'Checking guest…') {
+                                    status.textContent = 'Camera ready. Point it at the guest QR code.';
+                                }
+                            }
+                            setTimeout(() => {
+                                if (isCurrentSession()) qrScannerBusy = false;
+                            }, 1200);
                         }
                     },
                     () => {}
                 );
+                if (!isCurrentSession()) {
+                    try { await scannerInstance.stop(); } catch (err) {}
+                    if (!qrScanner) {
+                        try { scannerInstance.clear(); } catch (err) {}
+                    }
+                    return;
+                }
+                status.classList.remove('qr-scan-status-loading');
+                status.setAttribute('aria-busy', 'false');
                 status.textContent = 'Camera ready. Point it at the guest QR code.';
             } catch (err) {
                 console.error('QR scanner start failed:', err);
+                if (!isCurrentSession()) {
+                    if (!qrScanner) {
+                        try { scannerInstance.clear(); } catch (clearErr) {}
+                    }
+                    return;
+                }
+                status.classList.remove('qr-scan-status-loading');
+                status.setAttribute('aria-busy', 'false');
                 status.textContent = 'Camera could not start.';
                 result.classList.remove('hidden');
                 result.className = 'mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-center text-rose-800';
@@ -1295,18 +1879,22 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         window.closeQrScanner = async function() {
             const modal = document.getElementById('qr-scanner-modal');
-            if (qrScanner) {
+            const scannerInstance = qrScanner;
+            qrScanner = null;
+            qrScannerSession += 1;
+            if (scannerInstance) {
                 try {
-                    await qrScanner.stop();
+                    await scannerInstance.stop();
                 } catch (err) {
                     console.warn('QR scanner stop:', err);
                 }
-                try { qrScanner.clear(); } catch (err) {}
-                qrScanner = null;
+                try { scannerInstance.clear(); } catch (err) {}
             }
             qrScannerBusy = false;
-            if (modal) modal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
+            const status = document.getElementById('qr-scan-status');
+            status?.classList.remove('qr-scan-status-loading');
+            status?.setAttribute('aria-busy', 'false');
+            closeAccessibleDialog(modal);
         };
 
         async function processScannedGuestQr(decodedText) {
@@ -1329,29 +1917,47 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             try {
-                const guestSnap = await getDoc(doc(db, 'rsvps', inviteId));
-                if (!guestSnap.exists()) {
+                const guestRef = doc(db, 'rsvps', inviteId);
+                const checkInResult = await runTransaction(db, async (transaction) => {
+                    const guestSnap = await transaction.get(guestRef);
+                    if (!guestSnap.exists()) return { status: 'missing' };
+
+                    const guest = { ...guestSnap.data(), id: guestSnap.id };
+                    if (guest.rsvpStatus !== 'Confirmed') {
+                        return { status: 'not-confirmed', guest };
+                    }
+                    if (guest.checkInStatus === 'Checked In') {
+                        return { status: 'already-checked-in', guest };
+                    }
+
+                    const checkedInAt = new Date().toLocaleString();
+                    transaction.update(guestRef, {
+                        checkInStatus: 'Checked In',
+                        checkedInAt
+                    });
+                    return { status: 'checked-in', guest, checkedInAt };
+                });
+
+                if (checkInResult.status === 'missing') {
                     showQrScanResult('error', 'Guest Not Found', 'This invitation is not registered in the RSVP database.');
                     return;
                 }
-
-                const guest = { id: guestSnap.id, ...guestSnap.data() };
-                if (guest.rsvpStatus !== 'Confirmed') {
+                const guest = checkInResult.guest;
+                if (checkInResult.status === 'not-confirmed') {
                     showQrScanResult('error', 'Guest Not Confirmed', `${guest.name || 'This guest'} has RSVP status: ${guest.rsvpStatus || 'Unknown'}.`);
                     return;
                 }
 
-                if (guest.checkInStatus === 'Checked In') {
+                if (checkInResult.status === 'already-checked-in') {
                     showQrScanResult('warning', 'Already Checked In', `${guest.name} was already checked in${guest.checkedInAt ? ' at ' + guest.checkedInAt : ''}.`);
                     return;
                 }
 
-                const checkedInAt = new Date().toLocaleString();
-                await setDoc(doc(db, 'rsvps', inviteId), {
-                    checkInStatus: 'Checked In',
-                    checkedInAt: checkedInAt
-                }, { merge: true });
-
+                const cachedGuest = guestDatabase.find((record) => record.id === guest.id);
+                if (cachedGuest) {
+                    cachedGuest.checkInStatus = 'Checked In';
+                    cachedGuest.checkedInAt = checkInResult.checkedInAt;
+                }
                 showQrScanResult('success', 'Guest Verified ✓', `${guest.name} is confirmed and has been checked in.`);
                 status.textContent = 'Ready for the next guest.';
                 renderDatabaseTable();
@@ -1392,16 +1998,31 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             tbody.innerHTML = '';
 
             let filtered = guestDatabase.filter(g => {
-                const matchesSearch = (g.name || '').toLowerCase().includes(searchVal) || (g.email || '').toLowerCase().includes(searchVal);
+                const name = typeof g.name === 'string' ? g.name : '';
+                const email = typeof g.email === 'string' ? g.email : '';
+                const matchesSearch = name.toLowerCase().includes(searchVal) || email.toLowerCase().includes(searchVal);
                 const matchesFilter = filterStatus === 'ALL' || g.rsvpStatus === filterStatus;
                 return matchesSearch && matchesFilter;
             });
 
             if (filtered.length === 0) {
-                if (emptyMsg) emptyMsg.classList.remove('hidden');
+                if (emptyMsg) {
+                    emptyMsg.classList.toggle('is-loading', guestDatabaseLoading);
+                    emptyMsg.textContent = guestDatabaseError
+                        ? 'Guest records could not be loaded. Check your connection and host login, then reload the page.'
+                        : guestDatabaseLoading
+                            ? 'Loading guest records…'
+                            : guestDatabase.length === 0
+                                ? 'No guest registrations recorded in Firestore yet.'
+                                : 'No guest records match this search or filter.';
+                    emptyMsg.classList.remove('hidden');
+                }
                 return;
             } else {
-                if (emptyMsg) emptyMsg.classList.add('hidden');
+                if (emptyMsg) {
+                    emptyMsg.classList.add('hidden');
+                    emptyMsg.classList.remove('is-loading');
+                }
             }
 
             filtered.forEach((guest) => {
@@ -1415,38 +2036,65 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800">Declined</span>`;
                 }
 
-                const namesStr = guest.guestNames && guest.guestNames.length > 0 ? guest.guestNames.join(', ') : '-';
+                const guestNames = Array.isArray(guest.guestNames)
+                    ? guest.guestNames.filter((name) => typeof name === 'string')
+                    : [];
+                const namesStr = guestNames.length > 0 ? guestNames.join(', ') : '-';
+                const numericGuestCount = Number(guest.numGuests);
+                const guestCount = Number.isFinite(numericGuestCount) && numericGuestCount > 0
+                    ? Math.floor(numericGuestCount)
+                    : 1;
 
                 tr.innerHTML = `
-                    <td class="p-3 font-mono text-blush-600">${guest.id}</td>
+                    <td class="p-3 font-mono text-blush-600">${escapeHtml(guest.id)}</td>
                     <td class="p-3 font-semibold text-blush-900">${escapeHtml(guest.name)}</td>
                     <td class="p-3 text-blush-700">${escapeHtml(guest.email)}</td>
-                    <td class="p-3 font-medium">${guest.numGuests || 1}</td>
+                    <td class="p-3 font-medium">${guestCount}</td>
                     <td class="p-3 text-blush-700 max-w-[150px] truncate" title="${escapeHtml(namesStr)}">${escapeHtml(namesStr)}</td>
                     <td class="p-3">${statusBadge}</td>
                     <td class="p-3">${guest.checkInStatus === 'Checked In'
                         ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">Checked In</span><div class="text-[9px] mt-1 text-blush-500">${escapeHtml(guest.checkedInAt || '')}</div>`
                         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">Not Yet</span>`}</td>
-                    <td class="p-3 text-[10px] text-blush-600">${guest.createdAt || '-'}</td>
+                    <td class="p-3 text-[10px] text-blush-600">${escapeHtml(guest.createdAt || '-')}</td>
                 `;
                 tbody.appendChild(tr);
             });
         };
 
         window.exportCsv = function() {
+            if (!isHostUser()) return;
             if (guestDatabase.length === 0) return;
-            let csvContent = "data:text/csv;charset=utf-8,ID,Name,Email,PartyCount,GuestNames,RSVPStatus,CheckInStatus,CheckedInAt,RegisteredAt\n";
-            guestDatabase.forEach(g => {
-                const party = (g.guestNames || []).join('; ');
-                csvContent += `"${g.id}","${g.name}","${g.email}",${g.numGuests},"${party}","${g.rsvpStatus}","${g.checkInStatus || 'Not Yet'}","${g.checkedInAt || ''}","${g.createdAt || ''}"\n`;
+            const csvCell = (value) => {
+                const text = String(value ?? '');
+                const spreadsheetSafeText = /^[\u0000-\u0020]*[=+\-@]/.test(text) ? `'${text}` : text;
+                return `"${spreadsheetSafeText.replace(/"/g, '""')}"`;
+            };
+            const rows = [[
+                'ID', 'Name', 'Email', 'PartyCount', 'GuestNames', 'RSVPStatus',
+                'CheckInStatus', 'CheckedInAt', 'RegisteredAt'
+            ]];
+            guestDatabase.forEach((g) => {
+                const party = Array.isArray(g.guestNames)
+                    ? g.guestNames.filter((name) => typeof name === 'string').join('; ')
+                    : '';
+                const numericGuestCount = Number(g.numGuests);
+                const guestCount = Number.isFinite(numericGuestCount) && numericGuestCount > 0
+                    ? Math.floor(numericGuestCount)
+                    : 1;
+                rows.push([
+                    g.id, g.name, g.email, guestCount, party, g.rsvpStatus,
+                    g.checkInStatus || 'Not Yet', g.checkedInAt || '', g.createdAt || ''
+                ]);
             });
-            const encodedUri = encodeURI(csvContent);
+            const csvContent = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
+            const fileUrl = URL.createObjectURL(new Blob([csvContent], { type: 'text/csv;charset=utf-8' }));
             const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
+            link.setAttribute("href", fileUrl);
             link.setAttribute("download", "Kylie_18th_Debut_Guest_List.csv");
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            window.setTimeout(() => URL.revokeObjectURL(fileUrl), 1000);
         };
 
         function escapeHtml(str) {
@@ -1473,39 +2121,45 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         try {
             await music.play();
             started = true;
+            updateButton();
         } catch (e) {
             // Browser autoplay policy may delay playback until another interaction.
+            updateButton();
         }
     }
 
     function updateButton() {
         const icon = toggle.querySelector('i');
         if (!icon) return;
-        icon.className = muted
-            ? 'fa-solid fa-volume-xmark'
-            : 'fa-solid fa-volume-high';
-        toggle.setAttribute('aria-label', muted ? 'Unmute background music' : 'Mute background music');
-        toggle.title = muted ? 'Play music' : 'Mute music';
+        const isPlaying = !music.paused && !muted;
+        icon.className = isPlaying
+            ? 'fa-solid fa-volume-high'
+            : 'fa-solid fa-volume-xmark';
+        toggle.setAttribute('aria-label', isPlaying ? 'Mute background music' : 'Play background music');
+        toggle.title = isPlaying ? 'Mute music' : 'Play music';
     }
 
-    document.addEventListener('pointerdown', function () {
+    document.addEventListener('pointerdown', function (event) {
+        if (toggle.contains(event.target)) return;
         startMusic();
-    }, { once: true, passive: true });
+    }, { passive: true });
 
-    document.addEventListener('keydown', function () {
+    document.addEventListener('keydown', function (event) {
+        if (toggle.contains(event.target)) return;
+        if (['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape'].includes(event.key)) return;
         startMusic();
-    }, { once: true });
+    });
 
     toggle.addEventListener('click', function (event) {
         event.stopPropagation();
         if (music.paused) {
             muted = false;
-            music.play().then(() => { started = true; updateButton(); }).catch(() => {});
+            music.play().then(() => { started = true; updateButton(); }).catch(() => { updateButton(); });
         } else {
             music.pause();
             muted = true;
+            updateButton();
         }
-        updateButton();
     });
 
     updateButton();
