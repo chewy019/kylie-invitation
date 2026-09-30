@@ -246,6 +246,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             );
         }
 
+        function normalizeSubmittedName(value) {
+            return capitalizeNameWords(String(value || '').replace(/\s+/gu, ' ').trim());
+        }
+
         function initializeNameCapitalization() {
             ['reg-fullname', 'recovery-name'].forEach((id) => {
                 const input = document.getElementById(id);
@@ -1200,7 +1204,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         window.handleRecovery = async function(e) {
             e.preventDefault();
             const email = document.getElementById('recovery-email').value.trim();
-            const name = document.getElementById('recovery-name').value.trim();
+            const name = normalizeSubmittedName(document.getElementById('recovery-name').value);
             const errorEl = document.getElementById('recovery-error');
             const form = document.getElementById('recovery-form');
             if (form.getAttribute('aria-busy') === 'true') return;
@@ -1233,7 +1237,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     return;
                 }
                 window.recoveredInvite = { id: invite.id, data: invite };
-                welcomeName.textContent = invite.name;
+                welcomeName.textContent = normalizeSubmittedName(invite.name);
                 form.classList.add('hidden');
                 welcome.classList.remove('hidden');
                 actions.classList.remove('hidden');
@@ -1316,7 +1320,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     submitLabel.textContent = isBusy ? 'Preparing your invitation…' : originalSubmitLabel;
                 }
             };
-            const fullName = fullNameEl ? capitalizeNameWords(fullNameEl.value.trim()) : '';
+            const fullName = fullNameEl ? normalizeSubmittedName(fullNameEl.value) : '';
             const email = emailEl ? emailEl.value.trim() : '';
             const guestCount = 1;
 
@@ -1684,7 +1688,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         function populateInvitationView() {
             if (!currentGuest) return;
-            currentGuest.name = capitalizeNameWords(currentGuest.name || '').trim();
+            currentGuest.name = normalizeSubmittedName(currentGuest.name);
             const greeting = document.getElementById('invitation-greeting');
             if (greeting) {
                 greeting.textContent = `Dear ${currentGuest.name},`;
