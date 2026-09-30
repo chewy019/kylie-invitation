@@ -225,16 +225,16 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         // Keep this list in the order chosen for the slideshow.
         const DEBUT_PHOTO_SLIDES = [
-            { src: './photos/memory-01.png', webp: './photos/optimized/memory-01.webp', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
-            { src: './photos/memory-02.png', webp: './photos/optimized/memory-02.webp', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
-            { src: './photos/memory-03.png', webp: './photos/optimized/memory-03.webp', alt: 'Young Kylie holding an ice cream', caption: 'A playful childhood moment' },
-            { src: './photos/memory-04.png', webp: './photos/optimized/memory-04.webp', alt: 'Young Kylie in a red dress on a turquoise couch', caption: 'A favorite childhood photo' },
-            { src: './photos/memory-05.png', webp: './photos/optimized/memory-05.webp', alt: 'Young Kylie wearing a pink polka dot shirt', caption: 'Growing up with a smile' },
-            { src: './photos/memory-06.png', webp: './photos/optimized/memory-06.webp', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
-            { src: './photos/memory-07.jpg', webp: './photos/optimized/memory-07.webp', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
-            { src: './photos/memory-08.jpg', webp: './photos/optimized/memory-08.webp', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
-            { src: './photos/memory-09.jpg', webp: './photos/optimized/memory-09.webp', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
-            { src: './photos/memory-10.jpg', webp: './photos/optimized/memory-10.webp', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
+            { src: './photos/memory-01.webp', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
+            { src: './photos/memory-02.webp', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
+            { src: './photos/memory-03.webp', alt: 'Young Kylie holding an ice cream', caption: 'A playful childhood moment' },
+            { src: './photos/memory-04.webp', alt: 'Young Kylie in a red dress on a turquoise couch', caption: 'A favorite childhood photo' },
+            { src: './photos/memory-05.webp', alt: 'Young Kylie wearing a pink polka dot shirt', caption: 'Growing up with a smile' },
+            { src: './photos/memory-06.webp', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
+            { src: './photos/memory-07.webp', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
+            { src: './photos/memory-08.webp', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
+            { src: './photos/memory-09.webp', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
+            { src: './photos/memory-10.webp', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
         ];
         let photoSlideIndex = 0;
         let photoSlideTimer = null;
@@ -380,8 +380,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 if (photoSlideTimer) clearTimeout(photoSlideTimer);
                 photoSlideTimer = null;
                 if (slides.length > 1 && photoSlideshowActive
-                    && document.visibilityState !== 'hidden'
-                    && !reducedMotionQuery.matches) {
+                    && document.visibilityState !== 'hidden') {
                     const advanceWhenReady = () => {
                         if (!photoSlideshowActive || document.visibilityState === 'hidden') return;
 
@@ -2251,9 +2250,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         const icon = toggle.querySelector('i');
         if (!icon) return;
         const isPlaying = !music.paused && !muted;
+        const label = toggle.querySelector('#music-toggle-label');
         icon.className = isPlaying
             ? 'fa-solid fa-volume-high'
             : 'fa-solid fa-volume-xmark';
+        if (label) label.textContent = isPlaying ? 'Mute music' : 'Play music';
+        toggle.setAttribute('aria-pressed', String(isPlaying));
         toggle.setAttribute('aria-label', isPlaying ? 'Mute background music' : 'Play background music');
         toggle.title = isPlaying ? 'Mute music' : 'Play music';
     }

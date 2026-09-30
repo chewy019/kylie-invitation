@@ -1179,9 +1179,9 @@ button:not(:disabled):active {
     }
 
     button:not(:disabled):active {
-        transform: translateY(5px) scale(0.965);
-        filter: brightness(0.93);
-        box-shadow: inset 0 2px 7px rgba(70, 32, 45, 0.16), 0 2px 4px rgba(70, 32, 45, 0.12) !important;
+        transform: translateY(2px) scale(0.985);
+        filter: brightness(0.97);
+        box-shadow: inset 0 1px 4px rgba(70, 32, 45, 0.12), 0 1px 3px rgba(70, 32, 45, 0.08) !important;
     }
 }
 
@@ -1369,8 +1369,12 @@ button:disabled {
 }
 
 .invite-view-indicator-item {
-    display: block;
-    padding: 6px 14px;
+    display: inline-flex;
+    min-height: 44px;
+    min-width: 96px;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
     border: 0;
     border-radius: 999px;
     background: transparent;
@@ -2008,24 +2012,43 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 }
 
 .music-toggle-button {
-    display: inline-grid;
-    width: 44px;
-    height: 44px;
-    flex: 0 0 44px;
-    place-items: center;
-    padding: 0;
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    z-index: 35;
+    display: inline-flex;
+    min-width: 116px;
+    min-height: 48px;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 0 16px;
     border: 1px solid rgba(184, 143, 99, .55);
-    border-radius: 50%;
+    border-radius: 999px;
     background: rgba(255, 249, 250, .94);
     color: #9A4D65;
     box-shadow: 0 5px 14px rgba(126, 61, 79, .14);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     cursor: pointer;
     font-size: 16px;
 }
 
+.music-toggle-button span {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .025em;
+}
+
+main.w-full.max-w-3xl {
+    /* Outrank the page's Tailwind py-* utility so the floating music control
+       never covers the final content, including on phones with a home bar. */
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
 @media (hover: hover) and (pointer: fine) {
     .music-toggle-button:hover {
-        transform: translateY(-1px);
+        transform: translateY(-2px);
         box-shadow: 0 8px 18px rgba(126, 61, 79, .2);
     }
 }
@@ -2122,9 +2145,9 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
     overflow-wrap: anywhere;
 }
 
-/* Section headings receive programmatic focus after navigation. Keep the
-   screen-reader announcement without showing a browser outline on text. */
-:where(h1, h2, h3, [role="heading"])[tabindex="-1"]:focus {
+/* Non-interactive text targets receive programmatic focus for announcements.
+   Keep that focus without a browser outline around the text. */
+:where(h1, h2, h3, [role="heading"], #recovery-welcome-name)[tabindex="-1"]:focus {
     outline: none;
 }
 
