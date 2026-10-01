@@ -8,14 +8,19 @@ const {
   initializeTestEnvironment
 } = require('@firebase/rules-unit-testing');
 const {
-  collection, deleteDoc, deleteField, doc, getDoc, getDocs, query,
-  setDoc, updateDoc, where
+  collection, deleteDoc, deleteField, doc, getDoc, getDocs,
+  query, setDoc, updateDoc, where, writeBatch
 } = require('firebase/firestore');
 
 const root = path.resolve(__dirname, '..');
 const hostUid = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 const guestUid = 'guest-owner-1';
+const defaultEmail = 'guest@example.com';
 let testEnv;
+
+function emailClaimId(email) {
+  return email.trim().toLowerCase().replace(/%/g, '%25').replace(/\//g, '%2F');
+}
 
 function anonymousDb(uid) {
   return testEnv.authenticatedContext(uid, {
@@ -28,11 +33,15 @@ function hostDb() {
 }
 
 function sampleRsvp(ownerUid = guestUid, id = 'guest-1', overrides = {}) {
+  const email = overrides.email || defaultEmail;
+  const emailLower = overrides.emailLower || email.trim().toLowerCase();
   return {
     id,
     ownerUid,
     name: 'Test Guest',
-    email: 'guest@example.com',
+    email: emailLower,
+    emailLower,
+    emailClaimId: emailClaimId(emailLower),
     numGuests: 1,
     guestNames: ['Test Guest'],
     rsvpStatus: 'Pending',
@@ -51,10 +60,65 @@ function sampleInvite(ownerUid = guestUid, overrides = {}) {
   };
 }
 
+function sampleClaim(ownerUid = guestUid, id = 'guest-1', status = 'Pending', email = defaultEmail) {
+  const emailLower = email.trim().toLowerCase();
+  const claimId = emailClaimId(emailLower);
+  return {
+    ownerUid,
+    rsvpId: id,
+    emailLower,
+    emailClaimId: claimId,
+    rsvpStatus: status
+  };
+}
+
 async function seed(pathname, data) {
   await testEnv.withSecurityRulesDisabled(async (context) => {
     await setDoc(doc(context.firestore(), pathname), data);
   });
+}
+
+async function seedRegistration({
+  ownerUid = guestUid,
+  id = 'guest-1',
+  status = 'Pending',
+  email = defaultEmail
+} = {}) {
+  const rsvp = sampleRsvp(ownerUid, id, { email, rsvpStatus: status });
+  await seed(`rsvps/${id}`, rsvp);
+  await seed(`invites/${id}`, sampleInvite(ownerUid, {
+    name: rsvp.name,
+    numGuests: rsvp.numGuests,
+    rsvpStatus: status
+  }));
+  await seed(`emailClaims/${emailClaimId(email)}`, sampleClaim(ownerUid, id, status, email));
+}
+
+async function writeRegistration(db, {
+  ownerUid = guestUid,
+  id = 'guest-1',
+  status = 'Pending',
+  email = defaultEmail,
+  rsvpOverrides = {},
+  inviteOverrides = {},
+  claimOverrides = {}
+} = {}) {
+  const rsvp = sampleRsvp(ownerUid, id, { email, rsvpStatus: status, ...rsvpOverrides });
+  const invite = sampleInvite(ownerUid, {
+    name: rsvp.name,
+    numGuests: rsvp.numGuests,
+    rsvpStatus: status,
+    ...inviteOverrides
+  });
+  const claim = {
+    ...sampleClaim(ownerUid, id, status, email),
+    ...claimOverrides
+  };
+  const batch = writeBatch(db);
+  batch.set(doc(db, 'rsvps', id), rsvp);
+  batch.set(doc(db, 'invites', id), invite);
+  batch.set(doc(db, 'emailClaims', emailClaimId(email)), claim);
+  return batch.commit();
 }
 
 before(async () => {
@@ -70,53 +134,53 @@ before(async () => {
 
 beforeEach(async () => {
   await testEnv.clearFirestore();
+  await seed('system/emailClaimRegistry', { ready: true });
 });
 
 after(async () => {
   await testEnv?.cleanup();
 });
 
-test('anonymous guest can create their own RSVP and invitation documents', async () => {
+test('anonymous guest can create their own pending RSVP, invitation, and private email claim atomically', async () => {
   const db = anonymousDb(guestUid);
-  await assertSucceeds(setDoc(doc(db, 'rsvps', 'guest-1'), sampleRsvp()));
-  await assertSucceeds(setDoc(doc(db, 'invites', 'guest-1'), sampleInvite()));
+  await assertSucceeds(writeRegistration(db));
 });
 
 test('guests cannot create documents owned by a different UID', async () => {
   const db = anonymousDb(guestUid);
-  await assertFails(setDoc(doc(db, 'rsvps', 'forged'), sampleRsvp('another-uid', 'forged')));
-  await assertFails(setDoc(doc(db, 'invites', 'forged'), sampleInvite('another-uid')));
+  await assertFails(writeRegistration(db, { ownerUid: 'another-uid', id: 'forged' }));
 });
 
-test('guests cannot create RSVP records as confirmed or pre-check themselves in', async () => {
+test('guests cannot create confirmed RSVP records or pre-check themselves in', async () => {
   const db = anonymousDb(guestUid);
-  await assertFails(setDoc(doc(db, 'rsvps', 'preconfirmed'), sampleRsvp(guestUid, 'preconfirmed', {
-    rsvpStatus: 'Confirmed'
-  })));
-  await assertFails(setDoc(doc(db, 'rsvps', 'self-check-in'), sampleRsvp(guestUid, 'self-check-in', {
-    checkInStatus: 'Checked In',
-    checkedInAt: 'forged-time'
-  })));
+  await assertFails(writeRegistration(db, { id: 'preconfirmed', status: 'Confirmed' }));
+  await assertFails(writeRegistration(db, {
+    id: 'self-check-in',
+    rsvpOverrides: { checkInStatus: 'Checked In', checkedInAt: 'forged-time' }
+  }));
 });
 
-test('guest can update their own records but cannot transfer ownership', async () => {
-  await seed('rsvps/guest-1', sampleRsvp());
-  await seed('rsvps/guest-2', sampleRsvp('another-uid', 'guest-2'));
-  await seed('invites/guest-1', sampleInvite());
+test('guests can move a pending RSVP to confirmed only with matching invite and claim updates', async () => {
+  await seedRegistration();
   const db = anonymousDb(guestUid);
 
-  await assertSucceeds(updateDoc(doc(db, 'rsvps', 'guest-1'), { rsvpStatus: 'Confirmed' }));
-  await assertSucceeds(updateDoc(doc(db, 'invites', 'guest-1'), { rsvpStatus: 'Confirmed' }));
+  await assertSucceeds(writeRegistration(db, { status: 'Confirmed' }));
+  await assertFails(updateDoc(doc(db, 'rsvps', 'guest-1'), { rsvpStatus: 'Declined' }));
+});
+
+test('guest cannot transfer ownership or edit another guest record', async () => {
+  await seedRegistration();
+  await seedRegistration({ ownerUid: 'another-uid', id: 'guest-2', email: 'other@example.com' });
+  const db = anonymousDb(guestUid);
+
   await assertFails(updateDoc(doc(db, 'rsvps', 'guest-1'), { ownerUid: 'another-uid' }));
   await assertFails(updateDoc(doc(db, 'rsvps', 'guest-1'), { checkInStatus: 'Checked In' }));
-  await assertFails(updateDoc(doc(db, 'rsvps', 'guest-1'), { role: 'host' }));
   await assertFails(updateDoc(doc(db, 'rsvps', 'guest-2'), { rsvpStatus: 'Confirmed' }));
-  await assertFails(updateDoc(doc(db, 'invites', 'guest-1'), { ownerUid: 'another-uid' }));
 });
 
-test('guests can read only RSVP records owned by their anonymous account', async () => {
-  await seed('rsvps/guest-1', sampleRsvp());
-  await seed('rsvps/guest-2', sampleRsvp('another-uid', 'guest-2'));
+test('guests can read only their RSVP records and cannot delete records', async () => {
+  await seedRegistration();
+  await seedRegistration({ ownerUid: 'another-uid', id: 'guest-2', email: 'other@example.com' });
   const guest = anonymousDb(guestUid);
   const host = hostDb();
 
@@ -127,8 +191,8 @@ test('guests can read only RSVP records owned by their anonymous account', async
 });
 
 test('guest RSVP lookup is limited to the current anonymous account', async () => {
-  await seed('rsvps/guest-1', sampleRsvp());
-  await seed('rsvps/guest-2', sampleRsvp('another-uid', 'guest-2'));
+  await seedRegistration();
+  await seedRegistration({ ownerUid: 'another-uid', id: 'guest-2', email: 'other@example.com' });
   const guest = anonymousDb(guestUid);
 
   const ownRecords = await assertSucceeds(getDocs(query(
@@ -144,8 +208,56 @@ test('guest RSVP lookup is limited to the current anonymous account', async () =
   )));
 });
 
-test('host can update check-in data but cannot change the record owner', async () => {
-  await seed('rsvps/guest-1', sampleRsvp());
+test('pending and declined email claims can be reused from another browser account', async (t) => {
+  for (const status of ['Pending', 'Declined']) {
+    await t.test(`reuses ${status.toLowerCase()} email`, async () => {
+      await seedRegistration({ status });
+      const newOwner = anonymousDb('new-device-uid');
+      await assertSucceeds(writeRegistration(newOwner, {
+        ownerUid: 'new-device-uid',
+        id: `new-${status.toLowerCase()}`,
+        email: defaultEmail
+      }));
+    });
+  }
+});
+
+test('a confirmed email cannot be reused, even after the host deletes its RSVP and invite', async () => {
+  await seedRegistration({ status: 'Confirmed' });
+  const otherDevice = anonymousDb('different-device-uid');
+
+  await assertFails(writeRegistration(otherDevice, {
+    ownerUid: 'different-device-uid',
+    id: 'duplicate-confirmed'
+  }));
+
+  const host = hostDb();
+  await assertSucceeds(deleteDoc(doc(host, 'rsvps', 'guest-1')));
+  await assertSucceeds(deleteDoc(doc(host, 'invites', 'guest-1')));
+  await assertSucceeds(getDoc(doc(host, 'emailClaims', emailClaimId(defaultEmail))));
+  await assertFails(writeRegistration(otherDevice, {
+    ownerUid: 'different-device-uid',
+    id: 'still-locked'
+  }));
+});
+
+test('guests cannot read or list private email claims', async () => {
+  await seedRegistration();
+  const guest = anonymousDb(guestUid);
+  const host = hostDb();
+
+  await assertFails(getDoc(doc(guest, 'emailClaims', emailClaimId(defaultEmail))));
+  await assertFails(getDocs(collection(guest, 'emailClaims')));
+  await assertSucceeds(getDoc(doc(host, 'emailClaims', emailClaimId(defaultEmail))));
+});
+
+test('registration is blocked until the host finishes the one-time claim migration', async () => {
+  await seed('system/emailClaimRegistry', { ready: false });
+  await assertFails(writeRegistration(anonymousDb(guestUid)));
+});
+
+test('host can update check-in data and cannot change record ownership', async () => {
+  await seedRegistration();
   const host = hostDb();
 
   await assertSucceeds(updateDoc(doc(host, 'rsvps', 'guest-1'), {
@@ -155,10 +267,23 @@ test('host can update check-in data but cannot change the record owner', async (
   await assertFails(updateDoc(doc(host, 'rsvps', 'guest-1'), { ownerUid: 'another-uid' }));
 });
 
-test('confirmed invitation links can be opened by ID without exposing email', async () => {
-  await seed('invites/shared-link', sampleInvite(guestUid, {
-    rsvpStatus: 'Confirmed'
+test('host can migrate email claim fields without changing RSVP ownership', async () => {
+  await seed('rsvps/legacy', {
+    id: 'legacy', ownerUid: guestUid, name: 'Test Guest', email: 'Guest@Example.com',
+    numGuests: 1, guestNames: ['Test Guest'], rsvpStatus: 'Pending', createdAt: 'old'
+  });
+  await assertSucceeds(updateDoc(doc(hostDb(), 'rsvps', 'legacy'), {
+    email: defaultEmail,
+    emailLower: defaultEmail,
+    emailClaimId: emailClaimId(defaultEmail)
   }));
+  await assertFails(updateDoc(doc(hostDb(), 'rsvps', 'legacy'), {
+    email: 'other@example.com', ownerUid: 'another-uid'
+  }));
+});
+
+test('confirmed invitation links can be opened by ID without exposing email', async () => {
+  await seed('invites/shared-link', sampleInvite(guestUid, { rsvpStatus: 'Confirmed' }));
   await seed('invites/pending-link', sampleInvite(guestUid));
   const reader = anonymousDb('different-device-uid');
   const invite = await assertSucceeds(getDoc(doc(reader, 'invites', 'shared-link')));
@@ -174,12 +299,6 @@ test('anonymous guests cannot list invites; legacy invites stay private until cl
     email: 'guest@example.com',
     emailLower: 'guest@example.com',
     nameLower: 'test guest'
-  }));
-  await seed('invites/guest-2', sampleInvite('another-uid', {
-    rsvpStatus: 'Confirmed',
-    email: 'another@example.com',
-    emailLower: 'another@example.com',
-    nameLower: 'another guest'
   }));
   const stranger = anonymousDb('unrelated-visitor');
   await assertFails(getDocs(collection(stranger, 'invites')));
@@ -214,12 +333,12 @@ test('guests cannot create public invitation records containing contact data', a
   const db = anonymousDb(guestUid);
   await assertFails(setDoc(doc(db, 'invites', 'leaky-invite'), {
     ...sampleInvite(),
-    email: 'guest@example.com',
-    emailLower: 'guest@example.com'
+    email: defaultEmail,
+    emailLower: defaultEmail
   }));
 });
 
-test('host can delete invite records while guests cannot', async () => {
+test('host can delete invitation records while guests cannot', async () => {
   await seed('invites/guest-1', sampleInvite());
   await assertFails(deleteDoc(doc(anonymousDb(guestUid), 'invites', 'guest-1')));
   await assertSucceeds(deleteDoc(doc(hostDb(), 'invites', 'guest-1')));

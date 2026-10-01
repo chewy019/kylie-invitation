@@ -35,6 +35,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         let currentGuest = null;
         let countdownInterval = null;
         let adminSnapshotUnsubscribe = null;
+        let hostMigrationPromise = null;
         let authReady = false;
         let inviteMode = false;
         let registrationSavePromise = null;
@@ -720,9 +721,12 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
 
             onAuthStateChanged(auth, (user) => {
                 if (isHostUser(user)) {
-                    removeLegacyInviteContactFields().catch((error) => {
-                        console.error('Could not remove old contact data from invitation documents:', error);
-                    });
+                    if (!hostMigrationPromise) {
+                        hostMigrationPromise = runHostMigrations().catch((error) => {
+                            hostMigrationPromise = null;
+                            console.error('Could not prepare private RSVP email claims:', error);
+                        });
+                    }
                 }
                 if (!isHostUser(user)) {
                     if (adminSnapshotUnsubscribe) {
@@ -757,9 +761,23 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         async function saveGuestToCloud(guest, createInvitationLink = false) {
             if (!guest || !guest.id) throw new Error('Missing guest record.');
             if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+            if (!isHostUser()) await ensureEmailClaimRegistryReadyForGuest();
 
             const ownerUid = auth.currentUser.uid;
-            const guestToSave = { ...guest, ownerUid };
+            const emailLower = normalizeEmail(guest.email);
+            if (!isValidRegistrationEmail(emailLower)) {
+                const emailError = new Error('Please enter a valid email address.');
+                emailError.code = 'rsvp/invalid-email';
+                throw emailError;
+            }
+            const emailClaimId = getEmailClaimDocumentId(emailLower);
+            const guestToSave = {
+                ...guest,
+                email: emailLower,
+                emailLower,
+                emailClaimId,
+                ownerUid
+            };
             const guestRef = doc(db, "rsvps", guest.id);
 
             // Invitation documents are public bearer links, so keep contact details only
@@ -771,11 +789,20 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 ownerUid,
                 rsvpStatus: guest.rsvpStatus
             };
+            const emailClaimRef = doc(db, 'emailClaims', emailClaimId);
+            const emailClaim = {
+                ownerUid,
+                rsvpId: guest.id,
+                emailLower,
+                emailClaimId,
+                rsvpStatus: guest.rsvpStatus
+            };
 
             // Replace old invite payloads too, removing any legacy email fields.
             const batch = writeBatch(db);
             batch.set(guestRef, guestToSave, { merge: true });
             batch.set(inviteRef, inviteRecord);
+            batch.set(emailClaimRef, emailClaim);
             await batch.commit();
 
             // Preserve changes made while this write was pending (for example, a fast
@@ -783,6 +810,96 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (currentGuest && currentGuest.id === guestToSave.id) {
                 currentGuest = { ...currentGuest, ownerUid };
             }
+        }
+
+        async function ensureEmailClaimRegistryReadyForGuest() {
+            let registry;
+            try {
+                registry = await getDoc(doc(db, 'system', 'emailClaimRegistry'));
+            } catch (error) {
+                const setupError = new Error('The RSVP email registry is not ready yet.');
+                setupError.code = 'rsvp/email-registry-not-ready';
+                setupError.cause = error;
+                throw setupError;
+            }
+            if (!registry.exists() || registry.data().ready !== true) {
+                const setupError = new Error('The RSVP email registry is still being prepared by the host.');
+                setupError.code = 'rsvp/email-registry-not-ready';
+                throw setupError;
+            }
+        }
+
+        async function runHostMigrations() {
+            await removeLegacyInviteContactFields();
+            await ensureEmailClaimRegistryForHost();
+        }
+
+        async function ensureEmailClaimRegistryForHost() {
+            if (!isHostUser()) return;
+            const registryRef = doc(db, 'system', 'emailClaimRegistry');
+            const registry = await getDoc(registryRef);
+            if (registry.exists() && registry.data().ready === true) return;
+
+            const rsvpSnapshot = await getDocs(collection(db, 'rsvps'));
+            const claimCandidates = new Map();
+            const rsvpUpdates = [];
+            const priority = { Confirmed: 3, Pending: 2, Declined: 1 };
+
+            rsvpSnapshot.forEach((rsvpSnap) => {
+                const guest = rsvpSnap.data();
+                const emailLower = normalizeEmail(guest.email);
+                if (!isValidRegistrationEmail(emailLower) || typeof guest.ownerUid !== 'string') return;
+
+                const emailClaimId = getEmailClaimDocumentId(emailLower);
+                const status = Object.prototype.hasOwnProperty.call(priority, guest.rsvpStatus)
+                    ? guest.rsvpStatus
+                    : 'Pending';
+                const candidate = {
+                    ownerUid: guest.ownerUid,
+                    rsvpId: rsvpSnap.id,
+                    emailLower,
+                    emailClaimId,
+                    rsvpStatus: status
+                };
+                const previous = claimCandidates.get(emailClaimId);
+                if (!previous || priority[status] > priority[previous.rsvpStatus]) {
+                    claimCandidates.set(emailClaimId, candidate);
+                }
+                if (guest.email !== emailLower
+                    || guest.emailLower !== emailLower
+                    || guest.emailClaimId !== emailClaimId) {
+                    rsvpUpdates.push({
+                        ref: doc(db, 'rsvps', rsvpSnap.id),
+                        email: emailLower,
+                        emailLower,
+                        emailClaimId
+                    });
+                }
+            });
+
+            const claims = Array.from(claimCandidates.values());
+            for (let offset = 0; offset < claims.length; offset += 450) {
+                const batch = writeBatch(db);
+                claims.slice(offset, offset + 450).forEach((claim) => {
+                    batch.set(doc(db, 'emailClaims', claim.emailClaimId), claim);
+                });
+                await batch.commit();
+            }
+
+            for (let offset = 0; offset < rsvpUpdates.length; offset += 450) {
+                const batch = writeBatch(db);
+                rsvpUpdates.slice(offset, offset + 450).forEach(({ ref, ...fields }) => {
+                    batch.update(ref, fields);
+                });
+                await batch.commit();
+            }
+
+            await setDoc(registryRef, {
+                ready: true,
+                completedAt: new Date().toISOString(),
+                migratedRsvpCount: rsvpSnapshot.size,
+                emailClaimCount: claims.length
+            });
         }
 
         async function removeLegacyInviteContactFields() {
@@ -1192,6 +1309,28 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             return typeof email === 'string' ? email.trim().toLowerCase() : '';
         }
 
+        function getEmailClaimDocumentId(emailLower) {
+            return emailLower.replace(/%/g, '%25').replace(/\//g, '%2F');
+        }
+
+        function isValidRegistrationEmail(emailLower) {
+            return typeof emailLower === 'string'
+                && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower);
+        }
+
+        function getRsvpSaveErrorMessage(error) {
+            if (error?.code === 'rsvp/email-registry-not-ready') {
+                return 'The RSVP system is being prepared by the host. Please try again shortly.';
+            }
+            if (error?.code === 'rsvp/invalid-email') {
+                return 'Please enter a valid email address.';
+            }
+            if (error?.code === 'permission-denied' || error?.code === 'firestore/permission-denied') {
+                return 'This email already has a confirmed RSVP and cannot be registered again. If you think this is a mistake, please contact the host.';
+            }
+            return 'We could not save your RSVP. Check your connection, then try again.';
+        }
+
         function normalizeName(name) {
             return typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toLowerCase() : '';
         }
@@ -1209,12 +1348,15 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             const emailLower = normalizeEmail(email);
             if (!emailLower) return null;
             const records = await getOwnedRsvpRecords();
-            return records.find((record) => {
-                const statusMatches = confirmedOnly
-                    ? record.rsvpStatus === 'Confirmed'
-                    : ['Pending', 'Confirmed'].includes(record.rsvpStatus);
-                return statusMatches && normalizeEmail(record.email) === emailLower;
-            }) || null;
+            const matches = records.filter((record) => normalizeEmail(record.email) === emailLower);
+            if (confirmedOnly) {
+                return matches.find((record) => record.rsvpStatus === 'Confirmed') || null;
+            }
+
+            // A confirmed RSVP must win over any duplicate pending record.
+            return matches.find((record) => record.rsvpStatus === 'Confirmed')
+                || matches.find((record) => record.rsvpStatus === 'Pending')
+                || null;
         }
 
         async function findConfirmedInvitationByEmailAndName(email, name) {
@@ -1229,18 +1371,16 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 && normalizeName(record.name) === nameLower) || null;
         }
 
-        // A declined guest may register again using the same email + same name.
-        // We reuse the original invitation ID instead of creating a second record.
-        async function findDeclinedInvitationByEmailAndName(email, name) {
+        // A declined guest may register again using the same email.
+        // Reuse the original RSVP even if they correct their name.
+        async function findDeclinedInvitationByEmail(email) {
             if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
             const emailLower = normalizeEmail(email);
-            const nameLower = normalizeName(name);
-            if (!emailLower || !nameLower) return null;
+            if (!emailLower) return null;
 
             const records = await getOwnedRsvpRecords();
             return records.find((record) => record.rsvpStatus === 'Declined'
-                && normalizeEmail(record.email) === emailLower
-                && normalizeName(record.name) === nameLower) || null;
+                && normalizeEmail(record.email) === emailLower) || null;
         }
 
         function openInvitationForGuest(inviteId, invite, showReminder = true) {
@@ -1474,23 +1614,23 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                         return false;
                     }
 
-                    showRegistrationNotice('This browser already has an invitation for this email. Recover it here with the same name and email.');
+                    showRegistrationNotice('This email already has a confirmed invitation. Recover it here with the same name and email.');
                     openRecoveryModal(email, fullName);
                     setRegistrationBusy(false);
                     return;
                 }
 
                 // Reuse a declined record only from this browser's persisted anonymous account.
-                const declinedInvite = await findDeclinedInvitationByEmailAndName(email, fullName);
+                const declinedInvite = await findDeclinedInvitationByEmail(email);
                 if (declinedInvite && declinedInvite.ownerUid === auth.currentUser.uid) {
                     currentGuest = {
                         id: declinedInvite.id,
-                        name: declinedInvite.name || fullName,
+                        name: fullName,
                         email: declinedInvite.email || email,
                         numGuests: 1,
-                        guestNames: [declinedInvite.name || fullName],
+                        guestNames: [fullName],
                         rsvpStatus: 'Pending',
-                        createdAt: declinedInvite.createdAt || new Date().toLocaleString()
+                        createdAt: new Date().toLocaleString()
                     };
 
                     populateInvitationView();
@@ -1503,7 +1643,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                         currentGuest = null;
                         window.goToStep(1);
                         closeInvitationEnvelope('step-registration', true);
-                        showRegistrationNotice('We could not save your registration. Check your connection, then try again.');
+                        showRegistrationNotice(getRsvpSaveErrorMessage(err));
                         setRegistrationBusy(false);
                         return false;
                     } finally {
@@ -1543,7 +1683,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 currentGuest = null;
                 window.goToStep(1);
                 closeInvitationEnvelope('step-registration', true);
-                showRegistrationNotice('We could not save your registration. Check your connection, then try again.');
+                showRegistrationNotice(getRsvpSaveErrorMessage(err));
             } finally {
                 registrationSavePromise = null;
                 setRegistrationBusy(false);
@@ -1875,10 +2015,10 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             } catch (err) {
                 console.error(err);
                 if (status) {
-                    status.textContent = 'We could not save your RSVP. Check your connection, then try again.';
+                    status.textContent = getRsvpSaveErrorMessage(err);
                     status.classList.remove('hidden');
                 } else {
-                    alert('We could not save your RSVP. Please try again.');
+                    alert(getRsvpSaveErrorMessage(err));
                 }
             } finally {
                 form.setAttribute('aria-busy', 'false');
@@ -2211,6 +2351,46 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             result.classList.remove('hidden');
         }
 
+        window.deleteGuestRecord = async function(guestId) {
+            if (!isHostUser()) return;
+
+            const guest = guestDatabase.find((record) => record.id === guestId);
+            if (!guest) return;
+
+            const guestName = guest.name || 'this guest';
+            const guestStatus = guest.rsvpStatus || 'Unknown';
+            if (!window.confirm(`Delete the ${guestStatus} RSVP for ${guestName} and its invitation link? This cannot be undone.`)) return;
+
+            const rsvpRef = doc(db, 'rsvps', guestId);
+            const inviteRef = doc(db, 'invites', guestId);
+            let removed = false;
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    removed = false;
+                    const rsvpSnap = await transaction.get(rsvpRef);
+                    if (!rsvpSnap.exists()) return;
+
+                    const inviteSnap = await transaction.get(inviteRef);
+                    transaction.delete(rsvpRef);
+                    if (inviteSnap.exists()) {
+                        const invite = inviteSnap.data();
+                        if (invite.ownerUid === rsvpSnap.data().ownerUid) {
+                            transaction.delete(inviteRef);
+                        }
+                    }
+                    removed = true;
+                });
+
+                if (!removed) {
+                    window.alert('This RSVP was already deleted. Refresh the guest list and try again.');
+                }
+            } catch (error) {
+                console.error('Could not delete guest RSVP:', error);
+                window.alert('Could not delete this RSVP. Check your host login and connection, then try again.');
+            }
+        };
+
         // Render Database Table
         window.renderDatabaseTable = function() {
             const tbody = document.getElementById('db-table-body');
@@ -2283,6 +2463,24 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">Not Yet</span>`}</td>
                     <td class="p-3 text-[10px] text-blush-600">${escapeHtml(guest.createdAt || '-')}</td>
                 `;
+
+                const actionCell = document.createElement('td');
+                actionCell.className = 'p-3 whitespace-nowrap';
+                {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.type = 'button';
+                    deleteButton.className = 'inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300';
+                    deleteButton.setAttribute('aria-label', `Delete RSVP for ${guest.name || 'guest'}`);
+                    deleteButton.innerHTML = '<i class="fa-solid fa-trash-can" aria-hidden="true"></i><span>Delete</span>';
+                    deleteButton.addEventListener('click', async (event) => {
+                        event.stopPropagation();
+                        deleteButton.disabled = true;
+                        await window.deleteGuestRecord(guest.id);
+                        deleteButton.disabled = false;
+                    });
+                    actionCell.appendChild(deleteButton);
+                }
+                tr.appendChild(actionCell);
                 tbody.appendChild(tr);
             });
         };

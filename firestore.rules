@@ -3,9 +3,88 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAnonymousGuest() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isHost() {
+      return request.auth != null
+        && request.auth.uid == 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
+    }
+
+    function emailRegistryReady() {
+      return exists(/databases/$(database)/documents/system/emailClaimRegistry)
+        && get(/databases/$(database)/documents/system/emailClaimRegistry).data.ready == true;
+    }
+
+    // Email claim IDs preserve the normalized email while escaping the only
+    // character Firestore forbids in a document ID: '/'. Escape '%' first so
+    // values containing a literal '%2F' cannot collide with an escaped slash.
+    function emailClaimDocumentId(emailLower) {
+      return emailLower.replace('%', '%25').replace('/', '%2F');
+    }
+
+    function isNormalizedEmail(emailLower) {
+      return emailLower is string
+        && emailLower == emailLower.trim().lower()
+        && emailLower.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function emailClaimMatchesAfter(rsvpId, ownerUid, emailLower, emailClaimId, status) {
+      let claimPath = /databases/$(database)/documents/emailClaims/$(emailClaimId);
+      return isNormalizedEmail(emailLower)
+        && emailClaimId == emailClaimDocumentId(emailLower)
+        && existsAfter(claimPath)
+        && getAfter(claimPath).data.ownerUid == ownerUid
+        && getAfter(claimPath).data.rsvpId == rsvpId
+        && getAfter(claimPath).data.emailLower == emailLower
+        && getAfter(claimPath).data.emailClaimId == emailClaimId
+        && getAfter(claimPath).data.rsvpStatus == status;
+    }
+
+    function inviteMatchesRsvpAfter(rsvpId, ownerUid, status) {
+      let invitePath = /databases/$(database)/documents/invites/$(rsvpId);
+      return existsAfter(invitePath)
+        && getAfter(invitePath).data.ownerUid == ownerUid
+        && getAfter(invitePath).data.rsvpStatus == status;
+    }
+
+    function rsvpMatchesInviteAfter(rsvpId, ownerUid, status) {
+      let rsvpPath = /databases/$(database)/documents/rsvps/$(rsvpId);
+      return existsAfter(rsvpPath)
+        && getAfter(rsvpPath).data.ownerUid == ownerUid
+        && getAfter(rsvpPath).data.rsvpStatus == status;
+    }
+
+    function validClaimWrite(claimId) {
+      let claim = request.resource.data;
+      return isAnonymousGuest()
+        && emailRegistryReady()
+        && claim.keys().hasOnly([
+          'ownerUid', 'rsvpId', 'emailLower', 'emailClaimId', 'rsvpStatus'
+        ])
+        && claim.keys().hasAll([
+          'ownerUid', 'rsvpId', 'emailLower', 'emailClaimId', 'rsvpStatus'
+        ])
+        && claim.ownerUid == request.auth.uid
+        && claim.emailClaimId == claimId
+        && claim.emailClaimId == emailClaimDocumentId(claim.emailLower)
+        && isNormalizedEmail(claim.emailLower)
+        && claim.rsvpStatus in ['Pending', 'Confirmed', 'Declined']
+        && rsvpMatchesInviteAfter(claim.rsvpId, claim.ownerUid, claim.rsvpStatus)
+        && getAfter(/databases/$(database)/documents/rsvps/$(claim.rsvpId)).data.emailLower == claim.emailLower
+        && getAfter(/databases/$(database)/documents/rsvps/$(claim.rsvpId)).data.emailClaimId == claim.emailClaimId
+        && existsAfter(/databases/$(database)/documents/invites/$(claim.rsvpId))
+        && getAfter(/databases/$(database)/documents/invites/$(claim.rsvpId)).data.name
+          == getAfter(/databases/$(database)/documents/rsvps/$(claim.rsvpId)).data.name
+        && getAfter(/databases/$(database)/documents/invites/$(claim.rsvpId)).data.numGuests
+          == getAfter(/databases/$(database)/documents/rsvps/$(claim.rsvpId)).data.numGuests;
+    }
+
     match /rsvps/{guestId} {
-      // The host can read the full guest list. Anonymous guests may access
-      // only records owned by their own persisted Firebase Auth session.
+      // Guests may access only their own RSVP documents. The host can read the
+      // full guest list for the admin console.
       allow get: if isHost()
                  || (isAnonymousGuest()
                      && resource.data.ownerUid == request.auth.uid);
@@ -13,50 +92,99 @@ service cloud.firestore {
                   || (isAnonymousGuest()
                       && resource.data.ownerUid == request.auth.uid);
 
-      // A new guest record starts pending and cannot claim check-in fields.
+      // A new guest starts Pending. The matching private email claim, RSVP,
+      // and invite must be written atomically.
       allow create: if isAnonymousGuest()
+                    && emailRegistryReady()
                     && request.resource.data.keys().hasOnly([
-                      'id', 'ownerUid', 'name', 'email', 'numGuests',
-                      'guestNames', 'rsvpStatus', 'createdAt'
+                      'id', 'ownerUid', 'name', 'email', 'emailLower',
+                      'emailClaimId', 'numGuests', 'guestNames',
+                      'rsvpStatus', 'createdAt'
                     ])
                     && request.resource.data.keys().hasAll([
-                      'id', 'ownerUid', 'name', 'email', 'numGuests',
-                      'guestNames', 'rsvpStatus', 'createdAt'
+                      'id', 'ownerUid', 'name', 'email', 'emailLower',
+                      'emailClaimId', 'numGuests', 'guestNames',
+                      'rsvpStatus', 'createdAt'
                     ])
                     && request.resource.data.id == guestId
                     && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.name is string
                     && request.resource.data.email is string
+                    && request.resource.data.email == request.resource.data.emailLower
                     && request.resource.data.numGuests is int
                     && request.resource.data.guestNames is list
                     && request.resource.data.rsvpStatus == 'Pending'
-                    && request.resource.data.createdAt is string;
+                    && request.resource.data.createdAt is string
+                    && emailClaimMatchesAfter(
+                      guestId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.emailLower,
+                      request.resource.data.emailClaimId,
+                      request.resource.data.rsvpStatus
+                    )
+                    && inviteMatchesRsvpAfter(
+                      guestId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.rsvpStatus
+                    );
 
-      // Guests may edit RSVP details, but cannot write host-only check-in fields.
+      // An RSVP that is already confirmed cannot be edited or downgraded by a
+      // guest. Pending and Declined records may be reused through the claim.
       allow update: if isAnonymousGuest()
+                    && emailRegistryReady()
+                    && resource.data.rsvpStatus != 'Confirmed'
                     && resource.data.ownerUid == request.auth.uid
                     && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.id == guestId
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                      'id', 'name', 'email', 'numGuests', 'guestNames',
+                    && request.resource.data.keys().hasOnly([
+                      'id', 'ownerUid', 'name', 'email', 'emailLower',
+                      'emailClaimId', 'numGuests', 'guestNames',
                       'rsvpStatus', 'createdAt'
                     ])
-                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined'];
+                    && request.resource.data.keys().hasAll([
+                      'id', 'ownerUid', 'name', 'email', 'emailLower',
+                      'emailClaimId', 'numGuests', 'guestNames',
+                      'rsvpStatus', 'createdAt'
+                    ])
+                    && request.resource.data.email == request.resource.data.emailLower
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'id', 'name', 'email', 'emailLower', 'emailClaimId',
+                      'numGuests', 'guestNames', 'rsvpStatus', 'createdAt'
+                    ])
+                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined']
+                    && emailClaimMatchesAfter(
+                      guestId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.emailLower,
+                      request.resource.data.emailClaimId,
+                      request.resource.data.rsvpStatus
+                    )
+                    && inviteMatchesRsvpAfter(
+                      guestId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.rsvpStatus
+                    );
 
-      // Host can update check-in information without transferring ownership.
+      // The host can update check-in fields and perform the one-time email
+      // claim migration while preserving ownership.
       allow update: if isHost()
                     && request.resource.data.ownerUid == resource.data.ownerUid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'checkInStatus', 'checkedInAt'
                     ]);
+      allow update: if isHost()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'email', 'emailLower', 'emailClaimId'
+                    ]);
 
-      // Only the host can delete RSVP records.
+      // Only the host can remove guest records.
       allow delete: if isHost();
     }
 
     match /invites/{inviteId} {
-      // A high-entropy invitation ID is a bearer link. Guests may fetch only
-      // a confirmed invite by its exact ID; collection listing is host-only.
+      // Invitation IDs are private bearer links. Guests may fetch only a
+      // confirmed invite by its exact ID; collection listing is host-only.
       allow get: if isHost()
                  || (isAnonymousGuest()
                      && resource.data.rsvpStatus == 'Confirmed'
@@ -65,10 +193,11 @@ service cloud.firestore {
                      ])
                      && resource.data.keys().hasAll([
                        'name', 'numGuests', 'ownerUid', 'rsvpStatus'
-                     ])
-                     && !resource.data.keys().hasAny(['email', 'emailLower']));
+                     ]));
       allow list: if isHost();
+
       allow create: if isAnonymousGuest()
+                    && emailRegistryReady()
                     && request.resource.data.keys().hasOnly([
                       'name', 'numGuests', 'ownerUid', 'rsvpStatus'
                     ])
@@ -78,8 +207,23 @@ service cloud.firestore {
                     && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.name is string
                     && request.resource.data.numGuests is int
-                    && request.resource.data.rsvpStatus == 'Pending';
+                    && request.resource.data.rsvpStatus == 'Pending'
+                    && rsvpMatchesInviteAfter(
+                      inviteId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.rsvpStatus
+                    )
+                    && emailClaimMatchesAfter(
+                      inviteId,
+                      request.resource.data.ownerUid,
+                      getAfter(/databases/$(database)/documents/rsvps/$(inviteId)).data.emailLower,
+                      getAfter(/databases/$(database)/documents/rsvps/$(inviteId)).data.emailClaimId,
+                      request.resource.data.rsvpStatus
+                    );
+
       allow update: if isAnonymousGuest()
+                    && emailRegistryReady()
+                    && resource.data.rsvpStatus != 'Confirmed'
                     && resource.data.ownerUid == request.auth.uid
                     && request.resource.data.ownerUid == request.auth.uid
                     && request.resource.data.keys().hasOnly([
@@ -89,13 +233,23 @@ service cloud.firestore {
                       'name', 'numGuests', 'ownerUid', 'rsvpStatus'
                     ])
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-                      'name', 'numGuests', 'rsvpStatus',
-                      'nameLower', 'email', 'emailLower'
+                      'name', 'numGuests', 'rsvpStatus'
                     ])
-                    && request.resource.data.name is string
-                    && request.resource.data.numGuests is int
-                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined'];
-      // Host-only one-time cleanup for legacy public invite documents.
+                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined']
+                    && rsvpMatchesInviteAfter(
+                      inviteId,
+                      request.resource.data.ownerUid,
+                      request.resource.data.rsvpStatus
+                    )
+                    && emailClaimMatchesAfter(
+                      inviteId,
+                      request.resource.data.ownerUid,
+                      getAfter(/databases/$(database)/documents/rsvps/$(inviteId)).data.emailLower,
+                      getAfter(/databases/$(database)/documents/rsvps/$(inviteId)).data.emailClaimId,
+                      request.resource.data.rsvpStatus
+                    );
+
+      // Host-only cleanup for legacy public invite contact fields.
       allow update: if isHost()
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'nameLower', 'email', 'emailLower'
@@ -106,14 +260,23 @@ service cloud.firestore {
       allow delete: if isHost();
     }
 
-    function isAnonymousGuest() {
-      return request.auth != null
-        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    match /emailClaims/{claimId} {
+      // Email claims contain private normalized addresses. Guests can write
+      // through atomic RSVP saves but can never read or list them.
+      allow get, list: if isHost();
+      allow create: if isHost() || validClaimWrite(claimId);
+      allow update: if isHost()
+                    || (resource.data.rsvpStatus != 'Confirmed'
+                        && validClaimWrite(claimId));
+      allow delete: if isHost();
     }
 
-    function isHost() {
-      return request.auth != null
-        && request.auth.uid == 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
+    match /system/{systemId} {
+      // The registry flag contains no guest information and is readable by
+      // guests so the app can distinguish initial setup from an email lock.
+      allow get: if isHost() || isAnonymousGuest();
+      allow list: if isHost();
+      allow create, update, delete: if isHost();
     }
   }
 }

@@ -96,12 +96,32 @@ test('local emulator mode requires an explicit flag and never activates on hoste
   assert.match(js, /connectFirestoreEmulator\(db,\s*'127\.0\.0\.1',\s*8080\)/);
 });
 
-test('guest lookups are owner-scoped and public invitation records omit email', () => {
+test('guest lookups stay private and registration writes a private normalized email claim', () => {
   assert.match(js, /where\('ownerUid',\s*'==',\s*auth\.currentUser\.uid\)/);
   assert.match(js, /batch\.set\(inviteRef,\s*inviteRecord\);/);
-  assert.doesNotMatch(js, /emailLower:\s*normalizeEmail\(guest\.email\)/);
+  assert.match(js, /batch\.set\(emailClaimRef,\s*emailClaim\);/);
+  assert.match(js, /emailLower,\s*emailClaimId,\s*ownerUid/);
+  assert.match(js, /function getEmailClaimDocumentId\(emailLower\)/);
   assert.match(html, /Already registered on this device\?/);
   assert.match(html, /recovery works in this browser/i);
+});
+
+test('email reuse favors pending and declined records but blocks confirmed records first', () => {
+  const emailLookup = js.slice(js.indexOf('async function findInvitationByEmail'), js.indexOf('async function findConfirmedInvitationByEmailAndName'));
+  assert.match(emailLookup, /matches\.find\(\(record\) => record\.rsvpStatus === 'Confirmed'\)\s*\|\|\s*matches\.find\(\(record\) => record\.rsvpStatus === 'Pending'\)/);
+
+  const declinedLookup = js.slice(js.indexOf('async function findDeclinedInvitationByEmail'), js.indexOf('function openInvitationForGuest'));
+  assert.match(declinedLookup, /record\.rsvpStatus === 'Declined'\s*&& normalizeEmail\(record\.email\) === emailLower/);
+  assert.doesNotMatch(declinedLookup, /normalizeName\(record\.name\)/);
+});
+
+test('admin can delete RSVP records of every status', () => {
+  const deleteFunction = js.slice(js.indexOf('window.deleteGuestRecord'), js.indexOf('// Render Database Table'));
+  assert.match(deleteFunction, /transaction\.delete\(rsvpRef\)/);
+  assert.match(deleteFunction, /transaction\.delete\(inviteRef\)/);
+  assert.doesNotMatch(deleteFunction, /rsvpStatus\s*!==\s*'Pending'/);
+  assert.match(js, /deleteButton\.innerHTML\s*=.*Delete/);
+  assert.match(html, /<th class="p-3 font-semibold">Actions<\/th>/);
 });
 
 test('application JavaScript passes Node syntax checks', () => {
