@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction, deleteField, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const isLocalHostname = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -20,11 +19,11 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const functions = getFunctions(app);
+        // Apps Script validates Firebase ID tokens and only emails confirmed guests.
+        const GMAIL_MAILER_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyaa8Qt9xti-R_WERUHET449zIPaM3R7_fCYmcNly3xyGiKqQPib8HQdgv9UulRaBt7sA/exec';
         if (useFirebaseEmulators) {
             connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
             connectFirestoreEmulator(db, '127.0.0.1', 8080);
-            connectFunctionsEmulator(functions, '127.0.0.1', 5001);
         }
         const HOST_UID = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 
@@ -49,6 +48,7 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
         let invitationEnvelopeCloseTimer = null;
         let invitationEnvelopeExitTimer = null;
         let showInvitationReminderAfterEnvelope = false;
+        let invitationEmailStatus = 'not_configured';
         const dialogFocusReturn = new Map();
 
         function getDialogFocusableElements(dialog) {
@@ -1321,12 +1321,35 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
                 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower);
         }
 
-        async function requestInvitationEmail(email) {
+        function isGmailMailerConfigured() {
+            return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GMAIL_MAILER_WEB_APP_URL);
+        }
+
+        async function sendGmailMailerRequest(payload) {
+            if (!isGmailMailerConfigured()) throw new Error('gmail-mailer/not-configured');
             const ready = await waitForFirebaseAuth();
             if (!ready || !auth.currentUser) throw new Error('Firebase authentication is not ready.');
-            const requestResend = httpsCallable(functions, 'requestInvitationResend');
-            const result = await requestResend({ email: normalizeEmail(email) });
-            return result.data || {};
+            const idToken = await auth.currentUser.getIdToken();
+            const formBody = new URLSearchParams();
+            formBody.set('payload', JSON.stringify({ ...payload, idToken }));
+            const response = await fetch(GMAIL_MAILER_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: formBody.toString()
+            });
+            // Apps Script responses are cross-origin and opaque; a resolved request
+            // confirms submission only, so the UI keeps its wording cautious.
+            if (response.type !== 'opaque' && !response.ok) throw new Error('gmail-mailer/request-failed');
+            return { status: 'submitted' };
+        }
+
+        async function requestInvitationEmail(email, name = '') {
+            return sendGmailMailerRequest({
+                action: 'sendInvitation',
+                email: normalizeEmail(email),
+                name: normalizeName(name)
+            });
         }
 
         function getRsvpSaveErrorMessage(error) {
@@ -1470,10 +1493,11 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
 
         window.emailMyInvitation = async function() {
             const emailInput = document.getElementById('recovery-email');
+            const nameInput = document.getElementById('recovery-name');
             const status = document.getElementById('recovery-email-status');
             const button = document.getElementById('recovery-email-button');
-            if (!emailInput || !status || !button || button.disabled) return;
-            if (!emailInput.reportValidity()) return;
+            if (!emailInput || !nameInput || !status || !button || button.disabled) return;
+            if (!nameInput.reportValidity() || !emailInput.reportValidity()) return;
 
             status.textContent = '';
             status.classList.add('hidden');
@@ -1481,8 +1505,8 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
             button.setAttribute('aria-busy', 'true');
             button.textContent = 'Requesting email…';
             try {
-                await requestInvitationEmail(emailInput.value);
-                status.textContent = 'If a confirmed invitation is registered with that email, we’ll send its link and QR code. Please check your inbox and spam folder.';
+                await requestInvitationEmail(emailInput.value, nameInput.value);
+                status.textContent = 'If a confirmed invitation matches those details, we’ll email its link and a button to open or save the QR code. Check your inbox and spam folder.';
                 status.classList.remove('hidden');
             } catch (error) {
                 console.error('Could not request invitation email:', error);
@@ -1518,18 +1542,12 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
             button.textContent = 'Sending…';
             try {
                 const result = await resendInvitationFromAdmin(email);
-                if (result.status === 'queued') {
-                    showAdminActionStatus('Invitation link and QR email queued successfully.');
-                } else if (result.status === 'cooldown') {
-                    showAdminActionStatus('A recent email was already queued for this address. Try again in 15 minutes.', true);
-                } else if (result.status === 'daily_limit') {
-                    showAdminActionStatus('The daily email safety limit has been reached. Try again tomorrow.', true);
-                } else {
-                    showAdminActionStatus('No confirmed invitation was found for this email.', true);
+                if (result.status === 'submitted') {
+                    showAdminActionStatus('The resend request was submitted. Check the Gmail Sent folder and the guest’s inbox.');
                 }
             } catch (error) {
                 console.error('Could not resend invitation email:', error);
-                showAdminActionStatus('Could not queue the invitation email. Check the connection and try again.', true);
+                showAdminActionStatus('Could not submit the email request. Check the connection and try again.', true);
             } finally {
                 button.disabled = false;
                 button.setAttribute('aria-busy', 'false');
@@ -2087,6 +2105,21 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
                     registrationSavePromise = null;
                 }
                 await saveGuestToCloud(currentGuest, currentGuest.rsvpStatus === 'Confirmed');
+                if (currentGuest.rsvpStatus === 'Confirmed') {
+                    invitationEmailStatus = 'not_configured';
+                    if (isGmailMailerConfigured()) {
+                        try {
+                            await sendGmailMailerRequest({
+                                action: 'confirmation',
+                                guestId: currentGuest.id
+                            });
+                            invitationEmailStatus = 'submitted';
+                        } catch (emailError) {
+                            invitationEmailStatus = 'failed';
+                            console.warn('RSVP saved, but the Gmail invitation request could not be submitted:', emailError);
+                        }
+                    }
+                }
                 if (currentGuest.rsvpStatus === 'Confirmed'
                     && typeof confetti === 'function'
                     && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -2144,7 +2177,15 @@ import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://w
             if (currentGuest.rsvpStatus === 'Confirmed') {
                 // Keep the invitation QR section hidden until the private reminder is acknowledged.
                 invitationLinks.classList.add('hidden');
-                emailNote?.classList.remove('hidden');
+                if (emailNote) {
+                    const emailMessages = {
+                        submitted: 'We submitted your invitation email request. It includes your personal invitation link and a button to open or save your QR code. Check your inbox and spam folder.',
+                        failed: 'Your RSVP is confirmed, but the email request could not be submitted. You can still open and save your QR code below, or try Recover My Invitation later.',
+                        not_configured: 'Your RSVP is confirmed. The Gmail sender still needs to be set up; you can open and save your QR code below in the meantime.'
+                    };
+                    emailNote.textContent = emailMessages[invitationEmailStatus] || emailMessages.not_configured;
+                    emailNote.classList.remove('hidden');
+                }
                 window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
                 msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Aianna Fulla's 18th Birthday Debut with you.";

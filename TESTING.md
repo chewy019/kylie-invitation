@@ -27,23 +27,25 @@ Publish the updated site and deploy the updated `firestore.rules` as one coordin
 
 The admin console now has a Delete action for every RSVP status. It removes that RSVP and its matching invitation link. Confirmed email claims remain, so deleting a confirmed guest does not make that email available again. Pending and Declined claims can be reused by a later registration.
 
-## Invitation email setup
+## Gmail invitation email setup
 
-The email flow uses Firebase Cloud Functions and Firebase's **Trigger Email** extension. A confirmed RSVP creates a private email job with the personal invitation link and an attached/inline QR image. Public recovery sends only a generic response, and the server checks the private email claim, RSVP, and invitation before it queues anything. Pending and Declined RSVPs do not receive a confirmation email. The host can resend from a Confirmed row in the database console.
+The invitation email uses a Google Apps Script web app that sends through the deploying Gmail account. A newly confirmed RSVP submits an authenticated email request; guests can request a resend by entering their name and email, and the host can resend from the admin guest list. The email contains the private invitation link plus a link to a page that renders and downloads that guest's QR code. The QR is generated on the invitation site, so its private link is not sent to a QR-generation service.
 
-### Before deployment
+The script validates Firebase ID tokens, checks the confirmed RSVP against its private email claim and invite document, requires a matching name for guest recovery, and applies a 15-minute recipient cooldown and an 80-recipient rolling 24-hour cap. Apps Script itself may enforce lower Gmail quotas. Google's current published MailApp quota for consumer Gmail accounts is 100 recipients per day; quotas can change and count against the account's other Apps Script email sends. See [Apps Script quotas](https://developers.google.com/apps-script/guides/services/quotas).
 
-1. The Firebase project needs the **Blaze** plan to deploy Cloud Functions. This links billing to the project. Functions include monthly no-cost quotas, but deployment storage and use above no-cost quotas can incur charges. Set a budget alert and review the Cloud Functions spend controls in Google Cloud before release. This repository caps email jobs at 150 per UTC day, with a 15-minute per-address resend cooldown and a 1-minute per-browser-account cooldown.
-2. Create a Brevo account, verify the sender address/domain, and create an SMTP key. The Brevo Free plan currently includes 300 sends per day and adds Brevo branding. The app cap leaves headroom beneath that limit.
-3. In Firebase Console, install the official **Trigger Email** extension. Set its Firestore mail collection to `mail`, and enter the Brevo SMTP relay credentials and verified default From address in the extension setup. Do not put SMTP credentials in this repository or in browser code. Brevo recommends SMTP port 587.
-4. Set `INVITATION_BASE_URL` to the full public site base URL (including any path, such as a GitHub Pages repository path) over HTTPS. Copy `functions/.env.example` to `functions/.env.kylie-18th-rsvp` and replace the sample value. The `.env` file is ignored by Git. Firebase prompts for this parameter during deployment if it is not set.
-5. Install backend dependencies from the repository root with `npm --prefix functions install`, then deploy Firestore rules and Functions to the existing project:
+### Setup steps
 
-   ```sh
-   npx firebase deploy --only firestore:rules,functions --project kylie-18th-rsvp
-   ```
+1. In the Gmail account that should send the messages, open [Google Apps Script](https://script.google.com/) and create a project.
+2. Replace its `Code.gs` with the contents of `apps-script/Code.gs`.
+3. In **Project Settings**, show the `appsscript.json` manifest, then replace it with `apps-script/appsscript.json` and save.
+4. In **Project Settings → Script Properties**, add `INVITATION_BASE_URL` with the public HTTPS site URL ending in `/`, including the repository path if the site uses GitHub Pages. Example: `https://chewy019.github.io/kylie-invitation/`.
+5. In the editor, select `authorizeGmailMailer` and click **Run**. Review and grant the listed Gmail, Firestore, and external-request permissions to the Gmail account. This checks Firestore access without sending an email or changing a guest record. The Gmail account must have permission to read this Firebase project's Firestore database.
+6. Select **Deploy → New deployment → Web app**. Choose **Execute as me** and **Who has access: Anyone** so the invitation page can submit requests. The code validates Firebase ID tokens before it reads guest data or sends email; the OAuth token stays on Google's server and is never returned to the page.
+7. Copy the deployed web app URL ending in `/exec`. Paste it into `GMAIL_MAILER_WEB_APP_URL` near the top of `script.js`, then commit and push the site through GitHub Desktop. Keep the Apps Script project and deployment owned by the same Gmail account.
 
-   Install the Trigger Email extension before deploying or sending a real test. Once the backend is deployed, commit and push the updated site files through GitHub Desktop so the live page gets the recovery and admin resend controls. Confirmed records that existed before Functions deployment will not send automatically; use the host's **Resend** action for those guests.
+This setup does not require a custom email domain, a Brevo SMTP key, the Firebase Trigger Email extension, a change to Firestore rules, or Firebase Blaze billing. Messages will come from the Gmail account that owns the Apps Script deployment. Confirmations are submitted by the page immediately after Firestore saves the confirmed RSVP; if the guest closes the page before that request completes, they can use **Recover My Invitation** or the host can use **Resend**.
+
+The Apps Script deployment URL is public configuration, not a credential. Never put the OAuth token or a Gmail password in `script.js` or GitHub. For later Apps Script code changes, create a new deployment version or edit the existing deployment to use the latest version.
 
 ### Local emulator
 
