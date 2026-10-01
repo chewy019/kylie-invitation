@@ -6,7 +6,10 @@
 <meta name="theme-color" content="#fff5f7"/>
 <meta name="description" content="Join Kylie Aianna Fulla for her 18th birthday debut celebration on November 7, 2026."/>
 <script>
-if (!new URLSearchParams(window.location.search).has('invite') && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+const invitationLinkOpening = Boolean(new URLSearchParams(window.location.search).get('invite'));
+if (invitationLinkOpening) {
+    document.documentElement.classList.add('invite-link-pending');
+} else if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     document.documentElement.classList.add('site-open-animate');
 }
 </script>
@@ -27,6 +30,11 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
 <link href="./style.css" rel="stylesheet"/></head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900">
+<div aria-live="polite" class="invite-link-loader" id="invite-link-loader" role="status">
+<span aria-hidden="true" class="invite-link-loader-mark">K</span>
+<span class="invite-link-loader-title">Preparing your invitation</span>
+<span class="invite-link-loader-copy">Just a moment while we open your personal link.</span>
+</div>
 <div aria-labelledby="site-opening-title" aria-modal="true" class="opening-overlay hidden" id="site-opening-overlay" role="dialog">
 <div class="opening-scene">
 <p class="opening-eyebrow">A little celebration awaits</p>
@@ -113,7 +121,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div>
 <label class="registration-label" for="reg-email">Email address <span aria-hidden="true">*</span></label>
 <input autocapitalize="none" autocomplete="email" enterkeyhint="go" maxlength="254" class="registration-input" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
-<p class="registration-hint">We’ll save this with your RSVP. For privacy, recovery works in this browser; on another device, use your saved invitation link or contact the host.</p>
+<p class="registration-hint">We’ll use this email for your RSVP and invitation. You can request the invitation again from any browser.</p>
 </div>
 <button class="registration-submit" type="submit">
 <span>Continue to your invitation</span>

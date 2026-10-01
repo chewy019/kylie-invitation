@@ -1718,6 +1718,77 @@ button:disabled {
     animation: siteSoftReveal .72s cubic-bezier(.2,.7,.25,1) .08s both;
 }
 
+.invite-link-loader {
+    position: fixed;
+    z-index: 250;
+    inset: 0;
+    display: none;
+    align-content: center;
+    justify-items: center;
+    gap: 12px;
+    padding: 28px;
+    background:
+        radial-gradient(ellipse at 50% 43%, rgba(255, 255, 255, .98), rgba(255, 246, 249, .98) 63%),
+        #fff6f8;
+    color: #512b39;
+    text-align: center;
+}
+
+html.invite-link-pending #invite-link-loader {
+    display: grid;
+}
+
+html.invite-link-pending #step-registration,
+html.invite-link-pending #step-indicator,
+html.invite-link-pending #mobile-step-progress {
+    display: none !important;
+}
+
+.invite-link-loader-mark {
+    position: relative;
+    display: grid;
+    width: 66px;
+    height: 66px;
+    place-items: center;
+    border: 1px solid rgba(141, 41, 71, .25);
+    border-radius: 50%;
+    color: #8d2947;
+    font: italic 500 38px/.9 "Cormorant Garamond", Georgia, serif;
+}
+
+.invite-link-loader-mark::after {
+    position: absolute;
+    inset: -5px;
+    border: 1px solid transparent;
+    border-top-color: #a6405d;
+    border-right-color: rgba(166, 64, 93, .4);
+    border-radius: inherit;
+    content: "";
+    animation: inviteLoaderTurn 1.2s linear infinite;
+}
+
+.invite-link-loader-title {
+    margin-top: 7px;
+    color: #6b2b40;
+    font: 500 clamp(1.3rem, 4vw, 1.65rem)/1.1 "Cormorant Garamond", Georgia, serif;
+}
+
+.invite-link-loader-copy {
+    max-width: 270px;
+    color: #876c73;
+    font: 400 .8rem/1.6 "Montserrat", Arial, sans-serif;
+}
+
+@keyframes inviteLoaderTurn {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .invite-link-loader-mark::after {
+        animation-duration: 3s;
+    }
+}
+
 .opening-overlay {
     position: fixed;
     inset: 0;

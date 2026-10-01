@@ -6,6 +6,8 @@ const MAX_RECIPIENTS_PER_24_HOURS = 80;
 const RESEND_COOLDOWN_MS = 15 * 60 * 1000;
 const CALLER_COOLDOWN_MS = 60 * 1000;
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
+const REQUEST_RESULT_PREFIX = 'request:result:';
+const REQUEST_RESULT_TTL_MS = 60 * 60 * 1000;
 
 /**
  * Public Apps Script endpoint. It only accepts Firebase ID tokens, validates
@@ -13,6 +15,8 @@ const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
  * invitation, and email-claim documents in Firestore.
  */
 function doPost(event) {
+  let requestId = '';
+  let result = { accepted: false, status: 'failed' };
   try {
     const rawPayload = event && event.parameter && event.parameter.payload;
     if (typeof rawPayload !== 'string' || rawPayload.length > 10000) {
@@ -20,6 +24,7 @@ function doPost(event) {
     }
 
     const payload = JSON.parse(rawPayload);
+    if (isValidRequestId_(payload.requestId)) requestId = payload.requestId;
     const identity = verifyFirebaseIdToken_(payload.idToken);
     let guest;
     let sendKind;
@@ -49,20 +54,71 @@ function doPost(event) {
     if (!guest) throw new Error('not_found');
     const reservation = reserveSend_(sendKind, guest.id, guest.email, identity.uid);
     if (!reservation.allowed) {
-      return jsonResponse_({ accepted: true, status: reservation.status });
-    }
-
-    try {
-      sendInvitationEmail_(guest);
-      finalizeSend_(reservation, guest.email, identity.uid);
-      return jsonResponse_({ accepted: true, status: 'sent' });
-    } catch (error) {
-      releaseSend_(reservation);
-      throw error;
+      result = { accepted: true, status: reservation.status };
+    } else {
+      try {
+        sendInvitationEmail_(guest);
+        finalizeSend_(reservation, guest.email, identity.uid);
+        result = { accepted: true, status: 'sent' };
+      } catch (error) {
+        releaseSend_(reservation);
+        throw error;
+      }
     }
   } catch (error) {
     console.error('Invitation email request rejected or failed:', String(error && error.message || error));
-    return jsonResponse_({ accepted: false });
+    const errorCode = String(error && error.message || error);
+    if (errorCode === 'not_found' || errorCode === 'permission_denied') {
+      result = { accepted: false, status: 'not_found' };
+    } else if (errorCode === 'lookup_cooldown') {
+      result = { accepted: false, status: 'cooldown' };
+    }
+  }
+
+  if (requestId) storeRequestResult_(requestId, result.status);
+  return jsonResponse_(result);
+}
+
+/** Cross-origin JSONP status check for the opaque browser POST response. */
+function doGet(event) {
+  const requestId = event && event.parameter && event.parameter.requestId;
+  if (!isValidRequestId_(requestId)) {
+    return jsonpMailerResult_('__kylieMailerInvalidRequest', 'failed');
+  }
+
+  const properties = PropertiesService.getScriptProperties();
+  const saved = readJsonProperty_(properties, REQUEST_RESULT_PREFIX + requestId);
+  const status = saved && Date.now() - Number(saved.at || 0) <= REQUEST_RESULT_TTL_MS
+    ? saved.status
+    : 'pending';
+  return jsonpMailerResult_('__kylieMailer_' + requestId.replace(/-/g, ''), status);
+}
+
+function isValidRequestId_(value) {
+  return typeof value === 'string'
+    && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function jsonpMailerResult_(callbackName, status) {
+  const safeStatuses = ['sent', 'cooldown', 'daily_limit', 'not_found', 'already_sent', 'pending', 'failed'];
+  const safeStatus = safeStatuses.indexOf(status) === -1 ? 'failed' : status;
+  return ContentService.createTextOutput(callbackName + '(' + JSON.stringify({ status: safeStatus }) + ');')
+    .setMimeType(ContentService.MimeType.JAVASCRIPT);
+}
+
+function storeRequestResult_(requestId, status) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const now = Date.now();
+    properties.setProperty(REQUEST_RESULT_PREFIX + requestId, JSON.stringify({ status: status, at: now }));
+    const allProperties = properties.getProperties();
+    Object.keys(allProperties).forEach(function(key) {
+      if (key.indexOf(REQUEST_RESULT_PREFIX) !== 0) return;
+      const saved = readJsonProperty_(properties, key);
+      if (!saved || now - Number(saved.at || 0) > REQUEST_RESULT_TTL_MS) properties.deleteProperty(key);
+    });
+  } catch (error) {
+    console.error('Could not save the email request status.', String(error && error.message || error));
   }
 }
 
@@ -143,10 +199,10 @@ function getConfirmedGuestById_(guestId, ownerUid) {
 
   const claim = firestoreGetDocument_('emailClaims', claimId);
   const invite = firestoreGetDocument_('invites', guestId);
-  if (!matchesClaim_(claim, guestId, email, ownerUid)
-    || !matchesInvite_(invite, guestId, ownerUid, readString_(rsvp, 'name'), readInteger_(rsvp, 'numGuests'))) {
-    return null;
-  }
+  if (!matchesInvite_(invite, guestId, ownerUid, readString_(rsvp, 'name'), readInteger_(rsvp, 'numGuests'))) return null;
+  if (claim) {
+    if (!matchesClaim_(claim, guestId, email, ownerUid)) return null;
+  } else if (!restoreMissingEmailClaim_(guestId, rsvp, invite, email)) return null;
 
   return makeGuest_(guestId, rsvp, email);
 }
@@ -156,7 +212,13 @@ function getConfirmedGuestByEmail_(email, requiredName) {
 
   const claimId = emailClaimDocumentId_(email);
   const claim = firestoreGetDocument_('emailClaims', claimId);
-  if (!claim || readString_(claim, 'emailLower') !== email
+  if (!claim) {
+    const recoveredGuest = findConfirmedGuestByEmail_(email, requiredName);
+    if (!recoveredGuest
+      || !restoreMissingEmailClaim_(recoveredGuest.id, recoveredGuest.rsvp, recoveredGuest.invite, email)) return null;
+    return makeGuest_(recoveredGuest.id, recoveredGuest.rsvp, email);
+  }
+  if (readString_(claim, 'emailLower') !== email
     || readString_(claim, 'emailClaimId') !== claimId
     || readString_(claim, 'rsvpStatus') !== 'Confirmed') return null;
 
@@ -178,6 +240,62 @@ function getConfirmedGuestByEmail_(email, requiredName) {
   const guestName = readString_(rsvp, 'name') || '';
   if (requiredName && normalizeName_(guestName) !== requiredName) return null;
   return makeGuest_(guestId, rsvp, email);
+}
+
+function findConfirmedGuestByEmail_(email, requiredName) {
+  const matches = new Map();
+  ['emailLower', 'email'].forEach(function(fieldName) {
+    firestoreQueryDocuments_('rsvps', fieldName, email).forEach(function(rsvp) {
+      const name = readString_(rsvp, 'name');
+      const guestId = String(rsvp.name || '').split('/').pop();
+      const ownerUid = readString_(rsvp, 'ownerUid');
+      if (!guestId || !ownerUid
+        || readString_(rsvp, 'rsvpStatus') !== 'Confirmed'
+        || normalizeEmail_(readString_(rsvp, 'emailLower') || readString_(rsvp, 'email')) !== email
+        || readString_(rsvp, 'emailClaimId') !== emailClaimDocumentId_(email)
+        || (requiredName && normalizeName_(name) !== requiredName)) return;
+
+      const invite = firestoreGetDocument_('invites', guestId);
+      if (!matchesInvite_(invite, guestId, ownerUid, name, readInteger_(rsvp, 'numGuests'))) return;
+      matches.set(guestId, { id: guestId, rsvp: rsvp, invite: invite });
+    });
+  });
+
+  // A missing claim can only be restored automatically when one confirmed record
+  // unambiguously matches the submitted email and (for guest recovery) name.
+  return matches.size === 1 ? Array.from(matches.values())[0] : null;
+}
+
+function restoreMissingEmailClaim_(guestId, rsvp, invite, email) {
+  const ownerUid = readString_(rsvp, 'ownerUid');
+  const claimId = emailClaimDocumentId_(email);
+  const guestName = readString_(rsvp, 'name');
+  const guestCount = readInteger_(rsvp, 'numGuests');
+  if (!ownerUid || readString_(rsvp, 'rsvpStatus') !== 'Confirmed'
+    || normalizeEmail_(readString_(rsvp, 'emailLower') || readString_(rsvp, 'email')) !== email
+    || readString_(rsvp, 'emailClaimId') !== claimId
+    || !matchesInvite_(invite, guestId, ownerUid, guestName, guestCount)) return false;
+
+  const existing = firestoreGetDocument_('emailClaims', claimId);
+  if (existing) return matchesClaim_(existing, guestId, email, ownerUid);
+
+  const claim = {
+    ownerUid: ownerUid,
+    rsvpId: guestId,
+    emailLower: email,
+    emailClaimId: claimId,
+    rsvpStatus: 'Confirmed'
+  };
+  try {
+    firestoreCreateEmailClaim_(claimId, claim);
+    return true;
+  } catch (error) {
+    // A simultaneous recovery request may have created the same claim first.
+    const current = firestoreGetDocument_('emailClaims', claimId);
+    if (matchesClaim_(current, guestId, email, ownerUid)) return true;
+    console.error('Could not restore a missing email claim.', String(error && error.message || error));
+    return false;
+  }
 }
 
 function matchesClaim_(claim, guestId, email, ownerUid) {
@@ -220,6 +338,63 @@ function firestoreGetDocument_(collectionName, documentId) {
   if (status !== 200) {
     console.error('Firestore document lookup failed with HTTP ' + status + '.');
     throw new Error('firestore_unavailable');
+  }
+  return JSON.parse(response.getContentText());
+}
+
+function firestoreQueryDocuments_(collectionName, fieldName, value) {
+  if (collectionName !== 'rsvps' || ['emailLower', 'email'].indexOf(fieldName) === -1) {
+    throw new Error('invalid_firestore_query');
+  }
+  const url = 'https://firestore.googleapis.com/v1/projects/'
+    + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: collectionName }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: fieldName },
+          op: 'EQUAL',
+          value: { stringValue: value }
+        }
+      },
+      limit: 51
+    }
+  };
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(query),
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) {
+    console.error('Firestore RSVP lookup failed with HTTP ' + response.getResponseCode() + '.');
+    throw new Error('firestore_unavailable');
+  }
+  const rows = JSON.parse(response.getContentText());
+  if (!Array.isArray(rows) || rows.length > 50) return [];
+  return rows.map(function(row) { return row && row.document; }).filter(Boolean);
+}
+
+function firestoreCreateEmailClaim_(claimId, claim) {
+  const url = 'https://firestore.googleapis.com/v1/projects/'
+    + FIREBASE_PROJECT_ID + '/databases/(default)/documents/emailClaims/'
+    + encodeURIComponent(claimId) + '?currentDocument.exists=false';
+  const fields = {};
+  Object.keys(claim).forEach(function(key) {
+    fields[key] = { stringValue: claim[key] };
+  });
+  const response = UrlFetchApp.fetch(url, {
+    method: 'patch',
+    contentType: 'application/json',
+    payload: JSON.stringify({ fields: fields }),
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) {
+    console.error('Firestore email claim restore failed with HTTP ' + response.getResponseCode() + '.');
+    throw new Error('email_claim_restore_failed');
   }
   return JSON.parse(response.getContentText());
 }

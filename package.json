@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "check": "node --check script.js && node --check tailwind.config.js && node --check functions/index.js",
-    "test": "node --test tests/smoke.test.cjs",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-kylie-18th-rules \"node --test tests/firestore.rules.cjs\"",
+    "test": "node --test tests/smoke.test.cjs tests/apps-script.test.cjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-kylie-18th-rules --config firebase.rules-test.json \"node --test tests/firestore.rules.cjs\"",
     "emulators": "firebase emulators:start --only auth,firestore,functions --project demo-kylie-18th-rules",
     "test:all": "npm run check && npm test && npm run test:rules"
   },

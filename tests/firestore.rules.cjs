@@ -16,6 +16,10 @@ const root = path.resolve(__dirname, '..');
 const hostUid = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 const guestUid = 'guest-owner-1';
 const defaultEmail = 'guest@example.com';
+const firestoreEmulatorAddress = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:18080';
+const firestoreEmulatorSeparator = firestoreEmulatorAddress.lastIndexOf(':');
+const firestoreEmulatorHost = firestoreEmulatorAddress.slice(0, firestoreEmulatorSeparator);
+const firestoreEmulatorPort = Number(firestoreEmulatorAddress.slice(firestoreEmulatorSeparator + 1));
 let testEnv;
 
 function emailClaimId(email) {
@@ -125,8 +129,8 @@ before(async () => {
   testEnv = await initializeTestEnvironment({
     projectId: 'demo-kylie-18th-rules',
     firestore: {
-      host: '127.0.0.1',
-      port: 8080,
+      host: firestoreEmulatorHost,
+      port: firestoreEmulatorPort,
       rules: fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8')
     }
   });

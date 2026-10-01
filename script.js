@@ -1325,23 +1325,89 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             return /^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(GMAIL_MAILER_WEB_APP_URL);
         }
 
+        function createGmailMailerRequestId() {
+            if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+            if (!window.crypto?.getRandomValues) throw new Error('Secure request IDs are unavailable.');
+            const bytes = new Uint8Array(16);
+            window.crypto.getRandomValues(bytes);
+            bytes[6] = (bytes[6] & 0x0f) | 0x40;
+            bytes[8] = (bytes[8] & 0x3f) | 0x80;
+            const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+            return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+        }
+
+        function readGmailMailerResult(requestId, timeoutMs = 12000) {
+            return new Promise((resolve) => {
+                const callbackName = `__kylieMailer_${requestId.replace(/-/g, '')}`;
+                let pollTimer = null;
+                let settled = false;
+                const timeoutTimer = window.setTimeout(() => finish({ status: 'unknown' }), timeoutMs);
+
+                function finish(result) {
+                    if (settled) return;
+                    settled = true;
+                    window.clearTimeout(timeoutTimer);
+                    if (pollTimer) window.clearTimeout(pollTimer);
+                    delete window[callbackName];
+                    resolve(result);
+                }
+
+                function schedulePoll(delay = 450) {
+                    if (settled || pollTimer) return;
+                    pollTimer = window.setTimeout(() => {
+                        pollTimer = null;
+                        poll();
+                    }, delay);
+                }
+
+                function poll() {
+                    if (settled) return;
+                    let callbackFired = false;
+                    const statusScript = document.createElement('script');
+                    statusScript.async = true;
+                    window[callbackName] = (result) => {
+                        callbackFired = true;
+                        const status = typeof result?.status === 'string' ? result.status : '';
+                        if (status && status !== 'pending') finish({ status });
+                        else schedulePoll();
+                    };
+                    statusScript.onload = () => {
+                        statusScript.remove();
+                        if (!callbackFired) schedulePoll();
+                    };
+                    statusScript.onerror = () => {
+                        statusScript.remove();
+                        schedulePoll(700);
+                    };
+                    const statusUrl = new URL(GMAIL_MAILER_WEB_APP_URL);
+                    statusUrl.searchParams.set('requestId', requestId);
+                    statusUrl.searchParams.set('_', String(Date.now()));
+                    statusScript.src = statusUrl.href;
+                    document.head.appendChild(statusScript);
+                }
+
+                poll();
+            });
+        }
+
         async function sendGmailMailerRequest(payload) {
             if (!isGmailMailerConfigured()) throw new Error('gmail-mailer/not-configured');
             const ready = await waitForFirebaseAuth();
             if (!ready || !auth.currentUser) throw new Error('Firebase authentication is not ready.');
             const idToken = await auth.currentUser.getIdToken();
+            const requestId = createGmailMailerRequestId();
             const formBody = new URLSearchParams();
-            formBody.set('payload', JSON.stringify({ ...payload, idToken }));
+            formBody.set('payload', JSON.stringify({ ...payload, idToken, requestId }));
             const response = await fetch(GMAIL_MAILER_WEB_APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
                 body: formBody.toString()
             });
-            // Apps Script responses are cross-origin and opaque; a resolved request
-            // confirms submission only, so the UI keeps its wording cautious.
             if (response.type !== 'opaque' && !response.ok) throw new Error('gmail-mailer/request-failed');
-            return { status: 'submitted' };
+            // Apps Script's POST is opaque cross-origin. A separate JSONP status
+            // lookup lets the page distinguish a sent email from a rejected request.
+            return readGmailMailerResult(requestId);
         }
 
         async function requestInvitationEmail(email, name = '') {
@@ -1431,6 +1497,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     setTimeout(() => openSecretReminder(), 250);
                 }
             }
+            document.documentElement.classList.remove('invite-link-pending');
         }
 
         window.openRecoveryModal = function(prefillEmail = '', prefillName = '') {
@@ -1482,10 +1549,20 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             button.setAttribute('aria-busy', 'true');
             button.textContent = 'Requesting email…';
             try {
-                await requestInvitationEmail(emailInput.value, nameInput.value);
-                statusTitle.textContent = 'Email request submitted';
-                statusText.textContent = 'If your details match a confirmed RSVP, the invitation link and QR code will be emailed to you. Please check your inbox and Spam/Junk folder. Resend requests may be limited to once every 15 minutes.';
+                const result = await requestInvitationEmail(emailInput.value, nameInput.value);
+                const messages = {
+                    sent: ['Invitation email sent', 'The invitation link and QR code were sent. Check your inbox and Spam/Junk folder.'],
+                    cooldown: ['Please wait before requesting again', 'A recent request is still within the resend limit. Check your inbox and Spam/Junk folder, then try again after 15 minutes.'],
+                    daily_limit: ['Email limit reached', 'The email service has reached its current sending limit. Please contact the host for your invitation.'],
+                    not_found: ['No confirmed invitation matched', 'Check that the name and email match a confirmed RSVP. If the RSVP was deleted, the host may need to restore it first.'],
+                    failed: ['The email could not be sent', 'The email service reported a problem. Please try again later or contact the host.'],
+                    unknown: ['Delivery could not be verified', 'The request reached the email service, but its result could not be confirmed. Check your inbox and Spam/Junk folder before requesting again.']
+                };
+                const [title, message] = messages[result.status] || messages.unknown;
+                statusTitle.textContent = title;
+                statusText.textContent = `${message} Resend requests may be limited to once every 15 minutes.`;
                 status.classList.remove('hidden');
+                status.classList.toggle('is-error', ['not_found', 'daily_limit', 'failed'].includes(result.status));
             } catch (error) {
                 console.error('Could not request invitation email:', error);
                 statusTitle.textContent = 'Could not submit the request';
@@ -1521,12 +1598,18 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             button.textContent = 'Sending…';
             try {
                 const result = await resendInvitationFromAdmin(email);
-                if (result.status === 'submitted') {
-                    showAdminActionStatus('The resend request was submitted. Check the Gmail Sent folder and the guest’s inbox.');
-                }
+                const messages = {
+                    sent: 'Invitation email sent. Check the Gmail Sent folder and the guest’s inbox.',
+                    cooldown: 'A resend was requested recently. Wait 15 minutes before trying again.',
+                    daily_limit: 'The email service reached its current sending limit.',
+                    not_found: 'No confirmed RSVP with a matching invitation and email claim was found.',
+                    failed: 'The email service could not send the invitation. Check Apps Script executions.',
+                    unknown: 'The request reached Apps Script, but its result could not be verified.'
+                };
+                showAdminActionStatus(messages[result.status] || messages.unknown, ['daily_limit', 'not_found', 'failed'].includes(result.status));
             } catch (error) {
                 console.error('Could not resend invitation email:', error);
-                showAdminActionStatus('Could not submit the email request. Check the connection and try again.', true);
+                showAdminActionStatus('Could not reach the email service. Check the connection and try again.', true);
             } finally {
                 button.disabled = false;
                 button.setAttribute('aria-busy', 'false');
@@ -1937,6 +2020,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             }
             window.goToStep(1);
             closeInvitationEnvelope('step-registration', true);
+            document.documentElement.classList.remove('invite-link-pending');
         }
 
         function populateInvitationView() {
@@ -2010,14 +2094,14 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     invitationEmailStatus = 'not_configured';
                     if (isGmailMailerConfigured()) {
                         try {
-                            await sendGmailMailerRequest({
+                            const emailResult = await sendGmailMailerRequest({
                                 action: 'confirmation',
                                 guestId: currentGuest.id
                             });
-                            invitationEmailStatus = 'submitted';
+                            invitationEmailStatus = emailResult.status || 'unknown';
                         } catch (emailError) {
                             invitationEmailStatus = 'failed';
-                            console.warn('RSVP saved, but the Gmail invitation request could not be submitted:', emailError);
+                            console.warn('RSVP saved, but the Gmail invitation email failed:', emailError);
                         }
                     }
                 }
@@ -2077,12 +2161,16 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             sumEmail.textContent = currentGuest.email;
 
             if (currentGuest.rsvpStatus === 'Confirmed') {
-                // Keep the invitation QR section hidden until the private reminder is acknowledged.
-                invitationLinks.classList.add('hidden');
-                if (emailNote && emailNoteText) {
+                    // Keep the invitation QR section hidden until the private reminder is acknowledged.
+                    invitationLinks.classList.add('hidden');
+                    if (emailNote && emailNoteText) {
                     const emailMessages = {
-                        submitted: 'We requested an email with your personal invitation link and a page to view or save your QR code. Please check your inbox or spam folder.',
-                        failed: 'Your RSVP is confirmed, but the email request could not be submitted. You can still open and save your QR code below, or try Recover My Invitation later.',
+                        sent: 'Your invitation email was sent. Please check your inbox and Spam/Junk folder.',
+                        cooldown: 'A recent email request is still within the resend limit. Check your inbox and Spam/Junk folder before trying again.',
+                        daily_limit: 'Your RSVP is confirmed, but the email service reached its current sending limit. You can open and save your QR code below.',
+                        not_found: 'Your RSVP is confirmed, but the email service could not find its matching invitation record. You can open and save your QR code below, or contact the host.',
+                        unknown: 'The email service could not confirm delivery. Check your inbox and Spam/Junk folder; your QR code is available below.',
+                        failed: 'Your RSVP is confirmed, but the email service could not send the invitation. You can still open and save your QR code below.',
                         not_configured: 'Your RSVP is confirmed. The Gmail sender still needs to be set up; you can open and save your QR code below in the meantime.'
                     };
                     emailNoteText.textContent = emailMessages[invitationEmailStatus] || emailMessages.not_configured;

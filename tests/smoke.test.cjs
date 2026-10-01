@@ -103,7 +103,27 @@ test('guest lookups stay private and registration writes a private normalized em
   assert.match(js, /emailLower,\s*emailClaimId,\s*ownerUid/);
   assert.match(js, /function getEmailClaimDocumentId\(emailLower\)/);
   assert.match(html, /Already registered on this device\?/);
-  assert.match(html, /recovery works in this browser/i);
+  assert.match(html, /request the invitation again from any browser/i);
+});
+
+test('invitation links show a loading state before the registration page can flash', () => {
+  assert.match(html, /new URLSearchParams\(window\.location\.search\)\.get\('invite'\)/);
+  assert.match(html, /classList\.add\('invite-link-pending'\)/);
+  assert.match(html, /id="invite-link-loader"/);
+  assert.match(css, /html\.invite-link-pending #invite-link-loader\s*\{\s*display:\s*grid/s);
+  assert.match(css, /html\.invite-link-pending #step-registration\s*,\s*html\.invite-link-pending #step-indicator/s);
+  assert.match(js, /classList\.remove\('invite-link-pending'\)/);
+});
+
+test('Gmail mailer reports delivery results and can restore a missing claim from a matching confirmed RSVP', () => {
+  const appsScript = read('apps-script/Code.gs');
+  assert.match(js, /readGmailMailerResult\(requestId\)/);
+  assert.match(js, /statusUrl\.searchParams\.set\('requestId',\s*requestId\)/);
+  assert.match(appsScript, /function doGet\(event\)/);
+  assert.match(appsScript, /function storeRequestResult_\(requestId, status\)/);
+  assert.match(appsScript, /function findConfirmedGuestByEmail_\(email, requiredName\)/);
+  assert.match(appsScript, /function restoreMissingEmailClaim_\(guestId, rsvp, invite, email\)/);
+  assert.match(appsScript, /matchesInvite_\(invite, guestId, ownerUid, guestName, guestCount\)/);
 });
 
 test('email reuse favors pending and declined records but blocks confirmed records first', () => {
