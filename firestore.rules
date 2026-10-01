@@ -278,5 +278,11 @@ service cloud.firestore {
       allow list: if isHost();
       allow create, update, delete: if isHost();
     }
+
+    // The Trigger Email extension watches this collection. Only trusted
+    // Cloud Functions may create mail jobs; browsers cannot read or send mail.
+    match /mail/{mailId} {
+      allow read, write: if false;
+    }
   }
 }

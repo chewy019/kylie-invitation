@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction, deleteField, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const isLocalHostname = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -19,9 +20,11 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const functions = getFunctions(app);
         if (useFirebaseEmulators) {
             connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
             connectFirestoreEmulator(db, '127.0.0.1', 8080);
+            connectFunctionsEmulator(functions, '127.0.0.1', 5001);
         }
         const HOST_UID = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 
@@ -1318,6 +1321,14 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower);
         }
 
+        async function requestInvitationEmail(email) {
+            const ready = await waitForFirebaseAuth();
+            if (!ready || !auth.currentUser) throw new Error('Firebase authentication is not ready.');
+            const requestResend = httpsCallable(functions, 'requestInvitationResend');
+            const result = await requestResend({ email: normalizeEmail(email) });
+            return result.data || {};
+        }
+
         function getRsvpSaveErrorMessage(error) {
             if (error?.code === 'rsvp/email-registry-not-ready') {
                 return 'The RSVP system is being prepared by the host. Please try again shortly.';
@@ -1422,6 +1433,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             const actions = document.getElementById('recovery-actions');
             const qrWrap = document.getElementById('recovery-qr-wrap');
             const linkStatus = document.getElementById('recovery-link-status');
+            const emailStatus = document.getElementById('recovery-email-status');
+            const emailButton = document.getElementById('recovery-email-button');
             if (emailInput) emailInput.value = prefillEmail;
             if (nameInput) nameInput.value = prefillName;
             errorEl.classList.add('hidden');
@@ -1435,6 +1448,17 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 linkStatus.classList.remove('text-rose-700');
                 linkStatus.classList.add('text-emerald-700');
             }
+            if (emailStatus) {
+                emailStatus.textContent = '';
+                emailStatus.classList.add('hidden');
+                emailStatus.classList.remove('text-rose-700', 'bg-rose-50', 'border-rose-200');
+                emailStatus.classList.add('text-emerald-800', 'bg-emerald-50', 'border-emerald-200');
+            }
+            if (emailButton) {
+                emailButton.disabled = false;
+                emailButton.setAttribute('aria-busy', 'false');
+                emailButton.textContent = 'Email Me My Invitation Link and QR';
+            }
             window.recoveredInvite = null;
             openAccessibleDialog(modal);
         };
@@ -1442,6 +1466,75 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         window.closeRecoveryModal = function() {
             const modal = document.getElementById('recovery-modal');
             closeAccessibleDialog(modal);
+        };
+
+        window.emailMyInvitation = async function() {
+            const emailInput = document.getElementById('recovery-email');
+            const status = document.getElementById('recovery-email-status');
+            const button = document.getElementById('recovery-email-button');
+            if (!emailInput || !status || !button || button.disabled) return;
+            if (!emailInput.reportValidity()) return;
+
+            status.textContent = '';
+            status.classList.add('hidden');
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            button.textContent = 'Requesting email…';
+            try {
+                await requestInvitationEmail(emailInput.value);
+                status.textContent = 'If a confirmed invitation is registered with that email, we’ll send its link and QR code. Please check your inbox and spam folder.';
+                status.classList.remove('hidden');
+            } catch (error) {
+                console.error('Could not request invitation email:', error);
+                status.textContent = 'We could not request the email right now. Please check your connection and try again.';
+                status.classList.remove('hidden', 'text-emerald-800', 'bg-emerald-50', 'border-emerald-200');
+                status.classList.add('text-rose-700', 'bg-rose-50', 'border-rose-200');
+            } finally {
+                button.disabled = false;
+                button.setAttribute('aria-busy', 'false');
+                button.textContent = 'Email Me My Invitation Link and QR';
+            }
+        };
+
+        function showAdminActionStatus(message, isError = false) {
+            const status = document.getElementById('db-action-status');
+            if (!status) return;
+            status.textContent = message;
+            status.classList.remove('hidden', 'text-rose-800', 'bg-rose-50', 'text-emerald-800', 'bg-emerald-50');
+            status.classList.add(isError ? 'text-rose-800' : 'text-emerald-800');
+            status.classList.add(isError ? 'bg-rose-50' : 'bg-emerald-50');
+        }
+
+        async function resendInvitationFromAdmin(email) {
+            if (!isHostUser()) throw new Error('Host access is required.');
+            return requestInvitationEmail(email);
+        }
+
+        window.resendGuestInvitation = async function(email, button) {
+            if (!isHostUser() || !button || button.disabled) return;
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            const originalText = button.textContent.trim();
+            button.textContent = 'Sending…';
+            try {
+                const result = await resendInvitationFromAdmin(email);
+                if (result.status === 'queued') {
+                    showAdminActionStatus('Invitation link and QR email queued successfully.');
+                } else if (result.status === 'cooldown') {
+                    showAdminActionStatus('A recent email was already queued for this address. Try again in 15 minutes.', true);
+                } else if (result.status === 'daily_limit') {
+                    showAdminActionStatus('The daily email safety limit has been reached. Try again tomorrow.', true);
+                } else {
+                    showAdminActionStatus('No confirmed invitation was found for this email.', true);
+                }
+            } catch (error) {
+                console.error('Could not resend invitation email:', error);
+                showAdminActionStatus('Could not queue the invitation email. Check the connection and try again.', true);
+            } finally {
+                button.disabled = false;
+                button.setAttribute('aria-busy', 'false');
+                button.textContent = originalText;
+            }
         };
 
         window.handleRecovery = async function(e) {
@@ -1475,7 +1568,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
 
                 const invite = await findConfirmedInvitationByEmailAndName(email, name);
                 if (!invite) {
-                    errorEl.textContent = 'No matching invitation is saved in this browser. Use your saved invitation link or contact the host if you registered on another device.';
+                    errorEl.textContent = 'No matching invitation was found in this browser. If you registered on another device, use the email button above to request your link and QR code.';
                     errorEl.classList.remove('hidden');
                     return;
                 }
@@ -1614,7 +1707,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                         return false;
                     }
 
-                    showRegistrationNotice('This email already has a confirmed invitation. Recover it here with the same name and email.');
+                    showRegistrationNotice('This email already has a confirmed invitation. Open Recover My Invitation and request the link and QR by email.');
                     openRecoveryModal(email, fullName);
                     setRegistrationBusy(false);
                     return;
@@ -2043,6 +2136,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             const sumGuestsList = document.getElementById('sum-guests-list');
             const sumGuestsRow = document.getElementById('sum-guests-row');
             const invitationLinks = document.getElementById('confirmation-invitation-links');
+            const emailNote = document.getElementById('confirmation-email-note');
 
             sumName.textContent = currentGuest.name;
             sumEmail.textContent = currentGuest.email;
@@ -2050,6 +2144,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (currentGuest.rsvpStatus === 'Confirmed') {
                 // Keep the invitation QR section hidden until the private reminder is acknowledged.
                 invitationLinks.classList.add('hidden');
+                emailNote?.classList.remove('hidden');
                 window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
                 msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Aianna Fulla's 18th Birthday Debut with you.";
@@ -2062,6 +2157,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 sumGuestsList.textContent = currentGuest.guestNames.join(', ') + ` (${currentGuest.numGuests} total)`;
             } else {
                 invitationLinks.classList.add('hidden');
+                emailNote?.classList.add('hidden');
                 window.revealInvitationLinksAfterReminder = false;
                 titleEl.textContent = `Thank you for letting us know, ${currentGuest.name}.`;
                 msgEl.textContent = "We will miss your presence, but send our warmest love and blessings to Kylie!";
@@ -2467,6 +2563,18 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 const actionCell = document.createElement('td');
                 actionCell.className = 'p-3 whitespace-nowrap';
                 {
+                    if (guest.rsvpStatus === 'Confirmed') {
+                        const resendButton = document.createElement('button');
+                        resendButton.type = 'button';
+                        resendButton.className = 'inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-blush-300 bg-white px-2.5 py-1.5 mr-1 text-[10px] font-semibold text-blush-800 transition hover:bg-blush-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blush-300';
+                        resendButton.setAttribute('aria-label', `Resend invitation email to ${guest.name || 'guest'}`);
+                        resendButton.innerHTML = '<i class="fa-solid fa-envelope" aria-hidden="true"></i><span>Resend</span>';
+                        resendButton.addEventListener('click', (event) => {
+                            event.stopPropagation();
+                            window.resendGuestInvitation(guest.email, resendButton);
+                        });
+                        actionCell.appendChild(resendButton);
+                    }
                     const deleteButton = document.createElement('button');
                     deleteButton.type = 'button';
                     deleteButton.className = 'inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300';
