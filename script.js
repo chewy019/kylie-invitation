@@ -1393,18 +1393,6 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 || null;
         }
 
-        async function findConfirmedInvitationByEmailAndName(email, name) {
-            if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
-            const emailLower = normalizeEmail(email);
-            const nameLower = normalizeName(name);
-            if (!emailLower || !nameLower) return null;
-
-            const records = await getOwnedRsvpRecords();
-            return records.find((record) => record.rsvpStatus === 'Confirmed'
-                && normalizeEmail(record.email) === emailLower
-                && normalizeName(record.name) === nameLower) || null;
-        }
-
         // A declined guest may register again using the same email.
         // Reuse the original RSVP even if they correct their name.
         async function findDeclinedInvitationByEmail(email) {
@@ -1450,39 +1438,23 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (!modal) return;
             const emailInput = document.getElementById('recovery-email');
             const nameInput = document.getElementById('recovery-name');
-            const errorEl = document.getElementById('recovery-error');
-            const welcome = document.getElementById('recovery-welcome');
-            const form = document.getElementById('recovery-form');
-            const actions = document.getElementById('recovery-actions');
-            const qrWrap = document.getElementById('recovery-qr-wrap');
-            const linkStatus = document.getElementById('recovery-link-status');
             const emailStatus = document.getElementById('recovery-email-status');
+            const emailStatusTitle = document.getElementById('recovery-email-status-title');
+            const emailStatusText = document.getElementById('recovery-email-status-text');
             const emailButton = document.getElementById('recovery-email-button');
             if (emailInput) emailInput.value = prefillEmail;
             if (nameInput) nameInput.value = prefillName;
-            errorEl.classList.add('hidden');
-            welcome.classList.add('hidden');
-            form.classList.remove('hidden');
-            actions.classList.add('hidden');
-            if (qrWrap) qrWrap.innerHTML = '';
-            if (linkStatus) {
-                linkStatus.textContent = '';
-                linkStatus.classList.add('hidden');
-                linkStatus.classList.remove('text-rose-700');
-                linkStatus.classList.add('text-emerald-700');
-            }
             if (emailStatus) {
-                emailStatus.textContent = '';
                 emailStatus.classList.add('hidden');
-                emailStatus.classList.remove('text-rose-700', 'bg-rose-50', 'border-rose-200');
-                emailStatus.classList.add('text-emerald-800', 'bg-emerald-50', 'border-emerald-200');
+                emailStatus.classList.remove('is-error');
             }
+            if (emailStatusTitle) emailStatusTitle.textContent = '';
+            if (emailStatusText) emailStatusText.textContent = '';
             if (emailButton) {
                 emailButton.disabled = false;
                 emailButton.setAttribute('aria-busy', 'false');
                 emailButton.textContent = 'Email Me My Invitation Link and QR';
             }
-            window.recoveredInvite = null;
             openAccessibleDialog(modal);
         };
 
@@ -1491,28 +1463,35 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             closeAccessibleDialog(modal);
         };
 
-        window.emailMyInvitation = async function() {
+        window.emailMyInvitation = async function(event) {
+            if (event) event.preventDefault();
             const emailInput = document.getElementById('recovery-email');
             const nameInput = document.getElementById('recovery-name');
             const status = document.getElementById('recovery-email-status');
+            const statusTitle = document.getElementById('recovery-email-status-title');
+            const statusText = document.getElementById('recovery-email-status-text');
             const button = document.getElementById('recovery-email-button');
-            if (!emailInput || !nameInput || !status || !button || button.disabled) return;
+            if (!emailInput || !nameInput || !status || !statusTitle || !statusText || !button || button.disabled) return;
             if (!nameInput.reportValidity() || !emailInput.reportValidity()) return;
 
-            status.textContent = '';
+            statusTitle.textContent = '';
+            statusText.textContent = '';
             status.classList.add('hidden');
+            status.classList.remove('is-error');
             button.disabled = true;
             button.setAttribute('aria-busy', 'true');
             button.textContent = 'Requesting email…';
             try {
                 await requestInvitationEmail(emailInput.value, nameInput.value);
-                status.textContent = 'If a confirmed invitation matches those details, we’ll email its link and a button to open or save the QR code. Check your inbox and spam folder.';
+                statusTitle.textContent = 'Email request submitted';
+                statusText.textContent = 'If your details match a confirmed RSVP, the invitation link and QR code will be emailed to you. Please check your inbox and Spam/Junk folder. Resend requests may be limited to once every 15 minutes.';
                 status.classList.remove('hidden');
             } catch (error) {
                 console.error('Could not request invitation email:', error);
-                status.textContent = 'We could not request the email right now. Please check your connection and try again.';
-                status.classList.remove('hidden', 'text-emerald-800', 'bg-emerald-50', 'border-emerald-200');
-                status.classList.add('text-rose-700', 'bg-rose-50', 'border-rose-200');
+                statusTitle.textContent = 'Could not submit the request';
+                statusText.textContent = 'Please check your internet connection, then try again.';
+                status.classList.remove('hidden');
+                status.classList.add('is-error');
             } finally {
                 button.disabled = false;
                 button.setAttribute('aria-busy', 'false');
@@ -1553,84 +1532,6 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 button.setAttribute('aria-busy', 'false');
                 button.textContent = originalText;
             }
-        };
-
-        window.handleRecovery = async function(e) {
-            e.preventDefault();
-            const email = document.getElementById('recovery-email').value.trim();
-            const name = normalizeSubmittedName(document.getElementById('recovery-name').value);
-            const errorEl = document.getElementById('recovery-error');
-            const form = document.getElementById('recovery-form');
-            if (form.getAttribute('aria-busy') === 'true') return;
-            const welcome = document.getElementById('recovery-welcome');
-            const actions = document.getElementById('recovery-actions');
-            const welcomeName = document.getElementById('recovery-welcome-name');
-            const submitButton = form.querySelector('button[type="submit"]');
-            const submitLabel = document.getElementById('recovery-submit-label');
-
-            errorEl.classList.add('hidden');
-            form.setAttribute('aria-busy', 'true');
-            if (submitButton) {
-                submitButton.disabled = true;
-                submitButton.classList.add('is-saving');
-                submitButton.setAttribute('aria-busy', 'true');
-            }
-            if (submitLabel) submitLabel.textContent = 'Searching…';
-            try {
-                const ready = await waitForFirebaseAuth();
-                if (!ready) {
-                    errorEl.textContent = 'The RSVP connection is still loading. Please wait a moment and try again.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
-
-                const invite = await findConfirmedInvitationByEmailAndName(email, name);
-                if (!invite) {
-                    errorEl.textContent = 'No matching invitation was found in this browser. If you registered on another device, use the email button above to request your link and QR code.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
-                window.recoveredInvite = { id: invite.id, data: invite };
-                welcomeName.textContent = normalizeSubmittedName(invite.name);
-                form.classList.add('hidden');
-                welcome.classList.remove('hidden');
-                actions.classList.remove('hidden');
-                renderInvitationQRCode('recovery-qr-wrap', invite.id);
-                welcomeName.focus({ preventScroll: true });
-            } catch (err) {
-                console.error('Invitation recovery failed:', err);
-                errorEl.textContent = 'We could not recover your invitation right now. Please try again.';
-                errorEl.classList.remove('hidden');
-            } finally {
-                form.setAttribute('aria-busy', 'false');
-                if (submitButton) {
-                    submitButton.disabled = false;
-                    submitButton.classList.remove('is-saving');
-                    submitButton.setAttribute('aria-busy', 'false');
-                }
-                if (submitLabel) submitLabel.textContent = 'Find My Invitation';
-            }
-        };
-
-        window.saveRecoveredQRCode = function() {
-            if (!window.recoveredInvite) return;
-            const inviteId = window.recoveredInvite.id;
-            try {
-                const saved = saveQRCodeFromContainer('recovery-qr-wrap', 'Kylie-18th-Invitation-' + inviteId + '.png');
-                setQRCodeSaveStatus('recovery-link-status', saved,
-                    saved ? 'Your invitation QR code has been saved 💙' : 'The QR code is not ready yet. Please wait a moment and try again.');
-            } catch (error) {
-                console.error('Could not save recovered invitation QR:', error);
-                setQRCodeSaveStatus('recovery-link-status', false, 'Could not save the QR code. Please try again or long-press the image.');
-            }
-        };
-
-        window.openRecoveredInvitation = async function() {
-            if (!window.recoveredInvite) return;
-            const recovered = window.recoveredInvite;
-            window.recoveredInvite = null;
-            window.closeRecoveryModal();
-            openInvitationForGuest(recovered.id, recovered.data, true);
         };
 
         async function waitForFirebaseAuth(timeoutMs = 10000) {
@@ -2170,6 +2071,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             const sumGuestsRow = document.getElementById('sum-guests-row');
             const invitationLinks = document.getElementById('confirmation-invitation-links');
             const emailNote = document.getElementById('confirmation-email-note');
+            const emailNoteText = document.getElementById('confirmation-email-note-text');
 
             sumName.textContent = currentGuest.name;
             sumEmail.textContent = currentGuest.email;
@@ -2177,13 +2079,13 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (currentGuest.rsvpStatus === 'Confirmed') {
                 // Keep the invitation QR section hidden until the private reminder is acknowledged.
                 invitationLinks.classList.add('hidden');
-                if (emailNote) {
+                if (emailNote && emailNoteText) {
                     const emailMessages = {
-                        submitted: 'We submitted your invitation email request. It includes your personal invitation link and a button to open or save your QR code. Check your inbox and spam folder.',
+                        submitted: 'We requested an email with your personal invitation link and a page to view or save your QR code. Please check your inbox or spam folder.',
                         failed: 'Your RSVP is confirmed, but the email request could not be submitted. You can still open and save your QR code below, or try Recover My Invitation later.',
                         not_configured: 'Your RSVP is confirmed. The Gmail sender still needs to be set up; you can open and save your QR code below in the meantime.'
                     };
-                    emailNote.textContent = emailMessages[invitationEmailStatus] || emailMessages.not_configured;
+                    emailNoteText.textContent = emailMessages[invitationEmailStatus] || emailMessages.not_configured;
                     emailNote.classList.remove('hidden');
                 }
                 window.revealInvitationLinksAfterReminder = true;

@@ -1603,7 +1603,7 @@ button:disabled {
 
 #invite-load-notice:not(.hidden),
 #rsvp-save-status:not(.hidden),
-#recovery-error:not(.hidden),
+#recovery-email-status:not(.hidden),
 #admin-login-error:not(.hidden),
 #calendar-download-status:not(:empty) {
     animation: inlineStatusReveal .24s ease-out both;
@@ -1612,7 +1612,7 @@ button:disabled {
 @media (prefers-reduced-motion: reduce) {
     #invite-load-notice:not(.hidden),
     #rsvp-save-status:not(.hidden),
-    #recovery-error:not(.hidden),
+    #recovery-email-status:not(.hidden),
     #admin-login-error:not(.hidden),
     #calendar-download-status:not(:empty) {
         animation: none;
@@ -2207,9 +2207,7 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 .recovery-open-button,
 .invite-view-indicator-item,
 #recovery-form > button[type="button"],
-#recovery-actions > button:last-child,
 #confirmation-invitation-links button,
-#recovery-actions button,
 #milestone-modal button,
 .details-navigation > button {
     min-height: 44px;
@@ -2289,7 +2287,7 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 
 /* Non-interactive text targets receive programmatic focus for announcements.
    Keep that focus without a browser outline around the text. */
-:where(h1, h2, h3, [role="heading"], #recovery-welcome-name)[tabindex="-1"]:focus {
+:where(h1, h2, h3, [role="heading"])[tabindex="-1"]:focus {
     outline: none;
 }
 
@@ -2325,7 +2323,6 @@ body.entry-animation-playing > :not(#site-opening-overlay) {
 }
 
 #confirm-title,
-#recovery-welcome-name,
 #sum-name,
 #sum-email,
 #sum-guests-list,
@@ -3311,17 +3308,89 @@ body {
     color: inherit !important;
 }
 
-.recovery-action-icon {
-    display: inline-block;
-    width: 15px;
-    height: 15px;
-    margin-right: 4px;
-    vertical-align: -3px;
+.recovery-email-reminder,
+.recovery-email-status {
+    display: flex;
+    align-items: flex-start;
+    gap: 11px;
+    padding: 12px 13px;
+    border: 1px solid rgba(166, 64, 93, .2);
+    border-radius: 13px;
+    background: linear-gradient(135deg, #fff8fa 0%, #f8edf0 100%);
+    color: #653347;
+    text-align: left;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.recovery-email-reminder__icon,
+.recovery-email-status__icon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    flex: 0 0 32px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(166, 64, 93, .18);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .82);
+    color: #a6405d;
+}
+
+.recovery-email-reminder__icon svg,
+.recovery-email-status__icon svg {
+    width: 17px;
+    height: 17px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 1.8;
+    stroke-width: 1.65;
     stroke-linecap: round;
     stroke-linejoin: round;
+}
+
+.recovery-email-reminder strong {
+    display: block;
+    margin-bottom: 2px;
+    color: #762541;
+    font-size: 11px;
+    letter-spacing: .025em;
+}
+
+.recovery-email-status {
+    border-color: rgba(71, 126, 92, .28);
+    background: linear-gradient(135deg, #f5fbf7 0%, #edf6f0 100%);
+    color: #365c43;
+}
+
+.recovery-email-status__content {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.recovery-email-status__title {
+    color: #28613c;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.recovery-email-status__text {
+    display: block;
+}
+
+.recovery-email-status.is-error {
+    border-color: rgba(164, 43, 62, .24);
+    background: linear-gradient(135deg, #fff6f6 0%, #f9ebec 100%);
+    color: #782b37;
+}
+
+.recovery-email-status.is-error .recovery-email-status__icon {
+    border-color: rgba(164, 43, 62, .2);
+    color: #a42b3e;
+}
+
+.recovery-email-status.is-error .recovery-email-status__title {
+    color: #8e2639;
 }
 
 #calendar-app-confirm-modal .secret-modal-content > button:last-of-type {
@@ -5206,6 +5275,87 @@ body {
 #step-confirmation .confirmation-icon-wrap {
     background: radial-gradient(circle at 34% 25%, #fff 0%, #fae9ed 68%, #f3dbe2 100%);
     box-shadow: 0 10px 24px -16px rgba(140, 75, 84, .7), inset 0 1px 5px rgba(255, 255, 255, .9);
+}
+
+#step-confirmation .confirmation-email-reminder:not(.hidden) {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    margin: 0 0 1.5rem;
+    padding: 15px 17px;
+    border: 1px solid rgba(140, 75, 84, .42);
+    border-left: 5px solid var(--rosegold-dark);
+    border-radius: 16px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(248, 168, 185, .22), transparent 58%),
+        linear-gradient(135deg, #fff5f7 0%, #fff 80%);
+    box-shadow: 0 12px 28px -20px rgba(125, 29, 55, .58), inset 0 1px 0 rgba(255, 255, 255, .95);
+    color: var(--blush-900);
+    text-align: left;
+}
+
+.confirmation-email-reminder__icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
+    place-items: center;
+    border: 1px solid rgba(183, 110, 121, .3);
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 5px 12px -9px rgba(75, 39, 52, .65);
+    color: var(--rosegold-dark);
+}
+
+.confirmation-email-reminder__icon svg {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.7;
+}
+
+.confirmation-email-reminder__content {
+    min-width: 0;
+    padding-top: 1px;
+}
+
+.confirmation-email-reminder__title {
+    margin: 0 0 4px;
+    color: var(--rosegold-dark);
+    font-family: "Montserrat", Arial, sans-serif;
+    font-size: .68rem;
+    font-weight: 700;
+    letter-spacing: .12em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+.confirmation-email-reminder__text {
+    margin: 0;
+    color: var(--blush-900);
+    font-size: .88rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+    #step-confirmation .confirmation-email-reminder:not(.hidden) {
+        gap: 10px;
+        padding: 13px 12px;
+    }
+
+    .confirmation-email-reminder__icon {
+        width: 36px;
+        height: 36px;
+        flex-basis: 36px;
+    }
+
+    .confirmation-email-reminder__text {
+        font-size: .82rem;
+    }
 }
 
 #step-confirmation.step-enter .confirmation-icon-wrap {
