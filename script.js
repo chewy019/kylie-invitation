@@ -1,12 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction, deleteField, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
+        const isLocalHostname = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const useFirebaseEmulators = isLocalHostname
+            && new URLSearchParams(window.location.search).get('emulator') === '1';
         const firebaseConfig = {
             apiKey: "AIzaSyCK96DUaagUyDjs3lFW4-q29RvgpVCrMBU",
             authDomain: "kylie-18th-rsvp.firebaseapp.com",
-            projectId: "kylie-18th-rsvp",
+            projectId: useFirebaseEmulators ? 'demo-kylie-18th-rules' : "kylie-18th-rsvp",
             storageBucket: "kylie-18th-rsvp.firebasestorage.app",
             messagingSenderId: "438094249212",
             appId: "1:438094249212:web:6d5e87fc29a8baa0b0ab79",
@@ -16,6 +19,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        if (useFirebaseEmulators) {
+            connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+            connectFirestoreEmulator(db, '127.0.0.1', 8080);
+        }
         const HOST_UID = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 
         function isHostUser(user = auth.currentUser) {
@@ -306,14 +313,15 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const track = document.getElementById('photo-slideshow-track');
             const controls = document.getElementById('photo-slideshow-controls');
             const counter = document.getElementById('photo-slideshow-counter');
+            const progress = document.getElementById('photo-slideshow-progress');
+            const progressFill = document.getElementById('photo-slideshow-progress-fill');
             const caption = document.getElementById('photo-slideshow-caption');
             const slideshowStatus = document.getElementById('photo-slideshow-status');
-            if (!root || !placeholder || !viewport || !track || !controls || !counter || !caption) return;
+            if (!root || !placeholder || !viewport || !track || !controls || !counter || !progress || !progressFill || !caption) return;
 
             const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
             if (slides.length === 0) return;
             const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-
             placeholder.classList.add('hidden');
             viewport.classList.remove('hidden');
             if (slides.length > 1) controls.classList.remove('hidden');
@@ -382,7 +390,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 });
                 const slideCaption = slides[photoSlideIndex].caption || '';
                 const captionChanged = caption.textContent !== slideCaption;
-                counter.textContent = `${photoSlideIndex + 1} / ${slides.length}`;
+                const counterDigits = String(slides.length).length;
+                counter.textContent = `${String(photoSlideIndex + 1).padStart(counterDigits, '0')} / ${String(slides.length).padStart(counterDigits, '0')}`;
+                progress.setAttribute('aria-valuemax', String(slides.length));
+                progress.setAttribute('aria-valuenow', String(photoSlideIndex + 1));
+                progress.setAttribute('aria-valuetext', `Photo ${photoSlideIndex + 1} of ${slides.length}`);
+                progressFill.style.width = `${((photoSlideIndex + 1) / slides.length) * 100}%`;
                 caption.textContent = slideCaption;
                 if (captionChanged && !reducedMotionQuery.matches) {
                     caption.classList.remove('slide-caption-enter');
@@ -509,7 +522,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
         function initializeFloatingPetals() {
             const layer = document.getElementById('floating-petal-layer');
-            if (!layer || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            if (!layer) return;
 
             const petals = [
                 [7, '-15s', '19s', '-24px'], [19, '-6s', '22s', '20px'],
@@ -597,6 +610,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const button = document.getElementById('open-invitation-envelope');
             const title = document.getElementById('site-opening-title');
             if (!overlay || invitationEnvelopeOpening || !invitationEnvelopeShown) return;
+            document.dispatchEvent(new Event('kylie:invitation-opened'));
             invitationEnvelopeOpening = true;
             if (button) {
                 button.disabled = true;
@@ -614,16 +628,29 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
         };
 
         function updateMobileStepProgress(stepNum) {
-            const stage = stepNum === 5 ? 4 : stepNum;
+            const isComplete = stepNum === 5;
+            const stage = Math.max(1, Math.min(4, stepNum));
             const labels = { 1: 'Register', 2: 'Invitation', 3: 'Event Details', 4: 'RSVP' };
+            const progress = document.getElementById('mobile-step-progress');
             const label = document.getElementById('mobile-step-label');
             const fill = document.getElementById('mobile-step-fill');
             const track = document.getElementById('mobile-step-track');
-            if (label) label.textContent = `Step ${stage} of 4 · ${labels[stage] || labels[1]}`;
+            const nextLabel = isComplete
+                ? 'Invitation Complete · RSVP Confirmed'
+                : `Step ${stage} of 4 · ${labels[stage] || labels[1]}`;
+            if (progress) progress.classList.toggle('is-complete', isComplete);
+            if (label && label.textContent !== nextLabel) {
+                label.textContent = nextLabel;
+                label.classList.remove('step-label-enter');
+                void label.offsetWidth;
+                label.classList.add('step-label-enter');
+            }
             if (fill) fill.style.width = `${stage * 25}%`;
             if (track) {
                 track.setAttribute('aria-valuenow', String(stage));
-                track.setAttribute('aria-valuetext', `Step ${stage} of 4: ${labels[stage] || labels[1]}`);
+                track.setAttribute('aria-valuetext', isComplete
+                    ? 'All four invitation steps complete. RSVP confirmed.'
+                    : `Step ${stage} of 4: ${labels[stage] || labels[1]}`);
             }
         }
 
@@ -692,6 +719,11 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             }
 
             onAuthStateChanged(auth, (user) => {
+                if (isHostUser(user)) {
+                    removeLegacyInviteContactFields().catch((error) => {
+                        console.error('Could not remove old contact data from invitation documents:', error);
+                    });
+                }
                 if (!isHostUser(user)) {
                     if (adminSnapshotUnsubscribe) {
                         adminSnapshotUnsubscribe();
@@ -730,29 +762,63 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const guestToSave = { ...guest, ownerUid };
             const guestRef = doc(db, "rsvps", guest.id);
 
-            // Keep a lightweight registration record in invites. Pending/Confirmed emails
-            // are locked; Declined emails are reusable. Only Confirmed records open as invitations.
+            // Invitation documents are public bearer links, so keep contact details only
+            // in the owner/host-protected RSVP collection.
             const inviteRef = doc(db, "invites", guest.id);
             const inviteRecord = {
                 name: guest.name,
-                nameLower: normalizeName(guest.name),
-                email: guest.email,
-                emailLower: normalizeEmail(guest.email),
                 numGuests: guest.numGuests || 1,
                 ownerUid,
                 rsvpStatus: guest.rsvpStatus
             };
 
-            // Keep the RSVP and lookup record in sync: either both writes commit or neither does.
+            // Replace old invite payloads too, removing any legacy email fields.
             const batch = writeBatch(db);
             batch.set(guestRef, guestToSave, { merge: true });
-            batch.set(inviteRef, inviteRecord, { merge: true });
+            batch.set(inviteRef, inviteRecord);
             await batch.commit();
 
             // Preserve changes made while this write was pending (for example, a fast
             // RSVP submission) and never restore an older guest after the flow changed.
             if (currentGuest && currentGuest.id === guestToSave.id) {
                 currentGuest = { ...currentGuest, ownerUid };
+            }
+        }
+
+        async function removeLegacyInviteContactFields() {
+            if (!isHostUser()) return;
+
+            const migrationKey = 'kylie-invite-contact-cleanup-v1';
+            try {
+                if (window.localStorage.getItem(migrationKey) === 'complete') return;
+            } catch (error) {
+                // Continue with the idempotent cleanup if storage is unavailable.
+            }
+
+            const snapshot = await getDocs(collection(db, 'invites'));
+            const legacyInvites = snapshot.docs.filter((inviteSnap) => {
+                const data = inviteSnap.data();
+                return ['email', 'emailLower', 'nameLower'].some((field) =>
+                    Object.prototype.hasOwnProperty.call(data, field)
+                );
+            });
+
+            for (let offset = 0; offset < legacyInvites.length; offset += 450) {
+                const batch = writeBatch(db);
+                legacyInvites.slice(offset, offset + 450).forEach((inviteSnap) => {
+                    batch.update(doc(db, 'invites', inviteSnap.id), {
+                        email: deleteField(),
+                        emailLower: deleteField(),
+                        nameLower: deleteField()
+                    });
+                });
+                await batch.commit();
+            }
+
+            try {
+                window.localStorage.setItem(migrationKey, 'complete');
+            } catch (error) {
+                // The cleanup is safe to repeat if browser storage is unavailable.
             }
         }
 
@@ -993,6 +1059,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 }
             }
 
+            const musicToggle = document.getElementById('music-toggle');
+            const invitationFlowActive = [2, 3, 4, 5].includes(stepNum);
+            const mainContent = document.querySelector('.site-main');
+            if (mainContent) mainContent.classList.toggle('music-control-visible', invitationFlowActive);
+            if (musicToggle) {
+                musicToggle.classList.toggle('hidden', !invitationFlowActive);
+                musicToggle.setAttribute('aria-hidden', String(!invitationFlowActive));
+            }
+            if (stepNum === 1) {
+                document.dispatchEvent(new Event('kylie:registration-entered'));
+            }
+
             if (stepNum === 2) showInvitationEnvelope();
             if (typeof window.setPhotoSlideshowActive === 'function') {
                 const openingOverlay = document.getElementById('site-opening-overlay');
@@ -1027,12 +1105,27 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             for (let i = 1; i <= 4; i++) {
                 const ind = document.getElementById(`ind-${i}`);
                 if (ind) {
-                    if (i === stepNum || (stepNum === 5 && i === 4)) {
+                    if (stepNum === 5) {
+                        ind.removeAttribute('aria-current');
+                        if (i === 4) {
+                            ind.className = "px-3 py-1 rounded-full bg-blush-200 text-blush-800 font-medium transition step-complete";
+                            ind.setAttribute('aria-label', '4. RSVP complete');
+                        } else {
+                            ind.className = "px-3 py-1 rounded-full bg-blush-200 text-blush-800 font-medium transition";
+                            ind.removeAttribute('aria-label');
+                        }
+                    } else if (i === stepNum) {
                         ind.className = "px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition";
+                        ind.setAttribute('aria-current', 'step');
+                        ind.removeAttribute('aria-label');
                     } else if (i < stepNum) {
                         ind.className = "px-3 py-1 rounded-full bg-blush-200 text-blush-800 font-medium transition";
+                        ind.removeAttribute('aria-current');
+                        ind.removeAttribute('aria-label');
                     } else {
                         ind.className = "px-3 py-1 rounded-full text-blush-600 font-normal transition";
+                        ind.removeAttribute('aria-current');
+                        ind.removeAttribute('aria-label');
                     }
                 }
             }
@@ -1103,22 +1196,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             return typeof name === 'string' ? name.trim().replace(/\s+/g, ' ').toLowerCase() : '';
         }
 
-        async function findInvitationByEmail(email, confirmedOnly = false) {
+        async function getOwnedRsvpRecords() {
             if (!auth.currentUser) throw new Error('Firebase authentication is not ready.');
+            const snapshot = await getDocs(query(
+                collection(db, 'rsvps'),
+                where('ownerUid', '==', auth.currentUser.uid)
+            ));
+            return snapshot.docs.map((docSnap) => ({ ...docSnap.data(), id: docSnap.id }));
+        }
+
+        async function findInvitationByEmail(email, confirmedOnly = false) {
             const emailLower = normalizeEmail(email);
             if (!emailLower) return null;
-
-            const invitesRef = collection(db, 'invites');
-            const snapshot = await getDocs(query(invitesRef, where('emailLower', '==', emailLower)));
-            let match = null;
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const usable = confirmedOnly ? data.rsvpStatus === 'Confirmed' : ['Pending', 'Confirmed'].includes(data.rsvpStatus);
-                if (!match && usable) {
-                    match = { ...data, id: docSnap.id };
-                }
-            });
-            return match;
+            const records = await getOwnedRsvpRecords();
+            return records.find((record) => {
+                const statusMatches = confirmedOnly
+                    ? record.rsvpStatus === 'Confirmed'
+                    : ['Pending', 'Confirmed'].includes(record.rsvpStatus);
+                return statusMatches && normalizeEmail(record.email) === emailLower;
+            }) || null;
         }
 
         async function findConfirmedInvitationByEmailAndName(email, name) {
@@ -1127,16 +1223,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const nameLower = normalizeName(name);
             if (!emailLower || !nameLower) return null;
 
-            const invitesRef = collection(db, 'invites');
-            const snapshot = await getDocs(query(invitesRef, where('emailLower', '==', emailLower)));
-            let match = null;
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                if (!match && data.rsvpStatus === 'Confirmed' && normalizeName(data.name) === nameLower) {
-                    match = { ...data, id: docSnap.id };
-                }
-            });
-            return match;
+            const records = await getOwnedRsvpRecords();
+            return records.find((record) => record.rsvpStatus === 'Confirmed'
+                && normalizeEmail(record.email) === emailLower
+                && normalizeName(record.name) === nameLower) || null;
         }
 
         // A declined guest may register again using the same email + same name.
@@ -1147,16 +1237,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
             const nameLower = normalizeName(name);
             if (!emailLower || !nameLower) return null;
 
-            const invitesRef = collection(db, 'invites');
-            const snapshot = await getDocs(query(invitesRef, where('emailLower', '==', emailLower)));
-            let match = null;
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                if (!match && data.rsvpStatus === 'Declined' && normalizeName(data.name) === nameLower) {
-                    match = { ...data, id: docSnap.id };
-                }
-            });
-            return match;
+            const records = await getOwnedRsvpRecords();
+            return records.find((record) => record.rsvpStatus === 'Declined'
+                && normalizeEmail(record.email) === emailLower
+                && normalizeName(record.name) === nameLower) || null;
         }
 
         function openInvitationForGuest(inviteId, invite, showReminder = true) {
@@ -1251,7 +1335,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 
                 const invite = await findConfirmedInvitationByEmailAndName(email, name);
                 if (!invite) {
-                    errorEl.textContent = 'We could not find a confirmed invitation with those details.';
+                    errorEl.textContent = 'No matching invitation is saved in this browser. Use your saved invitation link or contact the host if you registered on another device.';
                     errorEl.classList.remove('hidden');
                     return;
                 }
@@ -1385,20 +1469,18 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     }
 
                     if (existingInvite.rsvpStatus === 'Pending') {
-                        showRegistrationNotice('This email has a pending registration on another device. Please use that device or contact the host for help.');
+                    showRegistrationNotice('This browser already has a pending registration for this email. Please continue from the saved invitation on this device.');
                         setRegistrationBusy(false);
                         return false;
                     }
 
-                    showRegistrationNotice('This email has already been registered. Recover the invitation with the same full name and email.');
+                    showRegistrationNotice('This browser already has an invitation for this email. Recover it here with the same name and email.');
                     openRecoveryModal(email, fullName);
                     setRegistrationBusy(false);
                     return;
                 }
 
-                // Reuse a declined record only when this anonymous account owns it.
-                // Firestore rules allow an owner to update their own document, but a
-                // different device/session must create a new guest record instead.
+                // Reuse a declined record only from this browser's persisted anonymous account.
                 const declinedInvite = await findDeclinedInvitationByEmailAndName(email, fullName);
                 if (declinedInvite && declinedInvite.ownerUid === auth.currentUser.uid) {
                     currentGuest = {
@@ -1431,8 +1513,8 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                     return;
                 }
             } catch (err) {
-                console.error('Could not check existing email:', err);
-                showRegistrationNotice('We could not verify this email right now. Check your connection, then try again.');
+                console.error('Could not check this browser’s saved RSVP:', err);
+                showRegistrationNotice('We could not check this browser’s saved RSVP. Check your connection, then try again.');
                 setRegistrationBusy(false);
                 return;
             }
@@ -1831,7 +1913,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
                 msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Aianna Fulla's 18th Birthday Debut with you.";
-                iconEl.className = "fa-solid fa-wand-magic-sparkles text-rosegold";
+                iconEl.dataset.status = 'confirmed';
 
                 sumStatus.textContent = "ATTENDING";
                 sumStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
@@ -1843,7 +1925,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
                 window.revealInvitationLinksAfterReminder = false;
                 titleEl.textContent = `Thank you for letting us know, ${currentGuest.name}.`;
                 msgEl.textContent = "We will miss your presence, but send our warmest love and blessings to Kylie!";
-                iconEl.className = "fa-solid fa-heart-crack text-blush-600";
+                iconEl.dataset.status = 'declined';
 
                 sumStatus.textContent = "DECLINED";
                 sumStatus.className = "px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800";
@@ -2273,28 +2355,22 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
     }
 
     function updateButton() {
-        const icon = toggle.querySelector('i');
-        if (!icon) return;
         const isPlaying = !music.paused && !muted;
         const label = toggle.querySelector('#music-toggle-label');
-        icon.className = isPlaying
-            ? 'fa-solid fa-volume-high'
-            : 'fa-solid fa-volume-xmark';
+        toggle.dataset.playing = String(isPlaying);
         if (label) label.textContent = isPlaying ? 'Mute music' : 'Play music';
         toggle.setAttribute('aria-pressed', String(isPlaying));
         toggle.setAttribute('aria-label', isPlaying ? 'Mute background music' : 'Play background music');
         toggle.title = isPlaying ? 'Mute music' : 'Play music';
     }
 
-    document.addEventListener('pointerdown', function (event) {
-        if (toggle.contains(event.target)) return;
-        startMusic();
-    }, { passive: true });
-
-    document.addEventListener('keydown', function (event) {
-        if (toggle.contains(event.target)) return;
-        if (['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'Escape'].includes(event.key)) return;
-        startMusic();
+    document.addEventListener('kylie:invitation-opened', startMusic);
+    document.addEventListener('kylie:registration-entered', function () {
+        music.pause();
+        try { music.currentTime = 0; } catch (e) {}
+        started = false;
+        muted = false;
+        updateButton();
     });
 
     toggle.addEventListener('click', function (event) {

@@ -1,0 +1,16 @@
+{
+  "name": "kylie-18th-invitation",
+  "private": true,
+  "scripts": {
+    "check": "node --check script.js && node --check tailwind.config.js",
+    "test": "node --test tests/smoke.test.cjs",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-kylie-18th-rules \"node --test tests/firestore.rules.cjs\"",
+    "emulators": "firebase emulators:start --only auth,firestore --project demo-kylie-18th-rules",
+    "test:all": "npm run check && npm test && npm run test:rules"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
+    "firebase": "12.0.0",
+    "firebase-tools": "15.30.2"
+  }
+}

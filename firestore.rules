@@ -1,0 +1,119 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /rsvps/{guestId} {
+      // The host can read the full guest list. Anonymous guests may access
+      // only records owned by their own persisted Firebase Auth session.
+      allow get: if isHost()
+                 || (isAnonymousGuest()
+                     && resource.data.ownerUid == request.auth.uid);
+      allow list: if isHost()
+                  || (isAnonymousGuest()
+                      && resource.data.ownerUid == request.auth.uid);
+
+      // A new guest record starts pending and cannot claim check-in fields.
+      allow create: if isAnonymousGuest()
+                    && request.resource.data.keys().hasOnly([
+                      'id', 'ownerUid', 'name', 'email', 'numGuests',
+                      'guestNames', 'rsvpStatus', 'createdAt'
+                    ])
+                    && request.resource.data.keys().hasAll([
+                      'id', 'ownerUid', 'name', 'email', 'numGuests',
+                      'guestNames', 'rsvpStatus', 'createdAt'
+                    ])
+                    && request.resource.data.id == guestId
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.name is string
+                    && request.resource.data.email is string
+                    && request.resource.data.numGuests is int
+                    && request.resource.data.guestNames is list
+                    && request.resource.data.rsvpStatus == 'Pending'
+                    && request.resource.data.createdAt is string;
+
+      // Guests may edit RSVP details, but cannot write host-only check-in fields.
+      allow update: if isAnonymousGuest()
+                    && resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.id == guestId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'id', 'name', 'email', 'numGuests', 'guestNames',
+                      'rsvpStatus', 'createdAt'
+                    ])
+                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined'];
+
+      // Host can update check-in information without transferring ownership.
+      allow update: if isHost()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'checkInStatus', 'checkedInAt'
+                    ]);
+
+      // Only the host can delete RSVP records.
+      allow delete: if isHost();
+    }
+
+    match /invites/{inviteId} {
+      // A high-entropy invitation ID is a bearer link. Guests may fetch only
+      // a confirmed invite by its exact ID; collection listing is host-only.
+      allow get: if isHost()
+                 || (isAnonymousGuest()
+                     && resource.data.rsvpStatus == 'Confirmed'
+                     && resource.data.keys().hasOnly([
+                       'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                     ])
+                     && resource.data.keys().hasAll([
+                       'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                     ])
+                     && !resource.data.keys().hasAny(['email', 'emailLower']));
+      allow list: if isHost();
+      allow create: if isAnonymousGuest()
+                    && request.resource.data.keys().hasOnly([
+                      'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                    ])
+                    && request.resource.data.keys().hasAll([
+                      'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                    ])
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.name is string
+                    && request.resource.data.numGuests is int
+                    && request.resource.data.rsvpStatus == 'Pending';
+      allow update: if isAnonymousGuest()
+                    && resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                      'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                    ])
+                    && request.resource.data.keys().hasAll([
+                      'name', 'numGuests', 'ownerUid', 'rsvpStatus'
+                    ])
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'name', 'numGuests', 'rsvpStatus',
+                      'nameLower', 'email', 'emailLower'
+                    ])
+                    && request.resource.data.name is string
+                    && request.resource.data.numGuests is int
+                    && request.resource.data.rsvpStatus in ['Pending', 'Confirmed', 'Declined'];
+      // Host-only one-time cleanup for legacy public invite documents.
+      allow update: if isHost()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'nameLower', 'email', 'emailLower'
+                    ])
+                    && !request.resource.data.keys().hasAny([
+                      'nameLower', 'email', 'emailLower'
+                    ]);
+      allow delete: if isHost();
+    }
+
+    function isAnonymousGuest() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous';
+    }
+
+    function isHost() {
+      return request.auth != null
+        && request.auth.uid == 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
+    }
+  }
+}

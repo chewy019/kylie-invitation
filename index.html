@@ -46,23 +46,23 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <h1 class="opening-title" id="site-opening-title">Your invitation awaits</h1>
 </div>
 </div>
-<header class="w-full py-4 px-4 sm:px-8 bg-white/85 backdrop-blur-md border-b border-blush-200 sticky top-0 z-30 shadow-sm">
-<div class="max-w-5xl mx-auto flex items-center justify-between">
-<div class="flex items-center gap-2">
-<span class="text-rosegold text-2xl sparkle-icon">✨</span>
-<div>
-<span class="font-script text-2xl sm:text-3xl font-bold text-blush-800">Kylie's 18th</span>
-<span class="grand-debut-badge text-[10px] uppercase tracking-widest text-rosegold-dark font-bold ml-2 bg-blush-100 px-2.5 py-0.5 rounded-full border border-blush-200">Grand Debut</span>
-</div>
+<header class="w-full site-header">
+<div class="site-header-inner">
+<div class="site-brand" aria-label="Kylie's eighteenth birthday celebration">
+<span aria-hidden="true" class="site-brand-seal">K</span>
+<span class="site-brand-copy">
+<span class="site-brand-kicker">An evening for</span>
+<span class="site-brand-title">Kylie's 18th</span>
+</span>
 </div>
 <!-- Responsive Step Progress Bar -->
 <div class="hidden items-center gap-2 text-xs font-medium text-blush-700" id="step-indicator">
 <span class="px-3 py-1 rounded-full bg-blush-600 text-white font-semibold transition" id="ind-1">1. Register</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+<svg aria-hidden="true" class="step-indicator-arrow" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"></path></svg>
 <span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-2">2. Invitation</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+<svg aria-hidden="true" class="step-indicator-arrow" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"></path></svg>
 <span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-3">3. Details</span>
-<i class="fa-solid fa-angle-right text-[10px] text-blush-300"></i>
+<svg aria-hidden="true" class="step-indicator-arrow" viewBox="0 0 16 16"><path d="m6 3 5 5-5 5"></path></svg>
 <span class="px-3 py-1 rounded-full text-blush-600 font-normal transition" id="ind-4">4. RSVP</span>
 </div>
 <!-- Host Console Button (Only visible if URL contains ?admin=1) -->
@@ -84,41 +84,45 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 </header>
 <div aria-hidden="true" class="floating-petal-layer" id="floating-petal-layer"></div>
-<main class="w-full max-w-3xl mx-auto px-4 py-8 sm:py-10 flex-grow">
+<main class="w-full max-w-3xl mx-auto px-4 py-8 sm:py-10 flex-grow site-main">
 <section class="step-transition block" id="step-registration">
-<div class="debut-card rounded-3xl p-6 sm:p-10 text-center relative overflow-hidden">
-<div class="absolute -top-12 -left-12 w-36 h-36 bg-blush-200/50 rounded-full blur-2xl pointer-events-none"></div>
-<div class="absolute -bottom-12 -right-12 w-36 h-36 bg-rosegold-light/50 rounded-full blur-2xl pointer-events-none"></div>
-<div class="mb-8">
-<span class="text-xs font-bold uppercase tracking-widest text-rosegold-dark bg-blush-100 px-4 py-1.5 rounded-full border border-blush-200 inline-block mb-3">
-                        🌸 You Are Cordially Invited
-                    </span>
-<h1 class="font-script text-5xl sm:text-6xl text-blush-800 font-bold mb-1">Kylie Aianna Fulla</h1>
-<p class="font-serif-debut text-2xl sm:text-3xl italic text-rosegold-dark mb-4">Is Turning Eighteen</p>
-<p class="text-xs sm:text-sm text-blush-900/80 max-w-md mx-auto leading-relaxed">
-                        Please register your details below to reveal your personalized invitation card, event countdown timer, and celebration details.
-                    </p>
-<p aria-live="polite" class="hidden mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left text-xs leading-relaxed text-amber-900" id="invite-load-notice" role="status"></p>
+<div class="registration-layout">
+<figure class="registration-portrait">
+<img alt="Kylie in her blue debut gown among flowers" decoding="async" fetchpriority="high" src="./photos/memory-10.webp"/>
+<div aria-hidden="true" class="registration-portrait-wash"></div>
+<figcaption class="registration-portrait-caption">
+<span class="registration-portrait-label">A new chapter</span>
+<span class="registration-portrait-title">Eighteen, in full bloom</span>
+<span class="registration-portrait-date">Saturday · November 7, 2026</span>
+</figcaption>
+<span aria-hidden="true" class="registration-photo-mark">18</span>
+</figure>
+<div class="registration-panel debut-card">
+<div class="registration-intro">
+<span class="registration-eyebrow"><span aria-hidden="true">✦</span> You are cordially invited</span>
+<h1 class="registration-title">Kylie Aianna Fulla</h1>
+<p class="registration-subtitle">Is turning eighteen</p>
+<p class="registration-description">Share your name and email to receive your personal invitation and celebration details.</p>
+<p aria-live="polite" class="hidden registration-load-notice" id="invite-load-notice" role="status"></p>
 </div>
-<form class="space-y-5 max-w-md mx-auto text-left" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { const notice = document.getElementById('invite-load-notice'); if (notice) { notice.textContent = 'The invitation script is still loading. Please refresh once and try again.'; notice.classList.remove('hidden'); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } } return false;">
+<form class="registration-form" id="registration-form" onsubmit="event.preventDefault(); if (typeof window.handleRegistration === 'function') { window.handleRegistration(event); } else { const notice = document.getElementById('invite-load-notice'); if (notice) { notice.textContent = 'The invitation script is still loading. Please refresh once and try again.'; notice.classList.remove('hidden'); } else { alert('The invitation script is still loading. Please refresh once and try again.'); } } return false;">
 <div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-fullname">Your Full Name *</label>
-<input autocapitalize="words" autocomplete="name" enterkeyhint="next" maxlength="120" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
+<label class="registration-label" for="reg-fullname">Your full name <span aria-hidden="true">*</span></label>
+<input autocapitalize="words" autocomplete="name" enterkeyhint="next" maxlength="120" class="registration-input" id="reg-fullname" placeholder="e.g. Maria Santos" required="" type="text"/>
 </div>
 <div>
-<label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="reg-email">Email Address *</label>
-<input autocapitalize="none" autocomplete="email" enterkeyhint="go" maxlength="254" class="w-full px-4 py-3.5 rounded-2xl border border-blush-300 focus:border-rosegold focus:ring-2 focus:ring-blush-200 outline-none transition bg-white/90 text-blush-900 placeholder-blush-300 text-sm" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
+<label class="registration-label" for="reg-email">Email address <span aria-hidden="true">*</span></label>
+<input autocapitalize="none" autocomplete="email" enterkeyhint="go" maxlength="254" class="registration-input" id="reg-email" inputmode="email" placeholder="maria@example.com" required="" type="email"/>
+<p class="registration-hint">We’ll save this with your RSVP. For privacy, recovery works in this browser; on another device, use your saved invitation link or contact the host.</p>
 </div>
-<button class="registration-submit w-full py-4 px-6 mt-4 text-white font-semibold rounded-2xl shadow-lg transition duration-300 flex items-center justify-center gap-2 text-sm group" type="submit">
-<span>Unlock My Personalized Invitation</span>
-<i class="fa-solid fa-heart text-xs group-hover:scale-125 transition-transform"></i>
+<button class="registration-submit" type="submit">
+<span>Continue to your invitation</span>
+<svg aria-hidden="true" class="registration-submit-icon" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg>
 </button>
 </form>
-<div class="mt-5 pt-4 border-t border-blush-100 max-w-md mx-auto">
-<p class="text-xs text-blush-600 mb-1">Already registered or forgot to save your QR code?</p>
-<button class="recovery-open-button text-sm font-semibold text-rosegold-dark hover:text-blush-800 underline underline-offset-4 transition" onclick="openRecoveryModal()" type="button">
-                        Recover My Invitation &amp; QR Code
-                    </button>
+<div class="registration-recovery">
+<span>Already registered on this device?</span>
+<button class="recovery-open-button" onclick="openRecoveryModal()" type="button">Recover your invitation</button>
 </div>
 </div>
 </section>
@@ -213,7 +217,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="page2-18">18</div>
 <div class="page2-content">
 <div class="page2-crown">
-<i class="fa-solid fa-crown"></i>
+<svg aria-hidden="true" class="page2-crown-icon" viewBox="0 0 24 24"><path d="m3 7 5 4 4-7 4 7 5-4-2 12H5L3 7Z"></path><path d="M6 22h12"></path></svg>
 </div>
 <p class="page2-kicker">18th Birthday Debut Celebration</p>
 <h2 aria-busy="false" class="page2-greeting" id="invitation-greeting">
@@ -248,11 +252,18 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="page2-slideshow-track" id="photo-slideshow-track"></div>
 </div>
 </div>
-<div class="page2-slideshow-controls hidden" id="photo-slideshow-controls">
-<button aria-label="Previous photo" class="page2-slideshow-arrow" id="photo-slide-prev" onclick="changePhotoSlide(-1)" type="button"><i class="fa-solid fa-chevron-left"></i></button>
-<button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button"><i class="fa-solid fa-chevron-right"></i></button>
+<div aria-label="Slideshow controls" class="page2-slideshow-controls hidden" id="photo-slideshow-controls" role="group">
+<button aria-label="Previous photo" class="page2-slideshow-arrow" id="photo-slide-prev" onclick="changePhotoSlide(-1)" type="button">
+<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
+</button>
+<div aria-label="Slideshow progress" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1" aria-valuetext="Photo 1 of 10" class="page2-slideshow-progress" id="photo-slideshow-progress" role="progressbar">
+<span aria-hidden="true" class="page2-slideshow-counter" id="photo-slideshow-counter"></span>
+<span aria-hidden="true" class="page2-slideshow-progress-track"><span class="page2-slideshow-progress-fill" id="photo-slideshow-progress-fill"></span></span>
 </div>
-<p class="page2-slideshow-counter" id="photo-slideshow-counter" aria-live="off"></p>
+<button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button">
+<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
+</button>
+</div>
 <p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="off"></p>
 <p class="page2-slideshow-status" id="photo-slideshow-status" role="status" aria-live="polite" aria-atomic="true"></p>
 </section>
@@ -285,7 +296,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="text-center">
 <button class="primary-action-button page2-details-button py-4 px-8 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition duration-300 inline-flex items-center gap-2 text-sm" id="view-event-details-btn" onclick="goToStep(3)" type="button">
 <span>View Event Details &amp; Schedule</span>
-<i class="fa-solid fa-arrow-right text-xs"></i>
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"></path></svg>
 </button>
 </div>
 </section>
@@ -299,14 +310,14 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <!-- Date -->
 <div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-regular fa-calendar-check"></i>
+<svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4m8-4v4M3 10h18m-11 5 2 2 4-4"></path></svg>
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
 <p class="font-semibold text-blush-900 text-sm" id="event-date-display">November 7, 2026</p>
 <p class="text-xs text-blush-700 mt-0.5" id="event-weekday-display">Saturday</p>
 <button class="add-calendar-button mt-3" onclick="addToCalendar()" type="button">
-<i class="fa-regular fa-calendar-plus" aria-hidden="true"></i>
+<svg aria-hidden="true" class="event-action-icon" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4m8-4v4M3 10h18M14 15h5m-2.5-2.5v5"></path></svg>
 <span>Add to Calendar</span>
 </button>
 <p class="add-calendar-note" id="add-calendar-note">Reminder window: 4:00–4:30 PM</p>
@@ -316,7 +327,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <!-- Time -->
 <div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-regular fa-clock"></i>
+<svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
@@ -327,14 +338,14 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <!-- Venue -->
 <div class="event-detail-card bg-white/80 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-solid fa-location-dot"></i>
+<svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
 <p class="font-semibold text-blush-900 text-sm">Tito's Restaurant</p>
 <p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila</p>
 <a class="get-directions-button mt-3" href="https://www.google.com/maps/dir/?api=1&amp;destination=14.6106759%2C120.9674105" rel="noopener noreferrer" target="_blank">
-<i class="fa-solid fa-diamond-turn-right" aria-hidden="true"></i>
+<svg aria-hidden="true" class="event-action-icon" viewBox="0 0 24 24"><path d="M5 20V4h8a4 4 0 1 1-4 4"></path><path d="M14 15h5m-3-3 3 3-3 3"></path></svg>
 <span>Get Directions</span>
 </a>
 </div>
@@ -342,7 +353,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <!-- Dress Code -->
 <div class="event-detail-card bg-white/90 p-5 rounded-2xl border border-blush-200 flex items-start gap-4 shadow-sm">
 <div class="w-10 h-10 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-lg shrink-0">
-<i class="fa-solid fa-shirt"></i>
+<svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><path d="m16 4 5 3-3 5-2-1v9H8v-9l-2 1-3-5 5-3c.8 2 2.2 3 4 3s3.2-1 4-3Z"></path></svg>
 </div>
 <div>
 <h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Dress Code</h5>
@@ -354,9 +365,9 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 </div>
 </div>
-<div class="pt-4 border-t border-blush-200">
+<div class="pt-4 border-t border-blush-200 milestone-section">
 <h4 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h4>
-<div class="grid grid-cols-3 gap-3 text-center">
+<div class="grid grid-cols-3 gap-3 text-center milestone-grid">
 <button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('roses')" type="button">
 <div aria-label="Rose icon" class="mb-2 flex justify-center" role="img">
 <svg aria-hidden="true" class="w-8 h-8" viewbox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -371,12 +382,12 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <span class="text-[10px] text-blush-600">Grand Dance</span>
 </button>
 <button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('candles')" type="button">
-<i class="fa-solid fa-wand-magic-sparkles text-rosegold text-xl mb-2 block"></i>
+<svg aria-hidden="true" class="tradition-icon" viewBox="0 0 32 32"><path d="M8 27V13a3 3 0 0 1 6 0v14M6 27h10m2 0V17a3 3 0 0 1 6 0v10m-8 0h10M11 8c-2-2 1-3 0-5 3 2 3 4 1 6m7 4h5m-2.5-2.5v5"></path></svg>
 <span class="block text-xs font-bold text-blush-900">18 Candles</span>
 <span class="text-[10px] text-blush-600">Wishes &amp; Speeches</span>
 </button>
 <button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('gifts')" type="button">
-<i class="fa-solid fa-gift text-amber-600 text-xl mb-2 block"></i>
+<svg aria-hidden="true" class="tradition-icon tradition-icon-gift" viewBox="0 0 32 32"><path d="M5 14h22v14H5zM3 9h26v5H3zM16 9v19M16 9H9a3 3 0 1 1 3-3c0 2 4 3 4 3Zm0 0h7a3 3 0 1 0-3-3c0 2-4 3-4 3Z"></path></svg>
 <span class="block text-xs font-bold text-blush-900">18 Gifts</span>
 <span class="text-[10px] text-blush-600">Gifts &amp; Blessings</span>
 </button>
@@ -385,50 +396,50 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </div>
 <div class="flex items-center justify-between gap-4 details-navigation">
 <button class="py-3 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 rounded-2xl text-xs font-medium transition" onclick="goToStep(2)" type="button">
-<i class="fa-solid fa-angle-left mr-1"></i> Back
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg> Back
                 </button>
 <button class="primary-action-button py-3.5 px-8 bg-gradient-to-r from-blush-700 to-rosegold text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition text-xs flex items-center gap-2" id="details-rsvp-button" onclick="goToStep(4)" type="button">
 <span>Continue to RSVP</span>
-<i class="fa-solid fa-check"></i>
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"></path></svg>
 </button>
 </div>
 </section>
 <section class="step-transition hidden" id="step-rsvp">
 <div class="debut-card rounded-3xl p-6 sm:p-10 text-center border border-blush-300">
 <div class="mb-8">
-<span class="text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
-<h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
-<p class="text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
+<span class="rsvp-kicker text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
+<h3 class="rsvp-heading font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
+<p class="rsvp-intro text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
 </div>
 <form class="space-y-6 max-w-lg mx-auto text-left" id="rsvp-form" onsubmit="handleRsvpSubmit(event)">
-<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90" id="opt-label-yes">
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 rsvp-attendance-choices">
+<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90 rsvp-choice" id="opt-label-yes">
 <input class="accent-blush-600 w-4 h-4" name="attendance" onchange="toggleAttendingDetails(true)" required="" type="radio" value="Yes"/>
-<div>
-<span class="block font-semibold text-blush-900 text-sm">Yes, I'll be there 🌸</span>
-<span class="text-xs text-blush-600">Accepts with delight</span>
+<div class="rsvp-choice-copy">
+<span class="rsvp-choice-title block font-semibold text-blush-900 text-sm">Yes, I'll be there 🌸</span>
+<span class="rsvp-choice-description text-xs text-blush-600">Accepts with delight</span>
 </div>
 </label>
-<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90" id="opt-label-no">
+<label class="cursor-pointer border-2 border-blush-300 rounded-2xl p-4 flex items-center gap-3 hover:border-rosegold transition bg-white/90 rsvp-choice" id="opt-label-no">
 <input class="accent-blush-600 w-4 h-4" name="attendance" onchange="toggleAttendingDetails(false)" required="" type="radio" value="No"/>
-<div>
-<span class="block font-semibold text-blush-900 text-sm">Sorry, I can't attend 💌</span>
-<span class="text-xs text-blush-600">Sending love from afar</span>
+<div class="rsvp-choice-copy">
+<span class="rsvp-choice-title block font-semibold text-blush-900 text-sm">Sorry, I can't attend 💌</span>
+<span class="rsvp-choice-description text-xs text-blush-600">Sending love from afar</span>
 </div>
 </label>
 </div>
-<div class="hidden space-y-3 pt-4 border-t border-blush-200" id="attending-details">
-<div class="rounded-2xl bg-blush-50 border border-blush-200 p-4 text-center">
+<div class="hidden space-y-3 pt-4 border-t border-blush-200 rsvp-attending-details" id="attending-details">
+<div class="rounded-2xl bg-blush-50 border border-blush-200 p-4 text-center rsvp-attendance-note">
 <p class="text-sm font-semibold text-blush-900">1 person per registration</p>
 <p class="text-xs text-blush-600 mt-1">This RSVP is for you only.</p>
 </div>
 </div>
 <p aria-live="polite" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-relaxed text-rose-800" id="rsvp-save-status" role="status"></p>
-<div class="flex items-center gap-3 pt-4">
-<button class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs" onclick="goToStep(3)" type="button">
+<div class="flex items-center gap-3 pt-4 rsvp-actions">
+<button class="py-3.5 px-5 border border-blush-300 text-blush-800 hover:bg-blush-100 font-medium rounded-2xl transition text-xs rsvp-back-button" onclick="goToStep(3)" type="button">
                             Back
                         </button>
-<button class="primary-action-button flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm" type="submit">
+<button class="primary-action-button flex-1 py-4 px-6 bg-gradient-to-r from-blush-700 to-rosegold hover:from-blush-800 hover:to-rosegold-dark text-white font-semibold rounded-2xl shadow-md transition text-center text-sm rsvp-submit-button" type="submit">
                             Confirm RSVP
                         </button>
 </div>
@@ -437,8 +448,11 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </section>
 <section class="step-transition hidden" id="step-confirmation">
 <div class="debut-card rounded-3xl p-8 sm:p-12 text-center border-2 border-blush-300 max-w-xl mx-auto relative overflow-hidden shadow-2xl">
-<div class="w-20 h-20 bg-blush-100 rounded-full flex items-center justify-center text-rosegold text-3xl mx-auto mb-6 shadow-inner border border-blush-200">
-<i class="fa-solid fa-wand-magic-sparkles" id="confirm-icon"></i>
+<div class="confirmation-icon-wrap w-20 h-20 bg-blush-100 rounded-full flex items-center justify-center text-rosegold text-3xl mx-auto mb-6 shadow-inner border border-blush-200">
+<svg aria-hidden="true" class="confirmation-status-icon" data-status="confirmed" id="confirm-icon" viewBox="0 0 32 32">
+<g class="confirmation-icon-success"><path d="m13 3 2.2 6.8L22 12l-6.8 2.2L13 21l-2.2-6.8L4 12l6.8-2.2L13 3Zm11 15 1.2 3.8L29 23l-3.8 1.2L24 28l-1.2-3.8L19 23l3.8-1.2L24 18ZM5 22v6m-3-3h6"></path></g>
+<g class="confirmation-icon-declined"><path d="M16 27S5 20.5 5 13a6 6 0 0 1 11-3 6 6 0 0 1 11 3c0 7.5-11 14-11 14Z"></path><path d="m17 10-3 5 3 2-3 5M5 5l22 22"></path></g>
+</svg>
 </div>
 <h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mb-3" id="confirm-title">
                     Thank You!
@@ -446,7 +460,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <p class="text-blush-800 text-base sm:text-lg mb-8 leading-relaxed font-script" id="confirm-message">
                     Your response has been registered.
                 </p>
-<div class="bg-white/80 rounded-2xl p-5 border border-blush-200 text-left mb-8 space-y-2 text-xs sm:text-sm" id="rsvp-summary-box">
+<div class="bg-white/80 rounded-2xl p-5 border border-blush-200 text-left mb-8 space-y-2 text-xs sm:text-sm confirmation-summary" id="rsvp-summary-box">
 <p><span class="font-semibold text-blush-900">Registered Name:</span> <span class="text-blush-800" id="sum-name">-</span></p>
 <p><span class="font-semibold text-blush-900">Email:</span> <span class="text-blush-800" id="sum-email">-</span></p>
 <p><span class="font-semibold text-blush-900">RSVP Status:</span> <span class="px-2.5 py-0.5 rounded-full text-xs font-bold" id="sum-status">-</span></p>
@@ -458,30 +472,30 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div class="flex flex-col items-center justify-center gap-4">
 <div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="confirmation-qr-wrap"></div>
 <p class="invitation-qr-caption max-w-sm">Scan this QR code anytime to open your personalized invitation, countdown, and event details.</p>
-<div class="flex flex-col sm:flex-row items-center justify-center gap-2 w-full">
+<div class="flex flex-col sm:flex-row items-center justify-center gap-2 w-full confirmation-link-actions">
 <button class="w-full sm:w-auto py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveConfirmationQRCode()" type="button">
-<i class="fa-solid fa-download mr-1"></i>Save My QR Code
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M5 20h14"></path></svg> Save My QR Code
                             </button>
 <button class="primary-action-button w-full sm:w-auto py-3 px-4 bg-blush-700 hover:bg-blush-800 text-white rounded-xl text-xs font-semibold transition" onclick="openInvitationLink()" type="button">
-<i class="fa-solid fa-heart mr-1"></i>Open My Invitation
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="M20.8 8.6c0 5-8.8 11-8.8 11s-8.8-6-8.8-11A4.6 4.6 0 0 1 12 6.1a4.6 4.6 0 0 1 8.8 2.5Z"></path></svg> Open My Invitation
                             </button>
 </div>
 </div>
 <p class="text-xs text-emerald-700 font-semibold mt-3" id="invitation-link-note"></p>
 </div>
-<div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-<button class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition" onclick="restartRegistrationLoop()" type="button">
-<i class="fa-solid fa-plus text-xs mr-1.5"></i> Register Another Guest
+<div class="flex flex-col sm:flex-row items-center justify-center gap-3 confirmation-actions">
+<button class="w-full sm:w-auto py-3 px-5 bg-blush-700 hover:bg-blush-800 text-white rounded-2xl text-xs font-medium transition confirmation-restart-button" onclick="restartRegistrationLoop()" type="button">
+<svg aria-hidden="true" class="flow-action-icon" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"></path></svg> Register Another Guest
                     </button>
 </div>
 </div>
 </section>
-</main>
-<!-- Floating music control stays within easy reach near the bottom of the screen. -->
-<button aria-label="Play background music" aria-pressed="false" class="music-toggle-button" id="music-toggle" title="Play music" type="button">
-<i class="fa-solid fa-volume-xmark" aria-hidden="true"></i>
+<!-- The floating music control belongs to the guest invitation flow, not registration. -->
+<button aria-label="Play background music" aria-hidden="true" aria-pressed="false" class="music-toggle-button hidden" id="music-toggle" title="Play music" type="button">
+<svg aria-hidden="true" class="music-toggle-icon" viewBox="0 0 24 24"><path class="music-icon-speaker" d="M4 10v4h3l5 4V6l-5 4H4Z"></path><path class="music-icon-muted" d="m16 9 5 6m0-6-5 6"></path><path class="music-icon-playing" d="M16 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"></path></svg>
 <span id="music-toggle-label">Play music</span>
 </button>
+</main>
 <!-- Guest QR check-in scanner -->
 <div aria-labelledby="qr-scanner-title" aria-modal="true" class="hidden fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4" id="qr-scanner-modal" role="dialog">
 <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-blush-200">
@@ -607,7 +621,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div aria-labelledby="calendar-app-confirm-title" aria-modal="true" class="secret-modal-backdrop hidden" id="calendar-app-confirm-modal" role="dialog">
 <div class="secret-modal-card">
 <div class="secret-modal-content">
-<div class="secret-modal-icon"><i class="fa-regular fa-calendar-check" aria-hidden="true"></i></div>
+<div class="secret-modal-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4.5 9h15M5.5 5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path><path d="m9 14 2 2 4-4"></path></svg></div>
 <h3 class="secret-modal-title" id="calendar-app-confirm-title">Add to Calendar?</h3>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
 <p class="secret-modal-message">Would you like to open your calendar?</p>
@@ -620,9 +634,10 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div aria-labelledby="recovery-title" aria-modal="true" class="secret-modal-backdrop hidden" id="recovery-modal" role="dialog">
 <div class="secret-modal-card">
 <div class="secret-modal-content">
-<div class="secret-modal-icon"><i class="fa-solid fa-envelope-open-text"></i></div>
+<div class="secret-modal-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"></path><path d="m4 8 8 5 8-5"></path><path d="M7 17.5h10"></path></svg></div>
 <h3 class="secret-modal-title" id="recovery-title">Recover My Invitation</h3>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
+<p class="text-xs leading-relaxed text-blush-700 mb-4">For privacy, we can only search RSVPs saved in this browser. On another device, use your saved invitation link or contact the host.</p>
 <form class="space-y-4 text-left" id="recovery-form" onsubmit="handleRecovery(event)">
 <div>
 <label class="block text-xs font-semibold uppercase tracking-wider text-blush-900 mb-1.5" for="recovery-name">Full Name</label>
@@ -647,10 +662,10 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 <div aria-label="Personal invitation QR code" class="invitation-qr-wrap" id="recovery-qr-wrap"></div>
 <p class="invitation-qr-caption text-center">Save this QR code and show it at the venue for check-in. It also opens your personalized invitation.</p>
 <button class="w-full py-3 px-4 border border-blush-300 text-blush-800 hover:bg-white rounded-xl text-xs font-semibold transition" onclick="saveRecoveredQRCode()" type="button">
-<i class="fa-solid fa-download mr-1"></i> Save My QR Code
+<svg aria-hidden="true" class="recovery-action-icon" viewBox="0 0 24 24"><path d="M12 3v11m0 0 4-4m-4 4-4-4"></path><path d="M5 17v3h14v-3"></path></svg> Save My QR Code
                         </button>
 <button class="secret-modal-button w-full" onclick="openRecoveredInvitation()" type="button">
-<i class="fa-solid fa-heart mr-1"></i> View My Invitation
+<svg aria-hidden="true" class="recovery-action-icon" viewBox="0 0 24 24"><path d="M20.8 8.7c0 4.1-8.8 10.3-8.8 10.3S3.2 12.8 3.2 8.7a4.5 4.5 0 0 1 8.8-1.3 4.5 4.5 0 0 1 8.8 1.3Z"></path></svg> View My Invitation
                         </button>
 <p class="hidden text-xs text-emerald-700 font-semibold mt-1" id="recovery-link-status"></p>
 </div>
@@ -686,7 +701,7 @@ if (!new URLSearchParams(window.location.search).has('invite') && !window.matchM
 </svg>
 <div class="secret-modal-content">
 <div class="secret-modal-icon">
-<i class="fa-solid fa-lock"></i>
+<svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"></path></svg>
 </div>
 <h3 class="secret-modal-title" id="secret-reminder-title">A Note in Confidence</h3>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
