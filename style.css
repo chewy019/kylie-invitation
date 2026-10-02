@@ -5516,3 +5516,135 @@ body {
     border-color: var(--guest-border-dusty-rose-soft) !important;
     background: linear-gradient(145deg, #fffefa, #fff2f4 70%, #f4e8dc) !important;
 }
+
+
+/* One-pass interface finish: keep the established palette and type while
+   giving the registration hero a little more depth and a calmer entrance. */
+.registration-layout {
+    border-color: rgba(192, 129, 147, .55);
+    box-shadow:
+        0 30px 72px -42px rgba(104, 47, 67, .44),
+        0 8px 24px -22px rgba(104, 47, 67, .32),
+        inset 0 1px 0 rgba(255, 255, 255, .78);
+    transition: box-shadow .35s ease, border-color .35s ease;
+}
+
+.registration-portrait::after {
+    position: absolute;
+    z-index: 2;
+    inset: 13px;
+    border: 1px solid rgba(255, 250, 245, .38);
+    border-radius: 3px 18px 18px 3px;
+    content: "";
+    pointer-events: none;
+}
+
+.registration-portrait > img {
+    animation: registrationPortraitDrift 22s ease-in-out infinite alternate;
+    transform-origin: 52% 45%;
+    will-change: transform;
+}
+
+@keyframes registrationPortraitDrift {
+    from { transform: scale(1.025) translate3d(0, 0, 0); }
+    to { transform: scale(1.075) translate3d(-.35%, .35%, 0); }
+}
+
+@keyframes registrationContentBloom {
+    from { opacity: 0; transform: translateY(11px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.site-open-animate #step-registration .registration-intro,
+#step-registration.step-enter .registration-intro {
+    animation: registrationContentBloom .56s cubic-bezier(.2, .7, .25, 1) .08s both;
+}
+
+.site-open-animate #step-registration .registration-form,
+#step-registration.step-enter .registration-form {
+    animation: registrationContentBloom .58s cubic-bezier(.2, .7, .25, 1) .17s both;
+}
+
+.site-open-animate #step-registration .registration-recovery,
+#step-registration.step-enter .registration-recovery {
+    animation: registrationContentBloom .54s cubic-bezier(.2, .7, .25, 1) .25s both;
+}
+
+#step-registration .registration-submit {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform .22s cubic-bezier(.2, .7, .25, 1), box-shadow .22s ease, filter .22s ease;
+}
+
+#step-registration .registration-submit::before {
+    position: absolute;
+    z-index: 0;
+    inset: -35% auto -35% -45%;
+    width: 35%;
+    background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .34), transparent);
+    content: "";
+    opacity: 0;
+    transform: skewX(-18deg);
+    transition: transform .6s cubic-bezier(.2, .7, .25, 1), opacity .2s ease;
+}
+
+#step-registration .registration-submit > * {
+    position: relative;
+    z-index: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .registration-layout:hover {
+        border-color: rgba(169, 79, 112, .56);
+        box-shadow:
+            0 34px 78px -42px rgba(104, 47, 67, .48),
+            0 10px 28px -22px rgba(104, 47, 67, .36),
+            inset 0 1px 0 rgba(255, 255, 255, .82);
+    }
+
+    #step-registration .registration-submit:hover:not(:disabled) {
+        box-shadow: 0 13px 24px -13px rgba(104, 47, 67, .55);
+        filter: saturate(1.06);
+        transform: translateY(-2px);
+    }
+
+    #step-registration .registration-submit:hover:not(:disabled)::before {
+        opacity: 1;
+        transform: translateX(480%) skewX(-18deg);
+    }
+
+    #step-registration .registration-submit:hover .registration-submit-icon,
+    #step-registration .registration-submit:hover i {
+        transform: translateX(3px);
+    }
+}
+
+@media (max-width: 760px) {
+    .registration-portrait::after {
+        inset: 10px;
+        border-radius: 11px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .registration-portrait > img {
+        animation: none;
+        transform: none;
+        will-change: auto;
+    }
+
+    .site-open-animate #step-registration .registration-intro,
+    #step-registration.step-enter .registration-intro,
+    .site-open-animate #step-registration .registration-form,
+    #step-registration.step-enter .registration-form,
+    .site-open-animate #step-registration .registration-recovery,
+    #step-registration.step-enter .registration-recovery {
+        animation: none;
+    }
+
+    #step-registration .registration-submit,
+    #step-registration .registration-submit::before {
+        transition: none;
+    }
+}
