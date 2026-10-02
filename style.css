@@ -5654,3 +5654,18 @@ body {
         transition: none;
     }
 }
+
+.site-footer {
+    width: 100%;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(184, 141, 98, .2);
+    color: #80666c;
+    text-align: center;
+    font-size: .72rem;
+    letter-spacing: .035em;
+}
+
+.site-footer span {
+    color: #8d294d;
+    font-weight: 600;
+}

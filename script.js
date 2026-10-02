@@ -48,6 +48,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         let invitationEnvelopeCloseTimer = null;
         let invitationEnvelopeExitTimer = null;
         let showInvitationReminderAfterEnvelope = false;
+        let continueToInvitationAfterReminder = false;
         let invitationEmailStatus = 'not_configured';
         const dialogFocusReturn = new Map();
 
@@ -1807,6 +1808,14 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 inviteNotice.textContent = message;
                 inviteNotice.classList.remove('hidden');
             };
+            const showPrivacyReminderBeforeInvitation = () => {
+                if (!document.getElementById('secret-reminder-modal')) {
+                    window.goToStep(2);
+                    return;
+                }
+                continueToInvitationAfterReminder = true;
+                window.openSecretReminder();
+            };
             const submitButton = document.querySelector('#registration-form button[type=\"submit\"]');
             const submitLabel = submitButton?.querySelector('span');
             const originalSubmitLabel = submitLabel?.textContent || 'Unlock My Personalized Invitation';
@@ -1862,7 +1871,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                             rsvpStatus: 'Pending'
                         };
                         populateInvitationView();
-                        window.goToStep(2);
+                        showPrivacyReminderBeforeInvitation();
                         setRegistrationBusy(false);
                         return false;
                     }
@@ -1893,10 +1902,10 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     };
 
                     populateInvitationView();
-                    window.goToStep(2);
                     registrationSavePromise = saveGuestToCloud(currentGuest);
                     try {
                         await registrationSavePromise;
+                        showPrivacyReminderBeforeInvitation();
                     } catch (err) {
                         console.error('Could not save the returning guest registration:', err);
                         currentGuest = null;
@@ -1931,12 +1940,11 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             };
 
             try {
-                // Show the invitation immediately. Firebase persistence continues in the
-                // background so the interface does not feel frozen after registration.
+                // Save the registration before showing the privacy notice and envelope.
                 populateInvitationView();
-                window.goToStep(2);
                 registrationSavePromise = saveGuestToCloud(currentGuest);
                 await registrationSavePromise;
+                showPrivacyReminderBeforeInvitation();
             } catch (err) {
                 console.error(err);
                 currentGuest = null;
@@ -2075,10 +2083,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         };
 
 
-        // Controls whether the confirmation invitation QR section should appear only after the reminder is acknowledged.
-        window.revealInvitationLinksAfterReminder = false;
-
-        // Elegant surprise reminder for saved invitation links and RSVP confirmation.
+        // Privacy reminder for a new registration and saved invitation links.
         window.openSecretReminder = function() {
             const modal = document.getElementById('secret-reminder-modal');
             if (!modal) return;
@@ -2090,16 +2095,9 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (!modal) return;
             closeAccessibleDialog(modal);
 
-            // After a successful RSVP, reveal the invitation QR section only now.
-            if (window.revealInvitationLinksAfterReminder) {
-                const links = document.getElementById('confirmation-invitation-links');
-                if (links) {
-                    links.classList.remove('hidden');
-                    if (currentGuest && currentGuest.id) {
-                        renderInvitationQRCode('confirmation-qr-wrap', currentGuest.id);
-                    }
-                }
-                window.revealInvitationLinksAfterReminder = false;
+            if (continueToInvitationAfterReminder) {
+                continueToInvitationAfterReminder = false;
+                window.goToStep(2);
             }
         };
 
@@ -2286,8 +2284,9 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 }
                 showConfirmationView();
                 window.goToStep(5);
-                // Show the note first. The invitation-link buttons appear only after "I Understand".
-                setTimeout(() => openSecretReminder(), 250);
+                if (currentGuest.rsvpStatus === 'Confirmed' && currentGuest.id) {
+                    renderInvitationQRCode('confirmation-qr-wrap', currentGuest.id);
+                }
             } catch (err) {
                 console.error(err);
                 if (status) {
@@ -2326,9 +2325,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             sumEmail.textContent = currentGuest.email;
 
             if (currentGuest.rsvpStatus === 'Confirmed') {
-                    // Keep the invitation QR section hidden until the private reminder is acknowledged.
-                    invitationLinks.classList.add('hidden');
-                    if (emailNote && emailNoteText) {
+                invitationLinks.classList.remove('hidden');
+                if (emailNote && emailNoteText) {
                     const emailMessages = {
                         sent: 'Your personal QR code and the event date, time, and venue were emailed. Please check your inbox and Spam/Junk folder.',
                         cooldown: 'A recent email request is still within the resend limit. Check your inbox and Spam/Junk folder before trying again.',
@@ -2341,7 +2339,6 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     emailNoteText.textContent = emailMessages[invitationEmailStatus] || emailMessages.not_configured;
                     emailNote.classList.remove('hidden');
                 }
-                window.revealInvitationLinksAfterReminder = true;
                 titleEl.textContent = `Thank You, ${currentGuest.name}!`;
                 msgEl.textContent = "Your attendance has been confirmed! We are thrilled to celebrate Kylie Aianna Fulla's 18th Birthday Debut with you.";
                 iconEl.dataset.status = 'confirmed';
@@ -2354,7 +2351,6 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             } else {
                 invitationLinks.classList.add('hidden');
                 emailNote?.classList.add('hidden');
-                window.revealInvitationLinksAfterReminder = false;
                 titleEl.textContent = `Thank you for letting us know, ${currentGuest.name}.`;
                 msgEl.textContent = "We will miss your presence, but send our warmest love and blessings to Kylie!";
                 iconEl.dataset.status = 'declined';
@@ -2373,6 +2369,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             invitationEnvelopeShown = false;
             invitationEnvelopeOpening = false;
             showInvitationReminderAfterEnvelope = false;
+            continueToInvitationAfterReminder = false;
             document.getElementById('registration-form').reset();
             document.getElementById('rsvp-form').reset();
             document.getElementById('attending-details')?.classList.add('hidden');
