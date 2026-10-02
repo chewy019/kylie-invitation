@@ -1305,6 +1305,12 @@ button:disabled {
     -webkit-overflow-scrolling: touch;
 }
 
+#qr-scanner-modal > div > .qr-scanner-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
 #milestone-modal > div {
     box-sizing: border-box;
     display: flex;
