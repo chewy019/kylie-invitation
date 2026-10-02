@@ -3,6 +3,8 @@ const FIREBASE_WEB_API_KEY = 'AIzaSyCK96DUaagUyDjs3lFW4-q29RvgpVCrMBU';
 const FIREBASE_HOST_UID = 'myL41BfZY2RXwIxMFU6ybtCHKNE2';
 const SENDER_DISPLAY_NAME = "Kylie's 18th Birthday Debut";
 const MAX_RECIPIENTS_PER_24_HOURS = 80;
+const MAX_EVENT_REMINDER_RECIPIENTS = 80;
+const EVENT_REMINDER_CAMPAIGN_ID = 'kylie-18th-2026-11-07-v1';
 const RESEND_COOLDOWN_MS = 15 * 60 * 1000;
 const CALLER_COOLDOWN_MS = 60 * 1000;
 const PROCESSING_TIMEOUT_MS = 10 * 60 * 1000;
@@ -12,57 +14,63 @@ const REQUEST_RESULT_TTL_MS = 60 * 60 * 1000;
 /**
  * Public Apps Script endpoint. It only accepts Firebase ID tokens, validates
  * them with Firebase Auth, and sends mail after checking the private RSVP,
- * invitation, and email-claim documents in Firestore.
+ * invitation, and email-claim documents in Firestore. Bulk event reminders
+ * are restricted to the host and individually validated confirmed guests.
  */
 function doPost(event) {
   let requestId = '';
   let result = { accepted: false, status: 'failed' };
   try {
     const rawPayload = event && event.parameter && event.parameter.payload;
-    if (typeof rawPayload !== 'string' || rawPayload.length > 10000) {
+    if (typeof rawPayload !== 'string' || rawPayload.length > 1800000) {
       throw new Error('invalid_request');
     }
 
     const payload = JSON.parse(rawPayload);
     if (isValidRequestId_(payload.requestId)) requestId = payload.requestId;
     const identity = verifyFirebaseIdToken_(payload.idToken);
-    let guest;
-    let sendKind;
+    if (payload.action === 'sendEventReminderAll') {
+      if (identity.uid !== FIREBASE_HOST_UID) throw new Error('permission_denied');
+      result = sendEventReminders_(payload.qrCodes, identity.uid);
+    } else {
+      let guest;
+      let sendKind;
 
-    if (payload.action === 'confirmation') {
-      requireAnonymousGuest_(identity);
-      guest = getConfirmedGuestById_(payload.guestId, identity.uid);
-      sendKind = 'confirmation';
-    } else if (payload.action === 'sendInvitation') {
-      const email = normalizeEmail_(payload.email);
-      if (!isValidEmail_(email)) throw new Error('not_found');
-
-      if (identity.uid === FIREBASE_HOST_UID) {
-        guest = getConfirmedGuestByEmail_(email, '');
-      } else {
+      if (payload.action === 'confirmation') {
         requireAnonymousGuest_(identity);
-        const submittedName = normalizeName_(payload.name);
-        if (!submittedName) throw new Error('not_found');
-        enforceLookupCooldown_(identity.uid);
-        guest = getConfirmedGuestByEmail_(email, submittedName);
-      }
-      sendKind = identity.uid === FIREBASE_HOST_UID ? 'host_resend' : 'guest_recovery';
-    } else {
-      throw new Error('invalid_action');
-    }
+        guest = getConfirmedGuestById_(payload.guestId, identity.uid);
+        sendKind = 'confirmation';
+      } else if (payload.action === 'sendInvitation') {
+        const email = normalizeEmail_(payload.email);
+        if (!isValidEmail_(email)) throw new Error('not_found');
 
-    if (!guest) throw new Error('not_found');
-    const reservation = reserveSend_(sendKind, guest.id, guest.email, identity.uid);
-    if (!reservation.allowed) {
-      result = { accepted: true, status: reservation.status };
-    } else {
-      try {
-        sendInvitationEmail_(guest);
-        finalizeSend_(reservation, guest.email, identity.uid);
-        result = { accepted: true, status: 'sent' };
-      } catch (error) {
-        releaseSend_(reservation);
-        throw error;
+        if (identity.uid === FIREBASE_HOST_UID) {
+          guest = getConfirmedGuestByEmail_(email, '');
+        } else {
+          requireAnonymousGuest_(identity);
+          const submittedName = normalizeName_(payload.name);
+          if (!submittedName) throw new Error('not_found');
+          enforceLookupCooldown_(identity.uid);
+          guest = getConfirmedGuestByEmail_(email, submittedName);
+        }
+        sendKind = identity.uid === FIREBASE_HOST_UID ? 'host_resend' : 'guest_recovery';
+      } else {
+        throw new Error('invalid_action');
+      }
+
+      if (!guest) throw new Error('not_found');
+      const reservation = reserveSend_(sendKind, guest.id, guest.email, identity.uid);
+      if (!reservation.allowed) {
+        result = { accepted: true, status: reservation.status };
+      } else {
+        try {
+          sendInvitationEmail_(guest);
+          finalizeSend_(reservation, guest.email, identity.uid);
+          result = { accepted: true, status: 'sent' };
+        } catch (error) {
+          releaseSend_(reservation);
+          throw error;
+        }
       }
     }
   } catch (error) {
@@ -72,10 +80,12 @@ function doPost(event) {
       result = { accepted: false, status: 'not_found' };
     } else if (errorCode === 'lookup_cooldown') {
       result = { accepted: false, status: 'cooldown' };
+    } else if (errorCode === 'invalid_request') {
+      result = { accepted: false, status: 'invalid_request' };
     }
   }
 
-  if (requestId) storeRequestResult_(requestId, result.status);
+  if (requestId) storeRequestResult_(requestId, result);
   return jsonResponse_(result);
 }
 
@@ -88,10 +98,10 @@ function doGet(event) {
 
   const properties = PropertiesService.getScriptProperties();
   const saved = readJsonProperty_(properties, REQUEST_RESULT_PREFIX + requestId);
-  const status = saved && Date.now() - Number(saved.at || 0) <= REQUEST_RESULT_TTL_MS
-    ? saved.status
-    : 'pending';
-  return jsonpMailerResult_('__kylieMailer_' + requestId.replace(/-/g, ''), status);
+  const result = saved && Date.now() - Number(saved.at || 0) <= REQUEST_RESULT_TTL_MS
+    ? (saved.result || { status: saved.status || 'pending' })
+    : { status: 'pending' };
+  return jsonpMailerResult_('__kylieMailer_' + requestId.replace(/-/g, ''), result);
 }
 
 function isValidRequestId_(value) {
@@ -99,18 +109,30 @@ function isValidRequestId_(value) {
     && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
-function jsonpMailerResult_(callbackName, status) {
-  const safeStatuses = ['sent', 'cooldown', 'daily_limit', 'not_found', 'already_sent', 'pending', 'failed'];
-  const safeStatus = safeStatuses.indexOf(status) === -1 ? 'failed' : status;
-  return ContentService.createTextOutput(callbackName + '(' + JSON.stringify({ status: safeStatus }) + ');')
+function jsonpMailerResult_(callbackName, result) {
+  const value = typeof result === 'string' ? { status: result } : result || {};
+  const safeStatuses = [
+    'sent', 'partial', 'cooldown', 'daily_limit', 'not_found', 'already_sent',
+    'pending', 'processing', 'failed', 'too_many_recipients', 'no_recipients',
+    'qr_unavailable', 'invalid_request'
+  ];
+  const response = {
+    status: safeStatuses.indexOf(value.status) === -1 ? 'failed' : value.status
+  };
+  ['total', 'sent', 'skipped', 'failed'].forEach(function(key) {
+    const number = Number(value[key]);
+    if (Number.isFinite(number) && number >= 0) response[key] = Math.floor(number);
+  });
+  return ContentService.createTextOutput(callbackName + '(' + JSON.stringify(response) + ');')
     .setMimeType(ContentService.MimeType.JAVASCRIPT);
 }
 
-function storeRequestResult_(requestId, status) {
+function storeRequestResult_(requestId, result) {
   try {
     const properties = PropertiesService.getScriptProperties();
     const now = Date.now();
-    properties.setProperty(REQUEST_RESULT_PREFIX + requestId, JSON.stringify({ status: status, at: now }));
+    const value = typeof result === 'string' ? { status: result } : result || { status: 'failed' };
+    properties.setProperty(REQUEST_RESULT_PREFIX + requestId, JSON.stringify({ result: value, at: now }));
     const allProperties = properties.getProperties();
     Object.keys(allProperties).forEach(function(key) {
       if (key.indexOf(REQUEST_RESULT_PREFIX) !== 0) return;
@@ -190,6 +212,18 @@ function getConfirmedGuestById_(guestId, ownerUid) {
   if (typeof guestId !== 'string' || !/^[A-Za-z0-9_-]{10,128}$/.test(guestId)) return null;
 
   const rsvp = firestoreGetDocument_('rsvps', guestId);
+  return makeConfirmedGuestFromRsvp_(guestId, rsvp, ownerUid);
+}
+
+function getConfirmedGuestByIdForHost_(guestId) {
+  if (typeof guestId !== 'string' || !/^[A-Za-z0-9_-]{10,128}$/.test(guestId)) return null;
+  const rsvp = firestoreGetDocument_('rsvps', guestId);
+  const ownerUid = readString_(rsvp, 'ownerUid');
+  if (!ownerUid) return null;
+  return makeConfirmedGuestFromRsvp_(guestId, rsvp, ownerUid);
+}
+
+function makeConfirmedGuestFromRsvp_(guestId, rsvp, ownerUid) {
   if (!rsvp || readString_(rsvp, 'ownerUid') !== ownerUid
     || readString_(rsvp, 'rsvpStatus') !== 'Confirmed') return null;
 
@@ -377,6 +411,40 @@ function firestoreQueryDocuments_(collectionName, fieldName, value) {
   return rows.map(function(row) { return row && row.document; }).filter(Boolean);
 }
 
+function firestoreQueryConfirmedRsvps_() {
+  const url = 'https://firestore.googleapis.com/v1/projects/'
+    + FIREBASE_PROJECT_ID + '/databases/(default)/documents:runQuery';
+  const query = {
+    structuredQuery: {
+      from: [{ collectionId: 'rsvps' }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: 'rsvpStatus' },
+          op: 'EQUAL',
+          value: { stringValue: 'Confirmed' }
+        }
+      },
+      limit: MAX_EVENT_REMINDER_RECIPIENTS + 1
+    }
+  };
+  const response = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(query),
+    headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+    muteHttpExceptions: true
+  });
+  if (response.getResponseCode() !== 200) {
+    console.error('Confirmed RSVP lookup failed with HTTP ' + response.getResponseCode() + '.');
+    throw new Error('firestore_unavailable');
+  }
+  const rows = JSON.parse(response.getContentText());
+  if (!Array.isArray(rows) || rows.length > MAX_EVENT_REMINDER_RECIPIENTS) {
+    return new Array(MAX_EVENT_REMINDER_RECIPIENTS + 1).fill(null);
+  }
+  return rows.map(function(row) { return row && row.document; }).filter(Boolean);
+}
+
 function firestoreCreateEmailClaim_(claimId, claim) {
   const url = 'https://firestore.googleapis.com/v1/projects/'
     + FIREBASE_PROJECT_ID + '/databases/(default)/documents/emailClaims/'
@@ -454,6 +522,213 @@ function sendInvitationEmail_(guest) {
   });
 }
 
+function sendEventReminders_(qrCodes, actorUid) {
+  if (!Array.isArray(qrCodes) || qrCodes.length > MAX_EVENT_REMINDER_RECIPIENTS) {
+    return { accepted: false, status: 'invalid_request', total: 0, sent: 0, skipped: 0, failed: 0 };
+  }
+
+  const qrByGuestId = Object.create(null);
+  for (let index = 0; index < qrCodes.length; index += 1) {
+    const qr = qrCodes[index];
+    if (!qr || typeof qr.guestId !== 'string'
+      || !/^[A-Za-z0-9_-]{10,128}$/.test(qr.guestId)
+      || typeof qr.qrUrl !== 'string'
+      || typeof qr.qrPngBase64 !== 'string'
+      || qr.qrPngBase64.length > 160000
+      || !/^[A-Za-z0-9+/]+={0,2}$/.test(qr.qrPngBase64)
+      || Object.prototype.hasOwnProperty.call(qrByGuestId, qr.guestId)
+      || !isExpectedReminderQrUrl_(qr.qrUrl, qr.guestId)
+      || !isPngImage_(qr.qrPngBase64)) {
+      return { accepted: false, status: 'invalid_request', total: 0, sent: 0, skipped: 0, failed: 0 };
+    }
+    qrByGuestId[qr.guestId] = {
+      qrUrl: qr.qrUrl,
+      qrPngBase64: qr.qrPngBase64
+    };
+  }
+
+  const rsvpDocuments = firestoreQueryConfirmedRsvps_();
+  if (rsvpDocuments.length > MAX_EVENT_REMINDER_RECIPIENTS) {
+    return { accepted: false, status: 'too_many_recipients', total: rsvpDocuments.length, sent: 0, skipped: 0, failed: 0 };
+  }
+
+  const guests = [];
+  const seenEmails = Object.create(null);
+  let invalidRecords = 0;
+  rsvpDocuments.forEach(function(document) {
+    const guestId = String(document && document.name || '').split('/').pop();
+    const guest = getConfirmedGuestByIdForHost_(guestId);
+    if (!guest) {
+      invalidRecords += 1;
+      return;
+    }
+    const emailKey = normalizeEmail_(guest.email);
+    if (seenEmails[emailKey]) {
+      invalidRecords += 1;
+      return;
+    }
+    seenEmails[emailKey] = true;
+    guests.push(guest);
+  });
+
+  if (guests.length === 0) {
+    return { accepted: true, status: 'no_recipients', total: 0, sent: 0, skipped: invalidRecords, failed: 0 };
+  }
+
+  for (let index = 0; index < guests.length; index += 1) {
+    const guest = guests[index];
+    const qr = qrByGuestId[guest.id];
+    if (!qr || !isExpectedReminderQrUrl_(qr.qrUrl, guest.id)) {
+      return { accepted: false, status: 'qr_unavailable', total: guests.length, sent: 0, skipped: invalidRecords, failed: 0 };
+    }
+  }
+
+  const recipientsNotAlreadyReminded = guests.filter(function(guest) {
+    return !hasEventReminderBeenSent_(guest.email);
+  });
+  const availableQuota = getRemainingMailerQuota_();
+  if (recipientsNotAlreadyReminded.length > availableQuota) {
+    return {
+      accepted: false,
+      status: 'daily_limit',
+      total: guests.length,
+      sent: 0,
+      skipped: invalidRecords + guests.length - recipientsNotAlreadyReminded.length,
+      failed: 0
+    };
+  }
+
+  const summary = {
+    accepted: true,
+    status: 'sent',
+    total: guests.length,
+    sent: 0,
+    skipped: invalidRecords,
+    failed: 0
+  };
+  guests.forEach(function(guest) {
+    const reservation = reserveSend_('event_reminder', guest.id, guest.email, actorUid);
+    if (!reservation.allowed) {
+      summary.skipped += 1;
+      return;
+    }
+    try {
+      sendEventReminderEmail_(guest, qrByGuestId[guest.id].qrPngBase64);
+      finalizeSend_(reservation, guest.email, actorUid);
+      summary.sent += 1;
+    } catch (error) {
+      releaseSend_(reservation);
+      summary.failed += 1;
+      console.error('Event reminder email failed for a confirmed RSVP.', String(error && error.message || error));
+    }
+  });
+  if (summary.failed > 0) summary.status = summary.sent > 0 ? 'partial' : 'failed';
+  return summary;
+}
+
+function buildExpectedClientInvitationUrl_(guestId) {
+  const baseUrl = ensureTrailingSlash_(getInvitationBaseUrl_());
+  return baseUrl + 'index.html?invite=' + encodeURIComponent(guestId);
+}
+
+function isExpectedReminderQrUrl_(qrUrl, guestId) {
+  if (typeof qrUrl !== 'string') return false;
+  return qrUrl === buildInvitationUrl_(guestId)
+    || qrUrl === buildExpectedClientInvitationUrl_(guestId);
+}
+
+function isPngImage_(base64) {
+  try {
+    const bytes = Utilities.base64Decode(base64);
+    return bytes.length >= 8
+      && (bytes[0] & 255) === 137
+      && (bytes[1] & 255) === 80
+      && (bytes[2] & 255) === 78
+      && (bytes[3] & 255) === 71
+      && (bytes[4] & 255) === 13
+      && (bytes[5] & 255) === 10
+      && (bytes[6] & 255) === 26
+      && (bytes[7] & 255) === 10;
+  } catch (error) {
+    return false;
+  }
+}
+
+function getRemainingMailerQuota_() {
+  const now = Date.now();
+  const windowState = readJsonProperty_(PropertiesService.getScriptProperties(), 'send:rolling_window') || {};
+  const windowStart = Number(windowState.startedAt || 0);
+  const windowCount = windowStart && now - windowStart < 24 * 60 * 60 * 1000
+    ? Number(windowState.count || 0)
+    : 0;
+  return Math.max(0, Math.min(
+    MAX_RECIPIENTS_PER_24_HOURS - windowCount,
+    MailApp.getRemainingDailyQuota()
+  ));
+}
+
+function hasEventReminderBeenSent_(email) {
+  const key = getEventReminderKey_(email);
+  const state = readJsonProperty_(PropertiesService.getScriptProperties(), key);
+  return Boolean(state && state.status === 'sent');
+}
+
+function getEventReminderKey_(email) {
+  const sendDate = Utilities.formatDate(new Date(), 'Asia/Manila', 'yyyyMMdd');
+  return 'send:event_reminder:' + EVENT_REMINDER_CAMPAIGN_ID + ':' + sendDate + ':'
+    + sha256Hex_(normalizeEmail_(email));
+}
+
+function sendEventReminderEmail_(guest, qrPngBase64) {
+  const safeName = escapeHtml_(guest.name);
+  const qrBytes = Utilities.base64Decode(qrPngBase64);
+  const qrBlob = Utilities.newBlob(
+    qrBytes,
+    'image/png',
+    'Kylie-18th-QR-' + guest.id + '.png'
+  );
+  const qrAttachment = Utilities.newBlob(
+    qrBytes,
+    'image/png',
+    'Kylie-18th-QR-' + guest.id + '.png'
+  );
+  const subject = "Reminder: Kylie's 18th Birthday Debut";
+  const body = [
+    'Hello ' + guest.name + ',',
+    '',
+    "We are looking forward to celebrating with you at Kylie's 18th Birthday Debut.",
+    'Date: Saturday, November 7, 2026',
+    'Doors open: 4:00 PM',
+    'Celebration starts: 4:30 PM',
+    "Venue: Tito's Restaurant, 546 Concha St., Tondo, Manila",
+    '',
+    'Please have your personal QR code ready when you arrive for check-in. The QR code is attached and shown below.',
+    '',
+    'We look forward to celebrating with you!'
+  ].join('\n');
+  const htmlBody = '<!doctype html><html lang="en"><body style="margin:0;padding:28px 14px;background:#fff8fa;font-family:Arial,sans-serif;color:#492633">'
+    + '<main style="max-width:560px;margin:0 auto;padding:30px 22px;background:#ffffff;border:1px solid #f2dce3;border-radius:18px;text-align:center">'
+    + '<p style="margin:0 0 8px;color:#a6405d;font-size:12px;letter-spacing:2px;text-transform:uppercase">Kylie\'s 18th Birthday Debut</p>'
+    + '<h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:28px;font-weight:normal">A little reminder</h1>'
+    + '<p style="font-size:16px;line-height:1.6">Hello ' + safeName + ', we are looking forward to celebrating with you.</p>'
+    + '<div style="margin:22px auto;padding:16px;background:#fff8fa;border:1px solid #f2dce3;border-radius:14px;text-align:left;line-height:1.8">'
+    + '<strong>Saturday, November 7, 2026</strong><br>Doors open at 4:00 PM<br>Celebration starts at 4:30 PM<br>Tito\'s Restaurant<br>546 Concha St., Tondo, Manila</div>'
+    + '<p style="font-size:14px;line-height:1.6">Please have your personal QR code ready when you arrive for check-in.</p>'
+    + '<img src="cid:guest-qr" width="240" height="240" alt="Your personal check-in QR code" style="display:block;width:240px;height:240px;max-width:100%;margin:18px auto;border:1px solid #f2dce3;border-radius:12px">'
+    + '<p style="font-size:12px;line-height:1.6;color:#704b58">The same QR code is attached so you can save it to your device.</p>'
+    + '<p style="margin:22px 0 0;font-size:14px">We look forward to celebrating with you!</p>'
+    + '</main></body></html>';
+  MailApp.sendEmail({
+    to: guest.email,
+    subject: subject,
+    body: body,
+    htmlBody: htmlBody,
+    inlineImages: { 'guest-qr': qrBlob },
+    attachments: [qrAttachment],
+    name: SENDER_DISPLAY_NAME
+  });
+}
+
 function buildInvitationUrl_(guestId) {
   return ensureTrailingSlash_(getInvitationBaseUrl_()) + '?invite=' + encodeURIComponent(guestId);
 }
@@ -489,6 +764,9 @@ function reserveSend_(kind, guestId, email, actorUid) {
     const confirmationKey = kind === 'confirmation' ? 'send:confirmation:' + guestId : '';
     const targetKey = 'send:target:' + sha256Hex_(email);
     const actorKey = actorUid === FIREBASE_HOST_UID ? '' : 'send:actor:' + sha256Hex_(actorUid);
+    const reminderKey = kind === 'event_reminder'
+      ? getEventReminderKey_(email)
+      : '';
 
     if (confirmationKey) {
       const previous = readJsonProperty_(properties, confirmationKey);
@@ -500,6 +778,18 @@ function reserveSend_(kind, guestId, email, actorUid) {
       if (previous && previous.status === 'processing') properties.deleteProperty(confirmationKey);
     }
 
+    if (reminderKey) {
+      const previousReminder = readJsonProperty_(properties, reminderKey);
+      if (previousReminder && previousReminder.status === 'sent') {
+        return { allowed: false, status: 'already_sent' };
+      }
+      if (previousReminder && previousReminder.status === 'processing'
+        && now - Number(previousReminder.at || now) < PROCESSING_TIMEOUT_MS) {
+        return { allowed: false, status: 'already_processing' };
+      }
+      if (previousReminder && previousReminder.status === 'processing') properties.deleteProperty(reminderKey);
+    }
+
     let targetState = readJsonProperty_(properties, targetKey);
     if (targetState && targetState.status === 'processing'
       && now - Number(targetState.at || now) >= PROCESSING_TIMEOUT_MS) {
@@ -507,7 +797,7 @@ function reserveSend_(kind, guestId, email, actorUid) {
       targetState = null;
     }
     if (targetState && targetState.status === 'processing') return { allowed: false, status: 'cooldown' };
-    if (targetState && targetState.status === 'sent'
+    if (kind !== 'event_reminder' && targetState && targetState.status === 'sent'
       && now - Number(targetState.at || 0) < RESEND_COOLDOWN_MS) {
       return { allowed: false, status: 'cooldown' };
     }
@@ -544,12 +834,14 @@ function reserveSend_(kind, guestId, email, actorUid) {
       confirmationKey: confirmationKey,
       targetKey: targetKey,
       actorKey: actorKey,
+      reminderKey: reminderKey,
       windowStartedAt: windowStart
     };
     const processing = JSON.stringify({ status: 'processing', nonce: nonce, at: now });
     if (confirmationKey) properties.setProperty(confirmationKey, processing);
     properties.setProperty(targetKey, processing);
     if (actorKey) properties.setProperty(actorKey, processing);
+    if (reminderKey) properties.setProperty(reminderKey, processing);
     properties.setProperty('send:rolling_window', JSON.stringify({
       startedAt: windowStart,
       count: windowCount + 1
@@ -569,6 +861,7 @@ function finalizeSend_(reservation, email, actorUid) {
     if (reservation.confirmationKey) properties.setProperty(reservation.confirmationKey, sentState);
     properties.setProperty(reservation.targetKey, sentState);
     if (reservation.actorKey) properties.setProperty(reservation.actorKey, sentState);
+    if (reservation.reminderKey) properties.setProperty(reservation.reminderKey, sentState);
   } finally {
     lock.releaseLock();
   }
@@ -579,7 +872,7 @@ function releaseSend_(reservation) {
   lock.waitLock(5000);
   try {
     const properties = PropertiesService.getScriptProperties();
-    const keys = [reservation.confirmationKey, reservation.targetKey, reservation.actorKey].filter(Boolean);
+    const keys = [reservation.confirmationKey, reservation.targetKey, reservation.actorKey, reservation.reminderKey].filter(Boolean);
     keys.forEach(function(key) {
       const value = readJsonProperty_(properties, key);
       if (value && value.status === 'processing' && value.nonce === reservation.nonce) {

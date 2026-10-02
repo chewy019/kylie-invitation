@@ -1368,7 +1368,13 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     window[callbackName] = (result) => {
                         callbackFired = true;
                         const status = typeof result?.status === 'string' ? result.status : '';
-                        if (status && status !== 'pending') finish({ status });
+                        if (status && status !== 'pending' && status !== 'processing') finish({
+                            status,
+                            total: Number.isFinite(Number(result.total)) ? Number(result.total) : 0,
+                            sent: Number.isFinite(Number(result.sent)) ? Number(result.sent) : 0,
+                            skipped: Number.isFinite(Number(result.skipped)) ? Number(result.skipped) : 0,
+                            failed: Number.isFinite(Number(result.failed)) ? Number(result.failed) : 0
+                        });
                         else schedulePoll();
                     };
                     statusScript.onload = () => {
@@ -1390,7 +1396,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             });
         }
 
-        async function sendGmailMailerRequest(payload) {
+        async function sendGmailMailerRequest(payload, resultTimeoutMs = 12000) {
             if (!isGmailMailerConfigured()) throw new Error('gmail-mailer/not-configured');
             const ready = await waitForFirebaseAuth();
             if (!ready || !auth.currentUser) throw new Error('Firebase authentication is not ready.');
@@ -1407,7 +1413,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (response.type !== 'opaque' && !response.ok) throw new Error('gmail-mailer/request-failed');
             // Apps Script's POST is opaque cross-origin. A separate JSONP status
             // lookup lets the page distinguish a sent email from a rejected request.
-            return readGmailMailerResult(requestId);
+            return readGmailMailerResult(requestId, resultTimeoutMs);
         }
 
         async function requestInvitationEmail(email, name = '') {
@@ -1614,6 +1620,120 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 button.disabled = false;
                 button.setAttribute('aria-busy', 'false');
                 button.textContent = originalText;
+            }
+        };
+
+        function getReminderEligibleGuests() {
+            return guestDatabase.filter((guest) => guest.rsvpStatus === 'Confirmed'
+                && isValidRegistrationEmail(normalizeEmail(guest.emailLower || guest.email || '')));
+        }
+
+        function updateEventReminderButton() {
+            const button = document.getElementById('send-all-event-reminder-btn');
+            const label = document.getElementById('send-all-event-reminder-label');
+            if (!button) return;
+            const count = getReminderEligibleGuests().length;
+            if (label) label.textContent = `Send Reminder (${count})`;
+            button.disabled = !isHostUser() || guestDatabaseLoading || count === 0;
+            button.title = count === 1
+                ? 'Send the event reminder and QR code to 1 confirmed guest.'
+                : `Send the event reminder and QR codes to ${count} confirmed guests.`;
+        }
+
+        function createReminderQrCode(guestId) {
+            if (typeof QRCode !== 'function') throw new Error('The QR code generator is not available.');
+            const holder = document.createElement('div');
+            holder.setAttribute('aria-hidden', 'true');
+            holder.style.cssText = 'position:fixed;left:-10000px;top:0;width:240px;height:240px;overflow:hidden;';
+            document.body.appendChild(holder);
+            try {
+                const qrUrl = buildInvitationLink(guestId);
+                new QRCode(holder, {
+                    text: qrUrl,
+                    width: 240,
+                    height: 240,
+                    colorDark: '#4A2633',
+                    colorLight: '#FFFFFF',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                const canvas = holder.querySelector('canvas');
+                const image = holder.querySelector('img');
+                const dataUrl = canvas
+                    ? canvas.toDataURL('image/png')
+                    : image && image.src.startsWith('data:image/png') ? image.src : '';
+                const match = dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
+                if (!match) throw new Error('Could not prepare a guest QR image.');
+                return { guestId, qrUrl, qrPngBase64: match[1] };
+            } finally {
+                holder.remove();
+            }
+        }
+
+        window.sendAllEventReminders = async function(button) {
+            if (!isHostUser() || !button || button.disabled) return;
+            const guests = getReminderEligibleGuests();
+            if (guests.length === 0) {
+                showAdminActionStatus('There are no confirmed guests with a valid email address.', true);
+                return;
+            }
+            if (guests.length > 80) {
+                showAdminActionStatus('The reminder is limited to 80 recipients. No email was sent.', true);
+                return;
+            }
+            const recipientWord = guests.length === 1 ? 'guest' : 'guests';
+            const confirmed = window.confirm(
+                `Send the event reminder and each guest’s personal QR code to ${guests.length} confirmed ${recipientWord}? `
+                + 'The email will include the event date, time, venue, and QR code, with no invitation link. Continue?'
+            );
+            if (!confirmed) return;
+
+            const originalLabel = document.getElementById('send-all-event-reminder-label')?.textContent || 'Send Reminder';
+            button.disabled = true;
+            button.setAttribute('aria-busy', 'true');
+            if (document.getElementById('send-all-event-reminder-label')) {
+                document.getElementById('send-all-event-reminder-label').textContent = 'Preparing…';
+            }
+            showAdminActionStatus(`Preparing personal QR codes for ${guests.length} confirmed ${recipientWord}…`);
+
+            try {
+                const qrCodes = guests.map((guest) => createReminderQrCode(guest.id));
+                const payloadSize = JSON.stringify(qrCodes).length;
+                if (payloadSize > 1800000) throw new Error('The QR image batch is too large to send safely.');
+                if (document.getElementById('send-all-event-reminder-label')) {
+                    document.getElementById('send-all-event-reminder-label').textContent = 'Sending…';
+                }
+                showAdminActionStatus(`Sending the event reminder and QR codes to ${guests.length} confirmed ${recipientWord}…`);
+                const result = await sendGmailMailerRequest({
+                    action: 'sendEventReminderAll',
+                    qrCodes
+                }, 300000);
+                const summary = `Sent: ${result.sent || 0} · Skipped: ${result.skipped || 0} · Failed: ${result.failed || 0}.`;
+                const messages = {
+                    sent: result.sent > 0
+                        ? `Event reminder finished. ${summary} Each email contains the event details and QR code only.`
+                        : `No new reminder emails were sent. ${summary} These guests may already have received this event reminder.`,
+                    partial: `Event reminder finished with some delivery issues. ${summary} Check the Apps Script execution log for failed sends.`,
+                    daily_limit: `No reminder emails were sent because the remaining daily email quota is too low for all eligible guests. ${summary}`,
+                    too_many_recipients: 'No reminder emails were sent. The confirmed guest count is above the 80-recipient safety limit.',
+                    no_recipients: 'There are no confirmed guests eligible for the reminder.',
+                    qr_unavailable: 'No reminder emails were sent because a matching QR image was unavailable. Refresh the guest list and try again.',
+                    invalid_request: 'No reminder emails were sent. Refresh the guest list and try again.',
+                    failed: result.sent > 0
+                        ? `Some reminders may have been sent before the mailer failed. ${summary} Check the Gmail Sent folder before retrying.`
+                        : 'The email service could not send the reminders. Check Apps Script executions.',
+                    unknown: 'The email service did not confirm the result in time. Check Gmail Sent and Apps Script executions before retrying.'
+                };
+                showAdminActionStatus(messages[result.status] || messages.unknown,
+                    ['daily_limit', 'too_many_recipients', 'no_recipients', 'qr_unavailable', 'invalid_request', 'failed', 'partial', 'unknown'].includes(result.status));
+            } catch (error) {
+                console.error('Could not send event reminders:', error);
+                showAdminActionStatus(error?.message || 'Could not send the event reminders. Check your connection and try again.', true);
+            } finally {
+                button.disabled = false;
+                button.setAttribute('aria-busy', 'false');
+                const label = document.getElementById('send-all-event-reminder-label');
+                if (label) label.textContent = originalLabel;
+                updateEventReminderButton();
             }
         };
 
@@ -2486,10 +2606,17 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
 
             const guestName = guest.name || 'this guest';
             const guestStatus = guest.rsvpStatus || 'Unknown';
-            if (!window.confirm(`Delete the ${guestStatus} RSVP for ${guestName} and its invitation link? This cannot be undone.`)) return;
+            if (!window.confirm(`Delete the ${guestStatus} RSVP for ${guestName} and its invitation link? Its email will be available for reuse if this RSVP owns the active email record. This cannot be undone.`)) return;
 
             const rsvpRef = doc(db, 'rsvps', guestId);
             const inviteRef = doc(db, 'invites', guestId);
+            const emailLower = normalizeEmail(guest.emailLower || guest.email || '');
+            const emailClaimId = emailLower
+                ? getEmailClaimDocumentId(emailLower)
+                : guest.emailClaimId;
+            const emailClaimRef = emailClaimId
+                ? doc(db, 'emailClaims', emailClaimId)
+                : null;
             let removed = false;
 
             try {
@@ -2498,12 +2625,22 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     const rsvpSnap = await transaction.get(rsvpRef);
                     if (!rsvpSnap.exists()) return;
 
-                    const inviteSnap = await transaction.get(inviteRef);
+                    const [inviteSnap, emailClaimSnap] = await Promise.all([
+                        transaction.get(inviteRef),
+                        emailClaimRef ? transaction.get(emailClaimRef) : Promise.resolve(null)
+                    ]);
                     transaction.delete(rsvpRef);
                     if (inviteSnap.exists()) {
                         const invite = inviteSnap.data();
                         if (invite.ownerUid === rsvpSnap.data().ownerUid) {
                             transaction.delete(inviteRef);
+                        }
+                    }
+                    if (emailClaimSnap?.exists()) {
+                        const emailClaim = emailClaimSnap.data();
+                        if (emailClaim.rsvpId === guestId
+                            && emailClaim.ownerUid === rsvpSnap.data().ownerUid) {
+                            transaction.delete(emailClaimRef);
                         }
                     }
                     removed = true;
@@ -2527,6 +2664,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             const filterStatus = document.getElementById('db-filter-status')?.value || 'ALL';
 
             if (badge) badge.textContent = guestDatabase.length;
+            updateEventReminderButton();
             if (!tbody) return;
             tbody.innerHTML = '';
 

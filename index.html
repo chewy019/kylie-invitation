@@ -544,6 +544,9 @@ if (invitationLinkOpening) {
 <button class="text-[11px] bg-blush-700 hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); exportCsv()" type="button">
 <i class="fa-solid fa-download mr-1"></i> Export CSV
                 </button>
+<button aria-label="Send event reminder and personal QR code to all confirmed guests" class="text-[11px] bg-emerald-700 hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 text-white px-3 py-1.5 rounded-full transition font-medium" id="send-all-event-reminder-btn" onclick="event.stopPropagation(); sendAllEventReminders(this)" type="button" disabled>
+<i class="fa-solid fa-envelope mr-1" aria-hidden="true"></i> <span id="send-all-event-reminder-label">Send Reminder</span>
+                </button>
 <button class="text-[11px] bg-rosegold hover:bg-blush-600 text-white px-3 py-1.5 rounded-full transition font-medium" onclick="event.stopPropagation(); openQrScanner()" type="button">
 <i class="fa-solid fa-qrcode mr-1"></i> Scan Guest QR
                 </button>

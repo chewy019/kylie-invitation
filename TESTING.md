@@ -31,6 +31,8 @@ The admin console now has a Delete action for every RSVP status. It removes that
 
 The invitation email uses a Google Apps Script web app that sends through the deploying Gmail account. A newly confirmed RSVP submits an authenticated email request; guests can request a resend by entering their name and email, and the host can resend from the admin guest list. The email contains the private invitation link plus a link to a page that renders and downloads that guest's QR code. The QR is generated on the invitation site, so its private link is not sent to a QR-generation service.
 
+The host console's **Send Reminder** button sends one personalized reminder to every eligible confirmed RSVP. Each email includes the event date, start time, doors-open time, venue, and that guest's QR code inline and as a PNG attachment; it does not include an invitation URL. A confirmation prompt shows the recipient count before sending. The Apps Script checks the current confirmed RSVP, private email claim, and invitation, prevents duplicate reminder sends to the same email on the same day, and reserves from the shared 80-recipient rolling 24-hour mailer cap.
+
 The script validates Firebase ID tokens, checks the confirmed RSVP against its private email claim and invite document, requires a matching name for guest recovery, and applies a 15-minute recipient cooldown and an 80-recipient rolling 24-hour cap. Apps Script itself may enforce lower Gmail quotas. Google's current published MailApp quota for consumer Gmail accounts is 100 recipients per day; quotas can change and count against the account's other Apps Script email sends. See [Apps Script quotas](https://developers.google.com/apps-script/guides/services/quotas).
 
 ### Setup steps

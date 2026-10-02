@@ -226,7 +226,7 @@ test('pending and declined email claims can be reused from another browser accou
   }
 });
 
-test('a confirmed email cannot be reused, even after the host deletes its RSVP and invite', async () => {
+test('a confirmed email stays locked until the host deletes its RSVP, invite, and email claim', async () => {
   await seedRegistration({ status: 'Confirmed' });
   const otherDevice = anonymousDb('different-device-uid');
 
@@ -238,11 +238,17 @@ test('a confirmed email cannot be reused, even after the host deletes its RSVP a
   const host = hostDb();
   await assertSucceeds(deleteDoc(doc(host, 'rsvps', 'guest-1')));
   await assertSucceeds(deleteDoc(doc(host, 'invites', 'guest-1')));
-  await assertSucceeds(getDoc(doc(host, 'emailClaims', emailClaimId(defaultEmail))));
-  await assertFails(writeRegistration(otherDevice, {
+  const claimRef = doc(host, 'emailClaims', emailClaimId(defaultEmail));
+  await assertSucceeds(deleteDoc(claimRef));
+  const releasedClaim = await assertSucceeds(getDoc(claimRef));
+  assert.equal(releasedClaim.exists(), false);
+
+  await assertSucceeds(writeRegistration(otherDevice, {
     ownerUid: 'different-device-uid',
-    id: 'still-locked'
+    id: 'reused-after-host-delete'
   }));
+  const newClaim = await assertSucceeds(getDoc(claimRef));
+  assert.equal(newClaim.data().rsvpId, 'reused-after-host-delete');
 });
 
 test('guests cannot read or list private email claims', async () => {

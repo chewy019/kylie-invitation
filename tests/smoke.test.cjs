@@ -117,13 +117,27 @@ test('invitation links show a loading state before the registration page can fla
 
 test('Gmail mailer reports delivery results and can restore a missing claim from a matching confirmed RSVP', () => {
   const appsScript = read('apps-script/Code.gs');
-  assert.match(js, /readGmailMailerResult\(requestId\)/);
+  assert.match(js, /readGmailMailerResult\(requestId,\s*resultTimeoutMs\)/);
   assert.match(js, /statusUrl\.searchParams\.set\('requestId',\s*requestId\)/);
   assert.match(appsScript, /function doGet\(event\)/);
-  assert.match(appsScript, /function storeRequestResult_\(requestId, status\)/);
+  assert.match(appsScript, /function storeRequestResult_\(requestId, result\)/);
   assert.match(appsScript, /function findConfirmedGuestByEmail_\(email, requiredName\)/);
   assert.match(appsScript, /function restoreMissingEmailClaim_\(guestId, rsvp, invite, email\)/);
   assert.match(appsScript, /matchesInvite_\(invite, guestId, ownerUid, guestName, guestCount\)/);
+});
+
+test('host admin reminder is confirmed-only, recipient-confirmed, QR-only, and capped at 80', () => {
+  const appsScript = read('apps-script/Code.gs');
+  const reminderLogic = js.slice(js.indexOf('function getReminderEligibleGuests'), js.indexOf('async function waitForFirebaseAuth'));
+  assert.match(html, /id="send-all-event-reminder-btn"/);
+  assert.match(js, /guest\.rsvpStatus === 'Confirmed'/);
+  assert.match(js, /window\.confirm\([\s\S]*personal QR code[\s\S]*no invitation link/);
+  assert.match(reminderLogic, /guests\.length > 80/);
+  assert.match(js, /action:\s*'sendEventReminderAll'/);
+  assert.match(appsScript, /if \(identity\.uid !== FIREBASE_HOST_UID\) throw new Error\('permission_denied'\)/);
+  assert.match(appsScript, /inlineImages:\s*\{ 'guest-qr': qrBlob \}/);
+  assert.match(appsScript, /attachments:\s*\[qrAttachment\]/);
+  assert.match(appsScript, /htmlBody[\s\S]*?src=\\?"cid:guest-qr/);
 });
 
 test('email reuse favors pending and declined records but blocks confirmed records first', () => {
@@ -139,6 +153,9 @@ test('admin can delete RSVP records of every status', () => {
   const deleteFunction = js.slice(js.indexOf('window.deleteGuestRecord'), js.indexOf('// Render Database Table'));
   assert.match(deleteFunction, /transaction\.delete\(rsvpRef\)/);
   assert.match(deleteFunction, /transaction\.delete\(inviteRef\)/);
+  assert.match(deleteFunction, /transaction\.delete\(emailClaimRef\)/);
+  assert.match(deleteFunction, /emailClaim\.rsvpId === guestId/);
+  assert.match(deleteFunction, /emailClaim\.ownerUid === rsvpSnap\.data\(\)\.ownerUid/);
   assert.doesNotMatch(deleteFunction, /rsvpStatus\s*!==\s*'Pending'/);
   assert.match(js, /deleteButton\.innerHTML\s*=.*Delete/);
   assert.match(html, /<th class="p-3 font-semibold">Actions<\/th>/);
