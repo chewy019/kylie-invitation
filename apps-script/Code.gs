@@ -479,11 +479,19 @@ function readInteger_(document, fieldName) {
 }
 
 function sendInvitationEmail_(guest) {
-  const invitationUrl = buildInvitationUrl_(guest.id);
-  const qrViewerUrl = buildQrViewerUrl_(guest.id);
+  const qrPngBase64 = createInvitationQrPngBase64_(buildInvitationUrl_(guest.id));
+  const qrBytes = Utilities.base64Decode(qrPngBase64);
+  const qrInlineImage = Utilities.newBlob(
+    qrBytes,
+    'image/png',
+    'Kylie-18th-QR-' + guest.id + '.png'
+  );
+  const qrAttachment = Utilities.newBlob(
+    qrBytes,
+    'image/png',
+    'Kylie-18th-QR-' + guest.id + '.png'
+  );
   const safeName = escapeHtml_(guest.name);
-  const safeInvitationUrl = escapeHtml_(invitationUrl);
-  const safeQrViewerUrl = escapeHtml_(qrViewerUrl);
 
   const subject = "Kylie's Debut Invitation and QR Code";
   const body = [
@@ -491,13 +499,14 @@ function sendInvitationEmail_(guest) {
     '',
     "Your RSVP to Kylie's 18th Birthday Debut is confirmed.",
     '',
-    'Open your personal invitation:',
-    invitationUrl,
+    'Date: Saturday, November 7, 2026',
+    'Doors open: 4:00 PM',
+    'Celebration starts: 4:30 PM',
+    "Venue: Tito's Restaurant, 546 Concha St., Tondo, Manila",
     '',
-    'Open or save your personal QR code:',
-    qrViewerUrl,
+    'Please have your personal QR code ready when you arrive for check-in. It is attached and shown below.',
     '',
-    'Keep these personal links private. Anyone with them can open your invitation.',
+    'Keep this email private. Anyone with your personal QR code can open your invitation.',
     '',
     'We look forward to celebrating with you!'
   ].join('\n');
@@ -506,10 +515,12 @@ function sendInvitationEmail_(guest) {
     + '<main style="max-width:560px;margin:0 auto;padding:30px 22px;background:#ffffff;border:1px solid #f2dce3;border-radius:18px;text-align:center">'
     + '<p style="margin:0 0 8px;color:#a6405d;font-size:12px;letter-spacing:2px;text-transform:uppercase">Kylie\'s 18th Birthday Debut</p>'
     + '<h1 style="margin:0 0 16px;font-family:Georgia,serif;font-size:28px;font-weight:normal">Your invitation is ready</h1>'
-    + '<p style="font-size:16px;line-height:1.6">Hello ' + safeName + ', your RSVP is confirmed. Keep your invitation link and QR code ready for the celebration.</p>'
-    + '<p style="margin:22px 0 12px"><a href="' + safeInvitationUrl + '" style="display:inline-block;padding:14px 22px;border-radius:999px;background:#8d2947;color:#fff;text-decoration:none;font-weight:bold">Open My Invitation</a></p>'
-    + '<p style="margin:12px 0 22px"><a href="' + safeQrViewerUrl + '" style="display:inline-block;padding:12px 20px;border:1px solid #d7a9b7;border-radius:999px;color:#8d2947;text-decoration:none;font-weight:bold">View or Save My QR Code</a></p>'
-    + '<p style="font-size:12px;line-height:1.6;color:#704b58">Your QR code opens on a private page where you can save it as an image. Anyone with these personal links can open your invitation, so keep them safe.</p>'
+    + '<p style="font-size:16px;line-height:1.6">Hello ' + safeName + ', your RSVP is confirmed. Keep your personal QR code ready for the celebration.</p>'
+    + '<div style="margin:22px auto;padding:16px;background:#fff8fa;border:1px solid #f2dce3;border-radius:14px;text-align:left;line-height:1.8">'
+    + '<strong>Saturday, November 7, 2026</strong><br>Doors open at 4:00 PM<br>Celebration starts at 4:30 PM<br>Tito\'s Restaurant<br>546 Concha St., Tondo, Manila</div>'
+    + '<p style="font-size:14px;line-height:1.6">Please have your personal QR code ready when you arrive for check-in.</p>'
+    + '<img src="cid:guest-qr" width="240" height="240" alt="Your personal check-in QR code with Kylie’s K seal" style="display:block;width:240px;height:240px;max-width:100%;margin:18px auto;border:1px solid #f2dce3;border-radius:12px">'
+    + '<p style="font-size:12px;line-height:1.6;color:#704b58">The same QR code is attached so you can save it to your device. Keep this email private; the QR code opens your personalized invitation.</p>'
     + '<p style="margin:22px 0 0;font-size:14px">We look forward to celebrating with you!</p>'
     + '</main></body></html>';
 
@@ -518,8 +529,425 @@ function sendInvitationEmail_(guest) {
     subject: subject,
     body: body,
     htmlBody: htmlBody,
+    inlineImages: { 'guest-qr': qrInlineImage },
+    attachments: [qrAttachment],
     name: SENDER_DISPLAY_NAME
   });
+}
+
+/** Build a compact high-correction QR locally so invitation IDs never go to a QR service. */
+function createInvitationQrPngBase64_(value) {
+  const text = String(value || '');
+  if (!text || text.length > 119 || /[^\x00-\x7F]/.test(text)) {
+    throw new Error('invitation_qr_payload_invalid');
+  }
+  const modules = buildInvitationQrMatrix_(text);
+  const pngBytes = encodeInvitationQrPng_(modules);
+  const signedBytes = pngBytes.map(function(byte) { return byte > 127 ? byte - 256 : byte; });
+  return Utilities.base64Encode(Utilities.newBlob(signedBytes, 'image/png', 'invitation-qr.png').getBytes());
+}
+
+function buildInvitationQrMatrix_(text) {
+  const profiles = [
+    null,
+    { blocks: [[1, 26, 9]], alignment: [] },
+    { blocks: [[1, 44, 16]], alignment: [6, 18] },
+    { blocks: [[2, 35, 13]], alignment: [6, 22] },
+    { blocks: [[4, 25, 9]], alignment: [6, 26] },
+    { blocks: [[2, 33, 11], [2, 34, 12]], alignment: [6, 30] },
+    { blocks: [[4, 43, 15]], alignment: [6, 34] },
+    { blocks: [[4, 39, 13], [1, 40, 14]], alignment: [6, 22, 38] },
+    { blocks: [[4, 40, 14], [2, 41, 15]], alignment: [6, 24, 42] },
+    { blocks: [[4, 36, 12], [4, 37, 13]], alignment: [6, 26, 46] },
+    { blocks: [[6, 43, 15], [2, 44, 16]], alignment: [6, 28, 50] }
+  ];
+  const versionForCountBits = function(version) { return version < 10 ? 8 : 16; };
+  let version = 0;
+  let profile = null;
+  for (let candidate = 1; candidate < profiles.length; candidate += 1) {
+    const dataCapacity = profiles[candidate].blocks.reduce(function(total, block) {
+      return total + block[0] * block[2];
+    }, 0);
+    const requiredBits = 4 + versionForCountBits(candidate) + text.length * 8;
+    if (requiredBits <= dataCapacity * 8) {
+      version = candidate;
+      profile = profiles[candidate];
+      break;
+    }
+  }
+  if (!profile) throw new Error('invitation_qr_payload_too_long');
+  const size = version * 4 + 17;
+  const dataCapacity = profile.blocks.reduce(function(total, block) { return total + block[0] * block[2]; }, 0);
+  const matrix = new Array(size);
+  for (let row = 0; row < size; row += 1) matrix[row] = new Array(size).fill(null);
+
+  setupInvitationQrFinder_(matrix, 0, 0);
+  setupInvitationQrFinder_(matrix, size - 7, 0);
+  setupInvitationQrFinder_(matrix, 0, size - 7);
+  profile.alignment.forEach(function(row) {
+    profile.alignment.forEach(function(col) {
+      if (matrix[row][col] !== null) return;
+      for (let dy = -2; dy <= 2; dy += 1) {
+        for (let dx = -2; dx <= 2; dx += 1) {
+          matrix[row + dy][col + dx] = Math.max(Math.abs(dx), Math.abs(dy)) === 2 || (dx === 0 && dy === 0);
+        }
+      }
+    });
+  });
+  for (let index = 8; index < size - 8; index += 1) {
+    if (matrix[index][6] === null) matrix[index][6] = index % 2 === 0;
+    if (matrix[6][index] === null) matrix[6][index] = index % 2 === 0;
+  }
+  setupInvitationQrFormat_(matrix, 0, true);
+  if (version >= 7) setupInvitationQrVersion_(matrix, version, false);
+
+  const codewords = makeInvitationQrCodewords_(
+    text,
+    dataCapacity,
+    profile.blocks,
+    versionForCountBits(version)
+  );
+  const base = matrix.map(function(row) { return row.slice(); });
+  let bestMask = 0;
+  let bestPenalty = Infinity;
+  for (let mask = 0; mask < 8; mask += 1) {
+    const candidate = base.map(function(row) { return row.slice(); });
+    mapInvitationQrData_(candidate, codewords, mask);
+    setupInvitationQrFormat_(candidate, mask, false);
+    const penalty = scoreInvitationQrMatrix_(candidate);
+    if (penalty < bestPenalty) {
+      bestPenalty = penalty;
+      bestMask = mask;
+    }
+  }
+  const result = base.map(function(row) { return row.slice(); });
+  mapInvitationQrData_(result, codewords, bestMask);
+  setupInvitationQrFormat_(result, bestMask, false);
+  return result;
+}
+
+function setupInvitationQrFinder_(matrix, row, col) {
+  const size = matrix.length;
+  for (let dy = -1; dy <= 7; dy += 1) {
+    for (let dx = -1; dx <= 7; dx += 1) {
+      const y = row + dy;
+      const x = col + dx;
+      if (y < 0 || y >= size || x < 0 || x >= size) continue;
+      matrix[y][x] = dy >= 0 && dy <= 6 && dx >= 0 && dx <= 6
+        && (dy === 0 || dy === 6 || dx === 0 || dx === 6 || (dy >= 2 && dy <= 4 && dx >= 2 && dx <= 4));
+    }
+  }
+}
+
+function setupInvitationQrFormat_(matrix, mask, test) {
+  const size = matrix.length;
+  const data = (2 << 3) | mask;
+  const bits = ((data << 10) | bchInvitationQrRemainder_(data << 10, 0x537)) ^ 0x5412;
+  for (let index = 0; index < 15; index += 1) {
+    const value = !test && ((bits >>> index) & 1) === 1;
+    if (index < 6) matrix[index][8] = value;
+    else if (index < 8) matrix[index + 1][8] = value;
+    else matrix[size - 15 + index][8] = value;
+    if (index < 8) matrix[8][size - index - 1] = value;
+    else if (index < 9) matrix[8][15 - index] = value;
+    else matrix[8][15 - index - 1] = value;
+  }
+  matrix[size - 8][8] = !test;
+}
+
+function setupInvitationQrVersion_(matrix, version, test) {
+  const bits = (version << 12) | bchInvitationQrRemainder_(version << 12, 0x1f25);
+  const size = matrix.length;
+  for (let index = 0; index < 18; index += 1) {
+    const value = !test && ((bits >>> index) & 1) === 1;
+    matrix[Math.floor(index / 3)][index % 3 + size - 11] = value;
+    matrix[index % 3 + size - 11][Math.floor(index / 3)] = value;
+  }
+}
+
+function bchInvitationQrRemainder_(value, polynomial) {
+  let remainder = value;
+  const digit = function(number) {
+    let count = 0;
+    while (number) { count += 1; number >>>= 1; }
+    return count;
+  };
+  while (digit(remainder) >= digit(polynomial)) {
+    remainder ^= polynomial << (digit(remainder) - digit(polynomial));
+  }
+  return remainder;
+}
+
+function makeInvitationQrCodewords_(text, capacity, blockSpecs, characterCountBits) {
+  const bits = [];
+  const put = function(value, length) {
+    for (let shift = length - 1; shift >= 0; shift -= 1) bits.push((value >>> shift) & 1);
+  };
+  put(4, 4);
+  put(text.length, characterCountBits);
+  for (let index = 0; index < text.length; index += 1) put(text.charCodeAt(index), 8);
+  const capacityBits = capacity * 8;
+  for (let count = Math.min(4, capacityBits - bits.length); count > 0; count -= 1) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+  const data = [];
+  for (let index = 0; index < bits.length; index += 8) {
+    let value = 0;
+    for (let bit = 0; bit < 8; bit += 1) value = (value << 1) | bits[index + bit];
+    data.push(value);
+  }
+  for (let pad = 0xec; data.length < capacity; pad = pad === 0xec ? 0x11 : 0xec) data.push(pad);
+  const blocks = [];
+  let offset = 0;
+  blockSpecs.forEach(function(spec) {
+    const countInGroup = spec[0];
+    const totalCount = spec[1];
+    const dataCount = spec[2];
+    for (let count = 0; count < countInGroup; count += 1) {
+      const block = data.slice(offset, offset + dataCount);
+      offset += dataCount;
+      blocks.push({
+        data: block,
+        error: makeInvitationQrErrorCorrection_(block, totalCount - dataCount)
+      });
+    }
+  });
+  const interleaved = [];
+  const maxDataCount = Math.max.apply(null, blocks.map(function(block) { return block.data.length; }));
+  const maxErrorCount = Math.max.apply(null, blocks.map(function(block) { return block.error.length; }));
+  for (let index = 0; index < maxDataCount; index += 1) {
+    blocks.forEach(function(block) { if (index < block.data.length) interleaved.push(block.data[index]); });
+  }
+  for (let index = 0; index < maxErrorCount; index += 1) {
+    blocks.forEach(function(block) { if (index < block.error.length) interleaved.push(block.error[index]); });
+  }
+  return interleaved;
+}
+
+function makeInvitationQrErrorCorrection_(data, degree) {
+  const exp = new Array(512);
+  const log = new Array(256);
+  let value = 1;
+  for (let index = 0; index < 255; index += 1) {
+    exp[index] = value;
+    log[value] = index;
+    value <<= 1;
+    if (value & 0x100) value ^= 0x11d;
+  }
+  for (let index = 255; index < exp.length; index += 1) exp[index] = exp[index - 255];
+  const multiply = function(left, right) { return left === 0 || right === 0 ? 0 : exp[log[left] + log[right]]; };
+  let generator = [1];
+  for (let root = 0; root < degree; root += 1) {
+    const next = new Array(generator.length + 1).fill(0);
+    for (let index = 0; index < generator.length; index += 1) {
+      next[index] ^= generator[index];
+      next[index + 1] ^= multiply(generator[index], exp[root]);
+    }
+    generator = next;
+  }
+  const remainder = data.concat(new Array(degree).fill(0));
+  for (let index = 0; index < data.length; index += 1) {
+    const factor = remainder[index];
+    if (!factor) continue;
+    for (let offset = 0; offset < generator.length; offset += 1) {
+      remainder[index + offset] ^= multiply(generator[offset], factor);
+    }
+  }
+  return remainder.slice(data.length);
+}
+
+function mapInvitationQrData_(matrix, codewords, mask) {
+  const size = matrix.length;
+  const isMasked = function(row, col) {
+    const product = row * col;
+    switch (mask) {
+      case 0: return (row + col) % 2 === 0;
+      case 1: return row % 2 === 0;
+      case 2: return col % 3 === 0;
+      case 3: return (row + col) % 3 === 0;
+      case 4: return (Math.floor(row / 2) + Math.floor(col / 3)) % 2 === 0;
+      case 5: return product % 2 + product % 3 === 0;
+      case 6: return (product % 2 + product % 3) % 2 === 0;
+      default: return ((row + col) % 2 + product % 3) % 2 === 0;
+    }
+  };
+  let direction = -1;
+  let row = size - 1;
+  let bitIndex = 7;
+  let byteIndex = 0;
+  for (let col = size - 1; col > 0; col -= 2) {
+    if (col === 6) col -= 1;
+    while (true) {
+      for (let offset = 0; offset < 2; offset += 1) {
+        const currentCol = col - offset;
+        if (matrix[row][currentCol] !== null) continue;
+        const value = byteIndex < codewords.length && ((codewords[byteIndex] >>> bitIndex) & 1) === 1;
+        matrix[row][currentCol] = value !== isMasked(row, currentCol);
+        bitIndex -= 1;
+        if (bitIndex < 0) { byteIndex += 1; bitIndex = 7; }
+      }
+      row += direction;
+      if (row < 0 || row >= size) {
+        row -= direction;
+        direction = -direction;
+        break;
+      }
+    }
+  }
+}
+
+function scoreInvitationQrMatrix_(matrix) {
+  const size = matrix.length;
+  let penalty = 0;
+  const scoreLine = function(line) {
+    let score = 0;
+    let runColor = line[0];
+    let runLength = 1;
+    for (let index = 1; index < line.length; index += 1) {
+      if (line[index] === runColor) runLength += 1;
+      else {
+        if (runLength >= 5) score += 3 + runLength - 5;
+        runColor = line[index];
+        runLength = 1;
+      }
+    }
+    if (runLength >= 5) score += 3 + runLength - 5;
+    for (let index = 0; index <= line.length - 7; index += 1) {
+      if (line[index] && !line[index + 1] && line[index + 2] && line[index + 3] && line[index + 4]
+        && !line[index + 5] && line[index + 6]) {
+        const before = index >= 4 && line[index - 1] === false && line[index - 2] === false
+          && line[index - 3] === false && line[index - 4] === false;
+        const after = index + 10 < line.length && line[index + 7] === false && line[index + 8] === false
+          && line[index + 9] === false && line[index + 10] === false;
+        if (before || after) score += 40;
+      }
+    }
+    return score;
+  };
+  let darkCount = 0;
+  for (let row = 0; row < size; row += 1) {
+    const rowValues = matrix[row];
+    const colValues = new Array(size);
+    for (let col = 0; col < size; col += 1) {
+      colValues[col] = matrix[col][row];
+      if (rowValues[col]) darkCount += 1;
+      if (row < size - 1 && col < size - 1
+        && rowValues[col] === rowValues[col + 1]
+        && rowValues[col] === matrix[row + 1][col]
+        && rowValues[col] === matrix[row + 1][col + 1]) penalty += 3;
+    }
+    penalty += scoreLine(rowValues) + scoreLine(colValues);
+  }
+  penalty += Math.floor(Math.abs((darkCount * 100 / (size * size)) - 50) / 5) * 10;
+  return penalty;
+}
+
+function encodeInvitationQrPng_(matrix) {
+  const moduleCount = matrix.length;
+  const scale = 4;
+  const quietModules = 4;
+  const size = (moduleCount + quietModules * 2) * scale;
+  const pixels = new Array(size * size).fill(255);
+  for (let row = 0; row < moduleCount; row += 1) {
+    for (let col = 0; col < moduleCount; col += 1) {
+      if (!matrix[row][col]) continue;
+      const left = (col + quietModules) * scale;
+      const top = (row + quietModules) * scale;
+      for (let y = top; y < top + scale; y += 1) {
+        for (let x = left; x < left + scale; x += 1) pixels[y * size + x] = 0;
+      }
+    }
+  }
+
+  const center = Math.floor(size / 2);
+  const radius = 8;
+  for (let y = center - radius - 1; y <= center + radius + 1; y += 1) {
+    for (let x = center - radius - 1; x <= center + radius + 1; x += 1) {
+      const distance = (x - center) * (x - center) + (y - center) * (y - center);
+      if (distance <= radius * radius) pixels[y * size + x] = 255;
+      else if (distance <= (radius + 1) * (radius + 1)) pixels[y * size + x] = 172;
+    }
+  }
+  drawInvitationQrLogoLine_(pixels, size, center - 3, center - 6, center - 3, center + 6, 85);
+  drawInvitationQrLogoLine_(pixels, size, center - 5, center - 6, center - 1, center - 6, 85);
+  drawInvitationQrLogoLine_(pixels, size, center - 5, center + 6, center - 1, center + 6, 85);
+  drawInvitationQrLogoLine_(pixels, size, center - 2, center - 1, center + 5, center - 6, 85);
+  drawInvitationQrLogoLine_(pixels, size, center - 2, center + 1, center + 5, center + 6, 85);
+
+  const raw = [];
+  for (let row = 0; row < size; row += 1) {
+    raw.push(0);
+    const offset = row * size;
+    for (let col = 0; col < size; col += 1) raw.push(pixels[offset + col]);
+  }
+  const compressed = deflateInvitationQrPng_(raw);
+  const header = [
+    size >>> 24, (size >>> 16) & 255, (size >>> 8) & 255, size & 255,
+    size >>> 24, (size >>> 16) & 255, (size >>> 8) & 255, size & 255,
+    8, 0, 0, 0, 0
+  ];
+  const png = [137, 80, 78, 71, 13, 10, 26, 10]
+    .concat(invitationQrPngChunk_('IHDR', header))
+    .concat(invitationQrPngChunk_('IDAT', compressed))
+    .concat(invitationQrPngChunk_('IEND', []));
+  return png;
+}
+
+function drawInvitationQrLogoLine_(pixels, size, x1, y1, x2, y2, color) {
+  let dx = Math.abs(x2 - x1);
+  let sx = x1 < x2 ? 1 : -1;
+  let dy = -Math.abs(y2 - y1);
+  let sy = y1 < y2 ? 1 : -1;
+  let error = dx + dy;
+  while (true) {
+    for (let oy = -1; oy <= 1; oy += 1) {
+      for (let ox = -1; ox <= 1; ox += 1) {
+        const x = x1 + ox;
+        const y = y1 + oy;
+        if (x >= 0 && x < size && y >= 0 && y < size) pixels[y * size + x] = color;
+      }
+    }
+    if (x1 === x2 && y1 === y2) break;
+    const twice = 2 * error;
+    if (twice >= dy) { error += dy; x1 += sx; }
+    if (twice <= dx) { error += dx; y1 += sy; }
+  }
+}
+
+function deflateInvitationQrPng_(raw) {
+  const result = [0x78, 0x01];
+  for (let offset = 0; offset < raw.length;) {
+    const length = Math.min(65535, raw.length - offset);
+    const final = offset + length === raw.length;
+    result.push(final ? 1 : 0, length & 255, (length >>> 8) & 255, (~length) & 255, ((~length) >>> 8) & 255);
+    for (let index = 0; index < length; index += 1) result.push(raw[offset + index]);
+    offset += length;
+  }
+  let a = 1;
+  let b = 0;
+  raw.forEach(function(byte) { a = (a + byte) % 65521; b = (b + a) % 65521; });
+  const adler = ((b << 16) | a) >>> 0;
+  result.push((adler >>> 24) & 255, (adler >>> 16) & 255, (adler >>> 8) & 255, adler & 255);
+  return result;
+}
+
+function invitationQrPngChunk_(type, data) {
+  const typeBytes = type.split('').map(function(character) { return character.charCodeAt(0); });
+  const checksum = invitationQrCrc32_(typeBytes.concat(data));
+  const length = data.length;
+  return [
+    (length >>> 24) & 255, (length >>> 16) & 255, (length >>> 8) & 255, length & 255
+  ].concat(typeBytes, data, [
+    (checksum >>> 24) & 255, (checksum >>> 16) & 255, (checksum >>> 8) & 255, checksum & 255
+  ]);
+}
+
+function invitationQrCrc32_(bytes) {
+  let crc = 0xffffffff;
+  bytes.forEach(function(byte) {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  });
+  return (crc ^ 0xffffffff) >>> 0;
 }
 
 function sendEventReminders_(qrCodes, actorUid) {

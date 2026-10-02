@@ -1526,7 +1526,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (emailButton) {
                 emailButton.disabled = false;
                 emailButton.setAttribute('aria-busy', 'false');
-                emailButton.textContent = 'Email Me My Invitation Link and QR';
+                emailButton.textContent = 'Email Me My Invitation QR';
             }
             openAccessibleDialog(modal);
         };
@@ -1557,7 +1557,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             try {
                 const result = await requestInvitationEmail(emailInput.value, nameInput.value);
                 const messages = {
-                    sent: ['Invitation email sent', 'The invitation link and QR code were sent. Check your inbox and Spam/Junk folder.'],
+                    sent: ['Invitation email sent', 'Your personal QR code and the event date, time, and venue were emailed. Check your inbox and Spam/Junk folder.'],
                     cooldown: ['Please wait before requesting again', 'A recent request is still within the resend limit. Check your inbox and Spam/Junk folder, then try again after 15 minutes.'],
                     daily_limit: ['Email limit reached', 'The email service has reached its current sending limit. Please contact the host for your invitation.'],
                     not_found: ['No confirmed invitation matched', 'Check that the name and email match a confirmed RSVP. If the RSVP was deleted, the host may need to restore it first.'],
@@ -1578,7 +1578,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             } finally {
                 button.disabled = false;
                 button.setAttribute('aria-busy', 'false');
-                button.textContent = 'Email Me My Invitation Link and QR';
+                button.textContent = 'Email Me My Invitation QR';
             }
         };
 
@@ -1640,7 +1640,54 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 : `Send the event reminder and QR codes to ${count} confirmed guests.`;
         }
 
-        function createReminderQrCode(guestId) {
+        function addInvitationQrLogo(canvas) {
+            if (!canvas || typeof canvas.getContext !== 'function') return false;
+            const context = canvas.getContext('2d');
+            if (!context) return false;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = Math.max(8, Math.min(canvas.width, canvas.height) * 0.034);
+            context.save();
+            context.beginPath();
+            context.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            context.fillStyle = '#fff';
+            context.fill();
+            context.lineWidth = Math.max(1.5, canvas.width / 150);
+            context.strokeStyle = '#b79870';
+            context.stroke();
+            context.fillStyle = '#8d2947';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.font = `italic 600 ${Math.round(radius * 1.65)}px "Cormorant Garamond", Georgia, serif`;
+            context.fillText('K', centerX + canvas.width * 0.003, centerY + canvas.height * 0.005);
+            context.restore();
+            return true;
+        }
+
+        async function qrHolderToPngData(holder) {
+            const qrCanvas = holder.querySelector('canvas');
+            if (qrCanvas) {
+                addInvitationQrLogo(qrCanvas);
+                return qrCanvas.toDataURL('image/png');
+            }
+
+            const qrImage = holder.querySelector('img');
+            if (!qrImage || !qrImage.src) return '';
+            if (typeof qrImage.decode === 'function') {
+                try { await qrImage.decode(); } catch (error) { /* Check dimensions below. */ }
+            }
+            if (!qrImage.naturalWidth || !qrImage.naturalHeight) return '';
+            const output = document.createElement('canvas');
+            output.width = qrImage.naturalWidth;
+            output.height = qrImage.naturalHeight;
+            const context = output.getContext('2d');
+            if (!context) return '';
+            context.drawImage(qrImage, 0, 0);
+            addInvitationQrLogo(output);
+            return output.toDataURL('image/png');
+        }
+
+        async function createReminderQrCode(guestId) {
             if (typeof QRCode !== 'function') throw new Error('The QR code generator is not available.');
             const holder = document.createElement('div');
             holder.setAttribute('aria-hidden', 'true');
@@ -1656,11 +1703,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     colorLight: '#FFFFFF',
                     correctLevel: QRCode.CorrectLevel.H
                 });
-                const canvas = holder.querySelector('canvas');
-                const image = holder.querySelector('img');
-                const dataUrl = canvas
-                    ? canvas.toDataURL('image/png')
-                    : image && image.src.startsWith('data:image/png') ? image.src : '';
+                const dataUrl = await qrHolderToPngData(holder);
+                if (typeof dataUrl !== 'string' || !dataUrl) throw new Error('Could not render the guest QR image.');
                 const match = dataUrl.match(/^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/);
                 if (!match) throw new Error('Could not prepare a guest QR image.');
                 return { guestId, qrUrl, qrPngBase64: match[1] };
@@ -1696,7 +1740,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             showAdminActionStatus(`Preparing personal QR codes for ${guests.length} confirmed ${recipientWord}…`);
 
             try {
-                const qrCodes = guests.map((guest) => createReminderQrCode(guest.id));
+                const qrCodes = await Promise.all(guests.map((guest) => createReminderQrCode(guest.id)));
                 const payloadSize = JSON.stringify(qrCodes).length;
                 if (payloadSize > 1800000) throw new Error('The QR image batch is too large to send safely.');
                 if (document.getElementById('send-all-event-reminder-label')) {
@@ -1970,6 +2014,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 const canvas = qrHolder.querySelector('canvas');
                 if (canvas) {
                     try {
+                        addInvitationQrLogo(canvas);
                         const img = document.createElement('img');
                         img.src = canvas.toDataURL('image/png');
                         img.alt = 'Personal invitation QR code';
@@ -2285,7 +2330,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     invitationLinks.classList.add('hidden');
                     if (emailNote && emailNoteText) {
                     const emailMessages = {
-                        sent: 'Your invitation email was sent. Please check your inbox and Spam/Junk folder.',
+                        sent: 'Your personal QR code and the event date, time, and venue were emailed. Please check your inbox and Spam/Junk folder.',
                         cooldown: 'A recent email request is still within the resend limit. Check your inbox and Spam/Junk folder before trying again.',
                         daily_limit: 'Your RSVP is confirmed, but the email service reached its current sending limit. You can open and save your QR code below.',
                         not_found: 'Your RSVP is confirmed, but the email service could not find its matching invitation record. You can open and save your QR code below, or contact the host.',

@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const zlib = require('node:zlib');
 const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'apps-script', 'Code.gs'), 'utf8');
@@ -35,7 +36,18 @@ function createAppsScriptContext() {
     },
     Utilities: {
       base64Decode(value) { return Array.from(Buffer.from(value, 'base64')); },
-      newBlob(data, contentType, name) { return { data: Array.from(data), contentType, name }; },
+      base64Encode(value) {
+        return Buffer.from(Array.from(value, byte => Number(byte) & 255)).toString('base64');
+      },
+      newBlob(data, contentType, name) {
+        const bytes = Array.from(data, byte => Number(byte) & 255);
+        return {
+          data: bytes,
+          contentType,
+          name,
+          getBytes() { return bytes.map(byte => byte > 127 ? byte - 256 : byte); }
+        };
+      },
       formatDate() { return '20261002'; },
       getUuid() { return 'test-send-id'; }
     },
@@ -64,6 +76,32 @@ function documentRecord(id, fields) {
       typeof value === 'number' ? { integerValue: String(value) } : { stringValue: value }
     ]))
   };
+}
+
+function assertInvitationEmail(message, guest) {
+  assert.equal(message.to, guest.email);
+  assert.equal(message.subject, "Kylie's Debut Invitation and QR Code");
+  assert.match(message.body, new RegExp('Hello ' + guest.name));
+  assert.match(message.body, /Saturday, November 7, 2026/);
+  assert.match(message.body, /Doors open: 4:00 PM/);
+  assert.match(message.body, /Celebration starts: 4:30 PM/);
+  assert.match(message.body, /Tito's Restaurant, 546 Concha St\., Tondo, Manila/);
+  assert.match(message.body, /personal QR code/);
+  assert.doesNotMatch(message.body, /https?:\/\//);
+  assert.match(message.htmlBody, /src="cid:guest-qr"/);
+  assert.match(message.htmlBody, /QR code with Kylie’s K seal/);
+  assert.doesNotMatch(message.htmlBody, /<a\b|<button\b/i);
+  assert.deepEqual(
+    message.inlineImages['guest-qr'].data,
+    message.attachments[0].data
+  );
+  assert.equal(message.inlineImages['guest-qr'].contentType, 'image/png');
+  assert.equal(message.attachments[0].contentType, 'image/png');
+  assert.match(message.attachments[0].name, /guest-1234567890\.png$/);
+  assert.deepEqual(
+    message.attachments[0].data.slice(0, 8),
+    [137, 80, 78, 71, 13, 10, 26, 10]
+  );
 }
 
 test('resend restores a deleted email claim only from one matching confirmed RSVP and invitation', () => {
@@ -132,11 +170,15 @@ test('resend does not recreate a claim when the matching invitation is missing',
 test('Apps Script exposes the final email result by an opaque request ID', () => {
   const context = createAppsScriptContext();
   const requestId = '12345678-1234-4abc-8abc-1234567890ab';
+  const guest = { id: 'guest-1234567890', name: 'Kylie Guest', email: 'guest@example.com' };
+  context.PropertiesService.getScriptProperties().setProperty(
+    'INVITATION_BASE_URL',
+    'https://kylie-18th-rsvp.web.app/'
+  );
   context.verifyFirebaseIdToken_ = () => ({ uid: 'anonymous-owner', provider: 'anonymous' });
-  context.getConfirmedGuestByEmail_ = () => ({ id: 'guest-1234567890', name: 'Kylie Guest', email: 'guest@example.com' });
+  context.getConfirmedGuestByEmail_ = () => guest;
   context.enforceLookupCooldown_ = () => {};
   context.reserveSend_ = () => ({ allowed: true, nonce: 'test', confirmationKey: '', targetKey: '', actorKey: '', windowStartedAt: 0 });
-  context.sendInvitationEmail_ = () => {};
   context.finalizeSend_ = () => {};
 
   const post = context.doPost({
@@ -151,10 +193,94 @@ test('Apps Script exposes the final email result by an opaque request ID', () =>
     }
   });
   assert.deepEqual(JSON.parse(post.text), { accepted: true, status: 'sent' });
+  assert.equal(context.__sentEmails.length, 1);
+  assertInvitationEmail(context.__sentEmails[0], guest);
 
   const status = context.doGet({ parameter: { requestId } });
   assert.equal(status.mimeType, 'application/javascript');
   assert.equal(status.text, `__kylieMailer_${requestId.replace(/-/g, '')}({"status":"sent"});`);
+});
+
+test('RSVP confirmation sends the same QR-only invitation email', () => {
+  const context = createAppsScriptContext();
+  const requestId = '12345678-1234-4abc-8abc-1234567890ab';
+  const guest = { id: 'guest-1234567890', name: 'Kylie Guest', email: 'guest@example.com' };
+  context.PropertiesService.getScriptProperties().setProperty(
+    'INVITATION_BASE_URL',
+    'https://kylie-18th-rsvp.web.app/'
+  );
+  context.verifyFirebaseIdToken_ = () => ({ uid: 'anonymous-owner', provider: 'anonymous' });
+  context.getConfirmedGuestById_ = (guestId) => guestId === guest.id ? guest : null;
+  context.reserveSend_ = () => ({ allowed: true, nonce: 'test' });
+  context.finalizeSend_ = () => {};
+
+  const post = context.doPost({
+    parameter: {
+      payload: JSON.stringify({
+        action: 'confirmation',
+        guestId: guest.id,
+        requestId,
+        idToken: 'test-token'
+      })
+    }
+  });
+
+  assert.deepEqual(JSON.parse(post.text), { accepted: true, status: 'sent' });
+  assert.equal(context.__sentEmails.length, 1);
+  assertInvitationEmail(context.__sentEmails[0], guest);
+});
+
+test('personal invitation QR encoder emits a valid PNG and uses the QR-version byte count width', () => {
+  const context = createAppsScriptContext();
+  const invitationUrl = 'https://kylie-18th-rsvp.web.app/?invite=guest-1234567890';
+  const originalEncoder = context.makeInvitationQrCodewords_;
+  const encodedPayloads = [];
+  context.makeInvitationQrCodewords_ = (text, capacity, blocks, countBits) => {
+    encodedPayloads.push({ text, countBits });
+    return originalEncoder(text, capacity, blocks, countBits);
+  };
+  const matrix = context.buildInvitationQrMatrix_(invitationUrl);
+  assert.ok([21, 25, 29, 33, 37, 41, 45, 49, 53, 57].includes(matrix.length));
+  assert.ok(matrix.every(row => row.length === matrix.length && row.every(value => typeof value === 'boolean')));
+  assert.equal(encodedPayloads.at(-1).text, invitationUrl);
+  assert.equal(encodedPayloads.at(-1).countBits, 8);
+  const maxSupportedPayload = 'x'.repeat(119);
+  assert.equal(context.buildInvitationQrMatrix_(maxSupportedPayload).length, 57);
+  assert.equal(encodedPayloads.at(-1).text, maxSupportedPayload);
+  assert.equal(encodedPayloads.at(-1).countBits, 16);
+
+  const versionOneCodewords = context.makeInvitationQrCodewords_('A', 9, [[1, 26, 9]], 8);
+  assert.deepEqual(Array.from(versionOneCodewords.slice(0, 3)), [0x40, 0x14, 0x10]);
+  const versionTenCodewords = context.makeInvitationQrCodewords_('A', 122, [[1, 122, 122]], 16);
+  assert.deepEqual(Array.from(versionTenCodewords.slice(0, 4)), [0x40, 0x00, 0x14, 0x10]);
+
+  const png = Buffer.from(context.createInvitationQrPngBase64_(invitationUrl), 'base64');
+  assert.deepEqual(Array.from(png.subarray(0, 8)), [137, 80, 78, 71, 13, 10, 26, 10]);
+  assert.equal(png.toString('ascii', 12, 16), 'IHDR');
+  const imageSize = png.readUInt32BE(16);
+  assert.equal(imageSize, png.readUInt32BE(20));
+  assert.equal(imageSize, (matrix.length + 8) * 4);
+  assert.equal(png[24], 8);
+  assert.equal(png[25], 0);
+
+  const imageData = [];
+  let offset = 8;
+  let sawEnd = false;
+  while (offset < png.length) {
+    const chunkLength = png.readUInt32BE(offset);
+    const chunkType = png.toString('ascii', offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + chunkLength;
+    assert.ok(dataEnd + 4 <= png.length, 'PNG chunk must fit in the file.');
+    if (chunkType === 'IDAT') imageData.push(png.subarray(dataStart, dataEnd));
+    offset = dataEnd + 4;
+    if (chunkType === 'IEND') { sawEnd = true; break; }
+  }
+  assert.equal(sawEnd, true);
+  const rawPixels = zlib.inflateSync(Buffer.concat(imageData));
+  assert.equal(rawPixels.length, imageSize * (imageSize + 1));
+  const center = Math.floor(imageSize / 2);
+  assert.equal(rawPixels[center * (imageSize + 1) + 1 + center - 3], 85);
 });
 
 test('bulk event reminders can only be requested by the host account', () => {
