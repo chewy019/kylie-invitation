@@ -5663,9 +5663,48 @@ body {
     text-align: center;
     font-size: .72rem;
     letter-spacing: .035em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem 1.1rem;
+}
+
+.site-footer p {
+    margin: 0;
 }
 
 .site-footer span {
     color: #8d294d;
     font-weight: 600;
+}
+
+.site-footer-contact {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    color: #8d294d;
+    font-weight: 600;
+    text-decoration: none;
+    padding-bottom: 1px;
+    border-bottom: 1px solid rgba(141, 41, 77, .32);
+    transition: color .25s ease, border-color .25s ease;
+}
+
+.site-footer-contact-icon {
+    font-size: .95em;
+    line-height: 1;
+    opacity: .8;
+}
+
+.site-footer-contact:hover,
+.site-footer-contact:focus-visible {
+    color: #b21f43;
+    border-bottom-color: #b21f43;
+}
+
+.site-footer-contact:focus-visible {
+    outline: 2px solid rgba(141, 41, 77, .4);
+    outline-offset: 3px;
+    border-radius: 2px;
 }
