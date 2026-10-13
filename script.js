@@ -1259,7 +1259,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         // Add the final names here when the 18 Roses, 18 Candles, and 18 Gifts lists are confirmed.
         const MILESTONE_NAMES = {
             roses: [
-                'Jairus', 'Lance', 'JB', 'Orly', 'Tito Rodel', 'Ninong Joven',
+                'Jairus', 'Lance', 'JB', 'Orly', 'Tito Rolly', 'Ninong Joven',
                 'Ninong Ruel', 'Tito Amer', 'Tito Gboy', 'Tito Nhuno', 'Tito Jeff',
                 'Tito Charles', 'Tito Christ', 'Tito Junjun', 'Tito Mamang', 'Tatay Roger',
                 'Papa Oca', 'Daddy Randy'
