@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, signInWithEmailAndPassword, signOut, onAuthStateChanged, connectAuthEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction, deleteField, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, query, where, onSnapshot, writeBatch, runTransaction, deleteField, connectFirestoreEmulator } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Firebase configuration for the Kylie 18th RSVP project.
         const isLocalHostname = ['localhost', '127.0.0.1'].includes(window.location.hostname);
@@ -1260,24 +1260,24 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         const MILESTONE_NAMES = {
             roses: [
                 'Mr. Oscar Tubale (Pogi)', 'Mr. Christ Tumbaga', 'Mr. Charles Tubale',
-                'Mr. Jeff Guanlao', 'Mr. Orly Tupaz', 'Mr. JB Tupaz', 'Mr. Ronge Fulla',
+                'Mr. Jeff Guanlao', 'Mr. Orly Tupaz', 'Mr. JB Tupaz', 'Mr. Rovge Fulla',
                 'Mr. Ronnel Fulla', 'Mr. Amer Tupaz', 'Mr. Rolly Tupaz', 'Mr. Mar Dela Rosa',
-                'Mr. Joven Miguel', 'Mr. Ruel Dela Rosa', 'Mr. Albert Tubigwin',
+                'Mr. Joven Miguel', 'Mr. Ruel Dela Rosa', 'Mr. Albert Tubiguin',
                 'Mr. Jairus Quintal', 'Mr. Roger Fulla', 'Mr. Oscar Tubale', 'Mr. Randy Fulla'
             ],
             candles: [
-                'Ms. Josephine Aquino', 'Ms. Reishl Drio', 'Ms. Mikylla Lafuente',
+                'Ms. Josephine Aquino', 'Ms. Reishi Drio', 'Ms. Mikylla Lafuente',
                 'Ms. Marga Sundiang', 'Ms. Louise Sampang', 'Ms. Mary Asprer',
                 'Ms. Xavina Gonzales', 'Ms. Jinky Cerro', 'Ms. Erich Balane',
                 'Ms. Aiyzhen Benavidez', 'Ms. Shenica Dela Rosa', 'Ms. Shane Tubale',
-                'Ms. Clarisa Mendosa', 'Mrs. Lourdes Fulla', 'Mrs. Salve Tubale',
-                'Ms. Kataleya Amber Fulla', 'Mrs. Lhoi Fulla', 'Mrs. Shirlyn Tumbaga'
+                'Ms. Clarisa Mendosa', 'Mrs. Shirlyn Tumbaga', 'Mrs. Lourdes Fulla',
+                'Mrs. Salve Tubale', 'Ms. Ayah & Amber Fulla', 'Mrs. Lhoi Fulla'
             ],
             gifts: [
                 'Mrs. Mara Tenio', 'Ms. Chazel Cabatbat', 'Mrs. Cindy Dela Rosa',
-                'Mrs. Genalin Rea', 'Ms. Racquel Dionisio', 'Ms. Embry Adrid',
+                'Mrs. Genalin Rea', 'Ms. Racquel Dionisio', 'Ms. Emerry Adrid',
                 'Ms. Luz Mallorca', 'Ms. Ella Mallorca', 'Ms. Fhe Timbol',
-                'Ms. Carmi Dela Roya', 'Mrs. Leigh Daniel', 'Mr. Jeff Guanlao',
+                'Ms. Carmi Dela Rosa', 'Mrs. Leigh Ann Daniel', 'Mr. Jeff Guanlao',
                 'Mr. Charles Tubale', 'Mr. Oscar Tubale (Pogi)', 'Mr. Baron Cerujano',
                 'Mr. Cahley Catacutan', 'Mr. Lance Garcia', 'Ms. Harley Quinn Tumbaga'
             ]
@@ -1335,7 +1335,10 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         });
 
         // Returns a table number, or null when the guest is unmatched or ambiguous.
+        // A stored tableNumber (set by the host) takes precedence over the static map.
         function getAssignedTable(guest) {
+            const stored = Number(guest?.tableNumber);
+            if (Number.isInteger(stored) && stored >= 1 && stored <= 99) return stored;
             const key = normalizeSeatingName(guest?.name);
             if (!key) return null;
             const tables = SEATING_LOOKUP.get(key);
@@ -1346,6 +1349,49 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             if (sameNameRecords.length > 1) return null;
             return [...tables][0];
         }
+
+        // Host-only: assign, change, or clear a guest's table number.
+        // Blank input clears the stored override (via deleteField) so the static
+        // map fallback applies again. Authorization is enforced by Firestore rules.
+        window.assignGuestTable = async function(guestId, rawValue) {
+            if (!isHostUser()) return;
+            const guest = guestDatabase.find((record) => record.id === guestId);
+            if (!guest) return;
+
+            const trimmed = String(rawValue ?? '').trim();
+            const guestRef = doc(db, 'rsvps', guestId);
+
+            if (trimmed === '') {
+                try {
+                    await updateDoc(guestRef, { tableNumber: deleteField() });
+                } catch (err) {
+                    console.error('Could not clear the table assignment:', err);
+                    alert('Could not clear the table assignment. Check your host login and Firestore rules.');
+                    return;
+                }
+                delete guest.tableNumber;
+                renderDatabaseTable();
+                alert(`Table assignment cleared for ${guest.name}.`);
+                return;
+            }
+
+            const table = Number(trimmed);
+            if (!Number.isInteger(table) || table < 1 || table > 99) {
+                alert('Enter a table number from 1 to 99, or leave blank to clear.');
+                return;
+            }
+
+            try {
+                await updateDoc(guestRef, { tableNumber: table });
+            } catch (err) {
+                console.error('Could not save the table assignment:', err);
+                alert('Could not save the table assignment. Check your host login and Firestore rules.');
+                return;
+            }
+            guest.tableNumber = table;
+            renderDatabaseTable();
+            alert(`Table ${table} assigned to ${guest.name}.`);
+        };
 
         window.openMilestoneModal = function(type) {
             const info = MILESTONE_INFO[type];
@@ -2842,6 +2888,19 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 const actionCell = document.createElement('td');
                 actionCell.className = 'p-3 whitespace-nowrap';
                 {
+                    const tableButton = document.createElement('button');
+                    tableButton.type = 'button';
+                    tableButton.className = 'inline-flex min-h-8 items-center gap-1.5 rounded-lg border border-blush-300 bg-white px-2.5 py-1.5 mr-1 text-[10px] font-semibold text-blush-800 transition hover:bg-blush-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blush-300';
+                    tableButton.setAttribute('aria-label', `Assign table for ${guest.name || 'guest'}`);
+                    tableButton.innerHTML = '<i class="fa-solid fa-chair" aria-hidden="true"></i><span>Assign Table</span>';
+                    tableButton.addEventListener('click', (event) => {
+                        event.stopPropagation();
+                        const current = getAssignedTable(guest);
+                        const input = window.prompt('Table number (1–99). Leave blank to clear:', current ? String(current) : '');
+                        if (input === null) return;
+                        window.assignGuestTable(guest.id, input);
+                    });
+                    actionCell.appendChild(tableButton);
                     if (guest.rsvpStatus === 'Confirmed') {
                         const resendButton = document.createElement('button');
                         resendButton.type = 'button';

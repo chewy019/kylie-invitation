@@ -172,6 +172,18 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
                       'checkInStatus', 'checkedInAt'
                     ]);
+      // The host can assign, change, or clear a guest's table number.
+      allow update: if isHost()
+                    && request.resource.data.ownerUid == resource.data.ownerUid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+                      'tableNumber'
+                    ])
+                    && (
+                      !request.resource.data.keys().hasAny(['tableNumber'])
+                      || (request.resource.data.tableNumber is int
+                          && request.resource.data.tableNumber >= 1
+                          && request.resource.data.tableNumber <= 99)
+                    );
       allow update: if isHost()
                     && request.resource.data.ownerUid == resource.data.ownerUid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
