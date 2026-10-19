@@ -1256,32 +1256,96 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
         };
 
         // Form Handlers
-        // Add the final names here when the 18 Roses, 18 Candles, and 18 Gifts lists are confirmed.
+        // Final 18 Roses, 18 Candles, and 18 Treasures lists.
         const MILESTONE_NAMES = {
             roses: [
-                'Jairus', 'Lance', 'JB', 'Orly', 'Tito Rolly', 'Ninong Joven',
-                'Ninong Ruel', 'Tito Amer', 'Tito Gboy', 'Tito Nhuno', 'Tito Jeff',
-                'Tito Charles', 'Tito Christ', 'Tito Junjun', 'Tito Mamang', 'Tatay Roger',
-                'Papa Oca', 'Daddy Randy'
+                'Mr. Oscar Tubale (Pogi)', 'Mr. Christ Tumbaga', 'Mr. Charles Tubale',
+                'Mr. Jeff Guanlao', 'Mr. Orly Tupaz', 'Mr. JB Tupaz', 'Mr. Ronge Fulla',
+                'Mr. Ronnel Fulla', 'Mr. Amer Tupaz', 'Mr. Rolly Tupaz', 'Mr. Mar Dela Rosa',
+                'Mr. Joven Miguel', 'Mr. Ruel Dela Rosa', 'Mr. Albert Tubigwin',
+                'Mr. Jairus Quintal', 'Mr. Roger Fulla', 'Mr. Oscar Tubale', 'Mr. Randy Fulla'
             ],
             candles: [
-                'Erich', 'Mikay', 'Aiyzhen', 'Cahley', 'Jinky', 'Mary', 'Elaine', 'Ashley',
-                'Stefione', 'Marga', 'Louise', 'Ate Nica', 'Tita Len', 'Tita Shane',
-                'Tita Clarisa', 'Nanay Lourdes', 'Mama Salve', 'Sister Ayah & Amber'
+                'Ms. Josephine Aquino', 'Ms. Reishl Drio', 'Ms. Mikylla Lafuente',
+                'Ms. Marga Sundiang', 'Ms. Louise Sampang', 'Ms. Mary Asprer',
+                'Ms. Xavina Gonzales', 'Ms. Jinky Cerro', 'Ms. Erich Balane',
+                'Ms. Aiyzhen Benavidez', 'Ms. Shenica Dela Rosa', 'Ms. Shane Tubale',
+                'Ms. Clarisa Mendosa', 'Mrs. Lourdes Fulla', 'Mrs. Salve Tubale',
+                'Ms. Kataleya Amber Fulla', 'Mrs. Lhoi Fulla', 'Mrs. Shirlyn Tumbaga'
             ],
             gifts: [
-                'Ninang Mara', 'Ninang Cha', 'Ninang Cindy', 'Ninang Kid', 'Ninang Racquel',
-                'Ninang Em', 'Ninong Joven', 'Mama Luz', 'Mama Engga', 'Ninang Ella',
-                'Tita Carmi', 'Tita Leigh Anne', 'Tito Jeff', 'Tito Charles', 'Tito Junjun',
-                'Tito Mamang', 'Tito Christ', 'Cousin Harley Quinn'
+                'Mrs. Mara Tenio', 'Ms. Chazel Cabatbat', 'Mrs. Cindy Dela Rosa',
+                'Mrs. Genalin Rea', 'Ms. Racquel Dionisio', 'Ms. Embry Adrid',
+                'Ms. Luz Mallorca', 'Ms. Ella Mallorca', 'Ms. Fhe Timbol',
+                'Ms. Carmi Dela Roya', 'Mrs. Leigh Daniel', 'Mr. Jeff Guanlao',
+                'Mr. Charles Tubale', 'Mr. Oscar Tubale (Pogi)', 'Mr. Baron Cerujano',
+                'Mr. Cahley Catacutan', 'Mr. Lance Garcia', 'Ms. Harley Quinn Tumbaga'
             ]
         };
 
         const MILESTONE_INFO = {
             roses: { title: '18 Roses', subtitle: 'Grand Dance', icon: '🌹' },
             candles: { title: '18 Candles', subtitle: 'Wishes & Speeches', icon: '🕯️' },
-            gifts: { title: '18 Gifts', subtitle: 'Gifts & Blessings', icon: '🎁' }
+            gifts: { title: '18 Treasures', subtitle: 'Gifts & Blessings', icon: '🎁' }
         };
+
+        // Static seating map only — never written to Firestore. Keyed by the guest's
+        // registered full name (case and whitespace normalized at lookup time).
+        // Update these names if a guest's registered name changes.
+        const SEATING_ASSIGNMENTS = {
+            2: [
+                'Roger Fulla', 'Ronnel Fulla', 'Junalyn Gacias', 'Ella Mallorca',
+                'Luz Mallorca'
+            ],
+            3: [
+                'Cindy Dela Rosa', 'Shenica Luer', 'Mara Manuelle Tenio', 'Janella Rea',
+                'Emerry Adrid', 'Racquel S. Dionisio', 'Miro Vhong'
+            ],
+            4: [
+                'Lance Garcia', 'ERICH ANNE BALANE', 'Jinky Cerro', 'Aiyzhen Benavidez',
+                'Mary Asprer', 'Xavina Gonzales', 'John Cahley Catacutan',
+                'Louise Sampang', 'Margareth Faye C. Sundiang'
+            ],
+            5: [
+                'Miriam De La Rosa', 'Alyssa Joy Tubiguin', 'Alleah Rica Tubiguin',
+                'Carmi De La Rosa', 'Mar Dela ROSA', 'Rolly Tupaz',
+                'Belysses Bitor Tupas', 'Liegh Ann Daniel', 'Orly Tupas'
+            ]
+        };
+
+        // TEMPORARY TEST ONLY — delete this block to revert the Table 99 test.
+        // Not part of the permanent Tables 2–5 assignments.
+        const TEMPORARY_TEST_SEATING = {
+            99: ['Oscar Tubale']
+        };
+
+        function normalizeSeatingName(value) {
+            return typeof value === 'string'
+                ? value.trim().replace(/\s+/g, ' ').toLowerCase()
+                : '';
+        }
+
+        const SEATING_LOOKUP = new Map();
+        Object.entries({ ...SEATING_ASSIGNMENTS, ...TEMPORARY_TEST_SEATING }).forEach(([tableNumber, names]) => {
+            names.forEach((name) => {
+                const key = normalizeSeatingName(name);
+                if (!SEATING_LOOKUP.has(key)) SEATING_LOOKUP.set(key, new Set());
+                SEATING_LOOKUP.get(key).add(Number(tableNumber));
+            });
+        });
+
+        // Returns a table number, or null when the guest is unmatched or ambiguous.
+        function getAssignedTable(guest) {
+            const key = normalizeSeatingName(guest?.name);
+            if (!key) return null;
+            const tables = SEATING_LOOKUP.get(key);
+            if (!tables || tables.size !== 1) return null;
+            const sameNameRecords = guestDatabase.filter(
+                (record) => normalizeSeatingName(record.name) === key
+            );
+            if (sameNameRecords.length > 1) return null;
+            return [...tables][0];
+        }
 
         window.openMilestoneModal = function(type) {
             const info = MILESTONE_INFO[type];
@@ -2599,12 +2663,12 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 }
                 const guest = checkInResult.guest;
                 if (checkInResult.status === 'not-confirmed') {
-                    showQrScanResult('error', 'Guest Not Confirmed', `${guest.name || 'This guest'} has RSVP status: ${guest.rsvpStatus || 'Unknown'}.`);
+                    showQrScanResult('error', 'Guest Not Confirmed', `${guest.name || 'This guest'} has RSVP status: ${guest.rsvpStatus || 'Unknown'}.`, guest);
                     return;
                 }
 
                 if (checkInResult.status === 'already-checked-in') {
-                    showQrScanResult('warning', 'Already Checked In', `${guest.name} was already checked in${guest.checkedInAt ? ' at ' + guest.checkedInAt : ''}.`);
+                    showQrScanResult('warning', 'Already Checked In', `${guest.name} was already checked in${guest.checkedInAt ? ' at ' + guest.checkedInAt : ''}.`, guest);
                     return;
                 }
 
@@ -2613,7 +2677,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     cachedGuest.checkInStatus = 'Checked In';
                     cachedGuest.checkedInAt = checkInResult.checkedInAt;
                 }
-                showQrScanResult('success', 'Guest Verified ✓', `${guest.name} is confirmed and has been checked in.`);
+                showQrScanResult('success', 'Guest Verified ✓', `${guest.name} is confirmed and has been checked in.`, guest);
                 status.textContent = 'Ready for the next guest.';
                 renderDatabaseTable();
             } catch (err) {
@@ -2622,7 +2686,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             }
         }
 
-        function showQrScanResult(type, title, message) {
+        function showQrScanResult(type, title, message, guest = null) {
             const result = document.getElementById('qr-scan-result');
             if (!result) return;
             const styles = {
@@ -2635,8 +2699,10 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                 warning: 'fa-triangle-exclamation',
                 error: 'fa-circle-xmark'
             };
+            const table = guest ? getAssignedTable(guest) : null;
+            const tableText = table ? `Table: ${table}` : 'Table: Not assigned';
             result.className = `mt-4 rounded-2xl border p-4 text-center ${styles[type] || styles.error}`;
-            result.innerHTML = `<i class="fa-solid ${icons[type] || icons.error} text-xl mb-2"></i><div class="font-bold">${escapeHtml(title)}</div><div class="text-xs mt-1">${escapeHtml(message)}</div>`;
+            result.innerHTML = `<i class="fa-solid ${icons[type] || icons.error} text-xl mb-2"></i><div class="font-bold">${escapeHtml(title)}</div><div class="text-xs mt-1">${escapeHtml(message)}</div><div class="mt-2 font-bold">${escapeHtml(tableText)}</div>`;
             result.classList.remove('hidden');
         }
 
@@ -2741,6 +2807,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             filtered.forEach((guest) => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-blush-100/60 transition";
+                const assignedTable = getAssignedTable(guest);
 
                 let statusBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">Pending</span>`;
                 if (guest.rsvpStatus === 'Confirmed') {
@@ -2768,6 +2835,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     <td class="p-3">${guest.checkInStatus === 'Checked In'
                         ? `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800">Checked In</span><div class="text-[9px] mt-1 text-blush-500">${escapeHtml(guest.checkedInAt || '')}</div>`
                         : `<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-600">Not Yet</span>`}</td>
+                    <td class="p-3 font-medium">${escapeHtml(assignedTable ? `Table ${assignedTable}` : 'Not assigned')}</td>
                     <td class="p-3 text-[10px] text-blush-600">${escapeHtml(guest.createdAt || '-')}</td>
                 `;
 
@@ -2814,7 +2882,7 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
             };
             const rows = [[
                 'ID', 'Name', 'Email', 'PartyCount', 'GuestNames', 'RSVPStatus',
-                'CheckInStatus', 'CheckedInAt', 'RegisteredAt'
+                'CheckInStatus', 'CheckedInAt', 'RegisteredAt', 'TableNumber'
             ]];
             guestDatabase.forEach((g) => {
                 const party = Array.isArray(g.guestNames)
@@ -2826,7 +2894,8 @@ import { getFirestore, doc, setDoc, getDoc, getDocs, collection, query, where, o
                     : 1;
                 rows.push([
                     g.id, g.name, g.email, guestCount, party, g.rsvpStatus,
-                    g.checkInStatus || 'Not Yet', g.checkedInAt || '', g.createdAt || ''
+                    g.checkInStatus || 'Not Yet', g.checkedInAt || '', g.createdAt || '',
+                    getAssignedTable(g) || ''
                 ]);
             });
             const csvContent = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
