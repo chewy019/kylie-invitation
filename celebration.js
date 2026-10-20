@@ -16,13 +16,13 @@
 
     const AUTOPLAY_MS = 6500;
     const INTRO_MS = 5000;
+    const CLOSING_MS = 8000;
 
     const root = document.getElementById('cine-root');
     if (!root) return;
 
     const el = {
         intro: document.getElementById('cine-intro'),
-        begin: document.getElementById('cine-begin'),
         stage: document.getElementById('cine-stage'),
         slides: document.getElementById('cine-slides'),
         hud: document.getElementById('cine-hud'),
@@ -52,8 +52,12 @@
     let active = false;
     let timer = null;
     let introTimer = null;
+    let introHideTimer = null;
+    let closingTimer = null;
     let fullscreenTimer = null;
     let particlesBuilt = false;
+    let audioUserMuted = false;
+    let audioGestureCleanup = null;
 
     const pad = (n) => String(n).padStart(2, '0');
 
@@ -98,16 +102,12 @@
                 <p class="cine-closing-kicker">${CLOSING.kicker}</p>
                 <h2 class="cine-closing-title">${CLOSING.title}</h2>
                 <p class="cine-closing-sub">${CLOSING.subtitle}</p>
-                <button class="cine-replay" id="cine-replay" type="button">Replay</button>
             </div>`;
         frag.appendChild(closing);
 
         el.slides.appendChild(frag);
         el.total.textContent = pad(total);
         el.progress.setAttribute('aria-valuemax', String(total));
-
-        const replayButton = closing.querySelector('#cine-replay');
-        if (replayButton) replayButton.addEventListener('click', replayPresentation);
     }
 
     function primeImage(i) {
@@ -137,15 +137,30 @@
             : `Slide ${index + 1} of ${total}${SLIDES[index] ? ': ' + SLIDES[index].caption : ''}`);
     }
 
+    function clearProgressionTimers() {
+        clearTimeout(timer);
+        timer = null;
+        clearTimeout(closingTimer);
+        closingTimer = null;
+    }
+
     function schedule() {
         clearTimeout(timer);
         timer = null;
         if (!active || !started || !playing || document.hidden) return;
         if (index >= total - 1) {
-            setPlaying(false);
+            scheduleLoop();
             return;
         }
-        timer = window.setTimeout(() => next(true), AUTOPLAY_MS);
+        timer = window.setTimeout(() => next(), AUTOPLAY_MS);
+    }
+
+    function scheduleLoop() {
+        clearTimeout(closingTimer);
+        closingTimer = null;
+        if (!active || !started || !playing || document.hidden) return;
+        if (index < total - 1) return;
+        closingTimer = window.setTimeout(loopPresentation, CLOSING_MS);
     }
 
     function setPlaying(value) {
@@ -156,26 +171,26 @@
             el.play.setAttribute('aria-label', value ? 'Pause presentation' : 'Play presentation');
         }
         if (value) {
-            schedule();
+            if (index >= total - 1) scheduleLoop();
+            else schedule();
         } else {
             clearTimeout(timer);
             timer = null;
+            clearTimeout(closingTimer);
+            closingTimer = null;
         }
     }
 
-    function goTo(nextIndex, fromAutoplay = false) {
+    function goTo(nextIndex) {
+        clearProgressionTimers();
         index = ((nextIndex % total) + total) % total;
         render();
-        if (fromAutoplay && index === total - 1) {
-            setPlaying(false);
-            return;
-        }
         schedule();
     }
 
-    function next(fromAutoplay = false) {
-        if (index >= total - 1) return; // stop at the closing slide
-        goTo(index + 1, fromAutoplay);
+    function next() {
+        if (index >= total - 1) return; // closing is the last slide
+        goTo(index + 1);
     }
 
     function prev() {
@@ -187,8 +202,11 @@
         if (!active || started) return;
         started = true;
         clearTimeout(introTimer);
+        clearTimeout(closingTimer);
+        closingTimer = null;
         el.intro.classList.add('is-leaving');
-        window.setTimeout(() => { el.intro.hidden = true; }, reduceMotion.matches ? 0 : 950);
+        clearTimeout(introHideTimer);
+        introHideTimer = window.setTimeout(() => { el.intro.hidden = true; }, reduceMotion.matches ? 0 : 950);
         el.stage.hidden = false;
         el.hud.hidden = false;
         el.controls.hidden = false;
@@ -197,33 +215,95 @@
         setPlaying(!reduceMotion.matches);
     }
 
-    function replayPresentation() {
+    function loopPresentation() {
         if (!active) return;
-        resetToIntro();
+        clearProgressionTimers();
+        resetToIntro(true);
         clearTimeout(introTimer);
         setStatus('Replaying the presentation.');
         introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
     }
 
+    function updateMusicUi(isOn) {
+        if (!el.music) return;
+        root.classList.toggle('is-music-on', isOn);
+        el.music.setAttribute('aria-pressed', String(isOn));
+        el.music.setAttribute('aria-label', isOn ? 'Mute background music' : 'Play background music');
+    }
+
+    function cleanupAudioGestureListeners() {
+        if (!audioGestureCleanup) return;
+        const cleanup = audioGestureCleanup;
+        audioGestureCleanup = null;
+        cleanup();
+    }
+
+    function registerAudioGestureListeners() {
+        if (!el.audio || audioGestureCleanup) return;
+        const events = ['pointerdown', 'touchend', 'keydown'];
+        const handler = (event) => {
+            if (audioUserMuted) {
+                cleanup();
+                return;
+            }
+            const target = event && event.target;
+            if (target && typeof target.closest === 'function' && target.closest('#cine-music')) {
+                cleanup();
+                return;
+            }
+            const tag = target && target.tagName ? target.tagName.toLowerCase() : '';
+            if (event.type === 'keydown'
+                && (['input', 'textarea', 'select'].includes(tag) || target?.isContentEditable)) {
+                return;
+            }
+            void startAudio();
+        };
+        const cleanup = () => {
+            events.forEach((name) => document.removeEventListener(name, handler, true));
+            audioGestureCleanup = null;
+        };
+        events.forEach((name) => document.addEventListener(name, handler, { capture: true, once: true }));
+        audioGestureCleanup = cleanup;
+    }
+
+    async function startAudio() {
+        if (!el.audio || audioUserMuted) return false;
+        try {
+            el.audio.volume = 0.35;
+            await el.audio.play();
+            updateMusicUi(true);
+            cleanupAudioGestureListeners();
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    function attemptAudioAutoplay() {
+        if (!el.audio || audioUserMuted) return;
+        if (!el.audio.paused) {
+            updateMusicUi(true);
+            cleanupAudioGestureListeners();
+            return;
+        }
+        startAudio().then((ok) => {
+            if (!ok) registerAudioGestureListeners();
+        });
+    }
+
     async function toggleMusic() {
         if (!el.audio) return;
         if (el.audio.paused) {
-            try {
-                el.audio.volume = 0.35;
-                await el.audio.play(); // only ever called from a user gesture
-                root.classList.add('is-music-on');
-                el.music.setAttribute('aria-pressed', 'true');
-                el.music.setAttribute('aria-label', 'Mute background music');
-                setStatus('Background music on.');
-            } catch (error) {
-                setStatus('Background music could not start in this browser.', true);
-            }
+            audioUserMuted = false;
+            const ok = await startAudio();
+            if (ok) setStatus('Background music on.');
+            else setStatus('Background music could not start in this browser.', true);
             return;
         }
+        audioUserMuted = true;
+        cleanupAudioGestureListeners();
         el.audio.pause();
-        root.classList.remove('is-music-on');
-        el.music.setAttribute('aria-pressed', 'false');
-        el.music.setAttribute('aria-label', 'Play background music');
+        updateMusicUi(false);
         setStatus('Background music paused.');
     }
 
@@ -344,20 +424,21 @@
         }
     }
 
-    function resetToIntro() {
+    function resetToIntro(preserveAudio = false) {
         started = false;
         index = 0;
-        clearTimeout(timer);
-        timer = null;
+        clearProgressionTimers();
+        clearTimeout(introHideTimer);
+        introHideTimer = null;
         el.intro.hidden = false;
         el.intro.classList.remove('is-leaving');
         el.stage.hidden = true;
         el.hud.hidden = true;
         el.controls.hidden = true;
         root.classList.remove('is-playing');
-        if (el.audio) {
+        if (!preserveAudio && el.audio) {
             el.audio.pause();
-            root.classList.remove('is-music-on');
+            updateMusicUi(false);
         }
         render();
     }
@@ -369,17 +450,20 @@
         spawnParticles();
         clearTimeout(introTimer);
         setStatus('Presentation starting.');
+        attemptAudioAutoplay();
         introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
     }
 
     function deactivate() {
         if (!active) return;
         active = false;
-        clearTimeout(timer);
+        clearProgressionTimers();
         clearTimeout(introTimer);
+        clearTimeout(introHideTimer);
         clearTimeout(fullscreenTimer);
-        timer = null;
         introTimer = null;
+        introHideTimer = null;
+        cleanupAudioGestureListeners();
         if (getFullscreenElement() === root) {
             const exitMethod = document.exitFullscreen || document.webkitExitFullscreen;
             if (exitMethod) {
@@ -390,6 +474,7 @@
             }
         }
         if (el.audio) el.audio.pause();
+        updateMusicUi(false);
         started = false;
         document.documentElement.classList.remove('cine-fullscreen-pending', 'cine-fullscreen-active');
         root.classList.remove('is-playing', 'is-music-on');
@@ -398,9 +483,8 @@
     buildSlides();
     render();
 
-    if (el.begin) el.begin.addEventListener('click', start);
-    el.prev.addEventListener('click', prev);
-    el.next.addEventListener('click', () => next(false));
+    if (el.prev) el.prev.addEventListener('click', prev);
+    el.next.addEventListener('click', next);
     el.play.addEventListener('click', () => setPlaying(!playing));
     el.music.addEventListener('click', toggleMusic);
     el.full.addEventListener('click', toggleFullscreen);
@@ -428,7 +512,7 @@
         switch (event.key) {
             case 'ArrowRight':
                 event.preventDefault();
-                next(false);
+                next();
                 break;
             case 'ArrowLeft':
                 event.preventDefault();
@@ -459,15 +543,23 @@
         if (document.hidden) {
             clearTimeout(timer);
             timer = null;
-        } else if (active && started && playing) {
-            schedule();
+            clearTimeout(closingTimer);
+            closingTimer = null;
+            clearTimeout(introTimer);
+            introTimer = null;
+        } else if (active) {
+            if (!started) {
+                introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
+            } else if (playing) {
+                if (index >= total - 1) scheduleLoop();
+                else schedule();
+            }
         }
     });
 
     if (reduceMotion.addEventListener) {
         reduceMotion.addEventListener('change', (event) => {
             if (event.matches) {
-                clearTimeout(timer);
                 setPlaying(false);
             }
         });
