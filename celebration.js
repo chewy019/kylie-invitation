@@ -199,17 +199,10 @@
 
     function replayPresentation() {
         if (!active) return;
-        clearTimeout(timer);
-        started = true;
-        el.intro.hidden = true;
-        el.intro.classList.remove('is-leaving');
-        el.stage.hidden = false;
-        el.hud.hidden = false;
-        el.controls.hidden = false;
-        index = 0;
+        resetToIntro();
+        clearTimeout(introTimer);
         setStatus('Replaying the presentation.');
-        render();
-        setPlaying(!reduceMotion.matches);
+        introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
     }
 
     async function toggleMusic() {
