@@ -9,6 +9,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const html = read('index.html');
 const js = read('script.js');
 const css = read('style.css');
+const cinematic = read('celebration.js');
 
 test('guest flow contains the expected steps and forms', () => {
   const expectedSteps = [
@@ -34,22 +35,28 @@ test('guest flow contains the expected steps and forms', () => {
   assert.match(emailField, /\brequired(?:[=\s/>]|$)/i);
 });
 
-test('slideshow keeps arrows and a counter without playback or thumbnail controls', () => {
-  assert.match(html, /id="photo-slide-prev"/);
-  assert.match(html, /id="photo-slide-next"/);
-  assert.match(html, /id="photo-slideshow-counter"/);
-  assert.match(html, /id="photo-slideshow-progress"/);
+test('cinematic slideshow keeps controls and autoplay without thumbnails', () => {
+  assert.match(html, /id="cine-root"/);
+  assert.match(html, /id="cine-prev"/);
+  assert.match(html, /id="cine-next"/);
+  assert.match(html, /id="cine-play"/);
+  assert.match(html, /id="cine-full"/);
+  assert.match(html, /id="cine-current"/);
+  assert.match(html, /id="cine-progress"/);
+  assert.doesNotMatch(html, /id="debut-photo-slideshow"/, 'old gallery should be removed');
   assert.doesNotMatch(html, /thumbnail/i);
-  assert.doesNotMatch(html, /aria-label="(?:play|pause) slideshow"/i);
   assert.doesNotMatch(js, /thumbnail/i);
-  assert.match(js, /setTimeout\(advanceWhenReady,\s*3000\)/, 'slides should advance every three seconds');
-  assert.match(js, /prefers-reduced-motion:\s*reduce/, 'autoplay should respect reduced motion');
+  assert.match(cinematic, /const AUTOPLAY_MS = 6500;/, 'slides should advance every 6.5 seconds');
+  assert.match(cinematic, /prefers-reduced-motion:\s*reduce/, 'autoplay should respect reduced motion');
+  assert.match(cinematic, /setCinematicPresentationActive/, 'invitation step should activate the presentation');
 });
 
-test('all slideshow photo files exist and include alternative text', () => {
+test('cinematic slideshow photos exist and include alternative text', () => {
   const slides = [...js.matchAll(/\{\s*src:\s*['"]\.\/photos\/([^'"]+)['"],\s*alt:\s*['"]([^'"]+)['"]/g)];
 
-  assert.equal(slides.length, 10, 'expected ten slideshow photos');
+  assert.equal(slides.length, 10, 'expected nine childhood memories plus the debut portrait');
+  assert.ok(!slides.some(([, filename]) => filename === 'memory-10.webp'), 'duplicate blue debut photo should be removed');
+  assert.ok(slides.some(([, filename]) => filename === 'registration-portrait.jpg'), 'debut portrait should be kept');
   for (const [, filename, alt] of slides) {
     assert.ok(alt.trim(), `${filename} should have descriptive alternative text`);
     assert.ok(fs.existsSync(path.join(root, 'photos', filename)), `missing slideshow photo: ${filename}`);

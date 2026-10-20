@@ -28,7 +28,7 @@ if (invitationLinkOpening) {
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <!-- FontAwesome for luxury icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<link href="./style.css?v=20261002-1" rel="stylesheet"/></head>
+<link href="./style.css?v=20261020-1" rel="stylesheet"/><link href="./celebration.css?v=20261020-5" rel="stylesheet"/></head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900">
 <div aria-live="polite" class="invite-link-loader" id="invite-link-loader" role="status">
 <span aria-hidden="true" class="invite-link-loader-mark">K</span>
@@ -243,37 +243,63 @@ if (invitationLinkOpening) {
 </div>
 </div>
 </div>
-<!-- The ordered memory photos are listed in DEBUT_PHOTO_SLIDES in script.js. -->
-<section aria-label="Kylie's debut photo slideshow" class="page2-slideshow mb-8" id="debut-photo-slideshow">
-<div class="page2-slideshow-heading">
-<span class="page2-slideshow-eyebrow">A Little Collection of Memories</span>
-<h3 class="page2-slideshow-title">Kylie's Moments</h3>
+<!-- Kylie's Moments: recovered cinematic slideshow (auto-plays on the Invitation step) -->
+<section aria-label="Kylie's cinematic birthday slideshow" class="cine mb-8" id="cine-root">
+<div aria-hidden="true" class="cine-ambient">
+<span class="cine-orb cine-orb-a"></span>
+<span class="cine-orb cine-orb-b"></span>
+<span class="cine-orb cine-orb-c"></span>
 </div>
-<div class="page2-slideshow-frame">
-<div aria-live="polite" class="page2-slideshow-placeholder" id="photo-slideshow-placeholder">
-<span aria-hidden="true" class="page2-slideshow-placeholder-flower">✿</span>
-<span class="page2-slideshow-placeholder-age">18</span>
-<p class="page2-slideshow-placeholder-title">A Gallery of Memories</p>
-<p class="page2-slideshow-placeholder-copy">Kylie's photos will bloom here soon.</p>
+<div aria-hidden="true" class="cine-particles" id="cine-particles"></div>
+
+<section class="cine-intro" id="cine-intro">
+<p class="cine-kicker">An Evening For</p>
+<div aria-hidden="true" class="cine-18">18</div>
+<h1 class="cine-title">A Celebration of Eighteen</h1>
+<p class="cine-subtitle">Kylie's Special Day</p>
+<button class="cine-begin" id="cine-begin" type="button">Begin the Celebration</button>
+</section>
+
+<section aria-label="Birthday photo slideshow" aria-roledescription="carousel" class="cine-stage" hidden id="cine-stage">
+<div class="cine-slides" id="cine-slides"></div>
+<div aria-hidden="true" class="cine-vignette"></div>
+</section>
+
+<div class="cine-hud" hidden id="cine-hud">
+<div class="cine-counter">
+<span id="cine-current">01</span>
+<span aria-hidden="true" class="cine-counter-sep">/</span>
+<span id="cine-total">11</span>
 </div>
-<div aria-label="Photo gallery" aria-roledescription="carousel" class="page2-slideshow-viewport hidden" id="photo-slideshow-viewport" tabindex="0">
-<div class="page2-slideshow-track" id="photo-slideshow-track"></div>
+<div aria-label="Presentation progress" aria-valuemax="11" aria-valuemin="1" aria-valuenow="1" class="cine-progress" id="cine-progress" role="progressbar">
+<span class="cine-progress-fill" id="cine-progress-fill"></span>
 </div>
 </div>
-<div aria-label="Slideshow controls" class="page2-slideshow-controls hidden" id="photo-slideshow-controls" role="group">
-<button aria-label="Previous photo" class="page2-slideshow-arrow" id="photo-slide-prev" onclick="changePhotoSlide(-1)" type="button">
+
+<div aria-label="Presentation controls" class="cine-controls" hidden id="cine-controls" role="group">
+<button aria-label="Previous slide" class="cine-btn" id="cine-prev" type="button">
 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"></path></svg>
 </button>
-<div aria-label="Slideshow progress" aria-valuemin="1" aria-valuemax="10" aria-valuenow="1" aria-valuetext="Photo 1 of 10" class="page2-slideshow-progress" id="photo-slideshow-progress" role="progressbar">
-<span aria-hidden="true" class="page2-slideshow-counter" id="photo-slideshow-counter"></span>
-<span aria-hidden="true" class="page2-slideshow-progress-track"><span class="page2-slideshow-progress-fill" id="photo-slideshow-progress-fill"></span></span>
-</div>
-<button aria-label="Next photo" class="page2-slideshow-arrow" id="photo-slide-next" onclick="changePhotoSlide(1)" type="button">
+<button aria-label="Pause presentation" aria-pressed="true" class="cine-btn cine-btn-main" id="cine-play" type="button">
+<svg aria-hidden="true" focusable="false" class="cine-i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"></path></svg>
+<svg aria-hidden="true" focusable="false" class="cine-i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"></path></svg>
+</button>
+<button aria-label="Next slide" class="cine-btn" id="cine-next" type="button">
 <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"></path></svg>
 </button>
+<span aria-hidden="true" class="cine-controls-divider"></span>
+<button aria-label="Enter full screen" aria-pressed="false" class="cine-btn" id="cine-full" type="button">
+<svg aria-hidden="true" focusable="false" class="cine-i-expand" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+<svg aria-hidden="true" focusable="false" class="cine-i-collapse" viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg>
+</button>
+<button aria-label="Play background music" aria-pressed="false" class="cine-btn" id="cine-music" type="button">
+<svg aria-hidden="true" focusable="false" class="cine-i-music-off" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="m17 9 4 6m0-6-4 6"></path></svg>
+<svg aria-hidden="true" focusable="false" class="cine-i-music-on" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Z"></path><path d="M16 9a4 4 0 0 1 0 6m3-9a8 8 0 0 1 0 12"></path></svg>
+</button>
 </div>
-<p class="page2-slideshow-caption" id="photo-slideshow-caption" aria-live="off"></p>
-<p class="page2-slideshow-status" id="photo-slideshow-status" role="status" aria-live="polite" aria-atomic="true"></p>
+
+<p aria-live="polite" class="cine-sr-only" id="cine-status" role="status"></p>
+<audio id="cine-audio" loop preload="none" src="./kylie-wildest-dreams-bridgerton-30s.mp3"></audio>
 </section>
 <!-- Live Countdown Timer — same information, redesigned to match Page 2 -->
 <div class="page2-countdown rounded-[2rem] p-6 sm:p-8 shadow-xl mb-8 text-center relative overflow-hidden">
@@ -728,5 +754,6 @@ if (invitationLinkOpening) {
 </div>
 </div>
 </div>
-<script src="./script.js?v=20261002-1" type="module"></script></body>
+<script src="./script.js?v=20261020-1" type="module"></script>
+<script src="./celebration.js?v=20261020-4" defer></script></body>
 </html>

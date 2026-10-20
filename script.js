@@ -255,6 +255,7 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
         }
 
         // Keep this list in the order chosen for the slideshow.
+        // The cinematic presentation uses this single list (no duplicate photo arrays).
         const DEBUT_PHOTO_SLIDES = [
             { src: './photos/memory-01.webp', alt: 'Baby Kylie resting on pink bedding', caption: 'A tiny first memory' },
             { src: './photos/memory-02.webp', alt: 'Baby Kylie in a mint green dress', caption: 'A sweet little smile' },
@@ -264,12 +265,14 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
             { src: './photos/memory-06.webp', alt: 'Young Kylie beside a canal', caption: 'A day out together' },
             { src: './photos/memory-07.webp', alt: 'Kylie among yellow flowers', caption: 'A sunny day in the flowers' },
             { src: './photos/memory-08.webp', alt: 'Kylie making a peace sign in a white top', caption: 'A playful little moment' },
-            { src: './photos/memory-09.webp', alt: 'Kylie smiling in her blue gown', caption: 'Getting ready to celebrate' },
-            { src: './photos/memory-10.webp', alt: 'Kylie in her blue debut gown', caption: 'A night to remember' }
+            { src: './photos/memory-09.webp', alt: 'Kylie smiling in her blue gown', caption: 'All dressed up for a special day' },
+            { src: './photos/registration-portrait.jpg', alt: 'Kylie in her pink debut gown among flowers', caption: 'Eighteen, in full bloom' }
         ];
-        let photoSlideIndex = 0;
-        let photoSlideTimer = null;
-        let photoSlideshowActive = false;
+
+        // One shared list feeds the cinematic presentation.
+        const DEBUT_PHOTO_SLIDE_LIST = DEBUT_PHOTO_SLIDES.filter((slide) => slide && slide.src);
+        // The recovered cinematic engine (celebration.js) reads this same list.
+        window.DEBUT_PHOTO_SLIDER_DATA = DEBUT_PHOTO_SLIDE_LIST;
 
         function capitalizeNameWords(value) {
             return value.replace(/(^|[\s'’\-])(\p{L})/gu, (_, separator, letter) =>
@@ -311,191 +314,9 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
             });
         }
 
-        function initializePhotoSlideshow() {
-            const root = document.getElementById('debut-photo-slideshow');
-            const placeholder = document.getElementById('photo-slideshow-placeholder');
-            const viewport = document.getElementById('photo-slideshow-viewport');
-            const track = document.getElementById('photo-slideshow-track');
-            const controls = document.getElementById('photo-slideshow-controls');
-            const counter = document.getElementById('photo-slideshow-counter');
-            const progress = document.getElementById('photo-slideshow-progress');
-            const progressFill = document.getElementById('photo-slideshow-progress-fill');
-            const caption = document.getElementById('photo-slideshow-caption');
-            const slideshowStatus = document.getElementById('photo-slideshow-status');
-            if (!root || !placeholder || !viewport || !track || !controls || !counter || !progress || !progressFill || !caption) return;
-
-            const slides = DEBUT_PHOTO_SLIDES.filter(slide => slide && slide.src);
-            if (slides.length === 0) return;
-            const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-            placeholder.classList.add('hidden');
-            viewport.classList.remove('hidden');
-            if (slides.length > 1) controls.classList.remove('hidden');
-
-            slides.forEach((slide, index) => {
-                const figure = document.createElement('figure');
-                figure.className = 'page2-slideshow-slide is-loading';
-                figure.setAttribute('aria-roledescription', 'slide');
-                figure.setAttribute('aria-label', `Photo ${index + 1} of ${slides.length}`);
-
-                const image = document.createElement('img');
-                image.alt = slide.alt || `Kylie debut photo ${index + 1}`;
-                image.loading = 'lazy';
-                image.decoding = 'async';
-                image.dataset.src = slide.src;
-                image.draggable = false;
-                const webpSource = document.createElement('source');
-                webpSource.type = 'image/webp';
-                webpSource.dataset.srcset = slide.webp || '';
-                const picture = document.createElement('picture');
-                if (slide.webp) picture.appendChild(webpSource);
-                image.addEventListener('load', () => {
-                    figure.classList.remove('is-loading');
-                }, { once: true });
-                image.addEventListener('error', () => {
-                    if (webpSource.hasAttribute('srcset') && image.dataset.originalFallback !== 'true') {
-                        image.dataset.originalFallback = 'true';
-                        webpSource.removeAttribute('srcset');
-                        image.removeAttribute('src');
-                        image.src = image.dataset.src;
-                        return;
-                    }
-                    figure.classList.remove('is-loading');
-                    const fallback = document.createElement('div');
-                    fallback.className = 'page2-slideshow-image-error';
-                    fallback.textContent = 'This photo is unavailable right now.';
-                    image.replaceWith(fallback);
-                });
-                picture.appendChild(image);
-                figure.appendChild(picture);
-                track.appendChild(figure);
-            });
-
-            function preloadPhotoSlide(index) {
-                const slideIndex = (index + slides.length) % slides.length;
-                const image = track.children[slideIndex]?.querySelector('img');
-                if (!image || image.hasAttribute('src')) return;
-                image.loading = 'eager';
-                image.fetchPriority = slideIndex === photoSlideIndex ? 'high' : 'low';
-                const webpSource = image.parentElement?.querySelector('source[type="image/webp"]');
-                if (webpSource?.dataset.srcset) webpSource.srcset = webpSource.dataset.srcset;
-                image.src = image.dataset.src;
-            }
-
-            function showPhotoSlide(index, announce = false, loadImages = true) {
-                photoSlideIndex = (index + slides.length) % slides.length;
-                if (loadImages) {
-                    preloadPhotoSlide(photoSlideIndex);
-                    if (slides.length > 1) {
-                        preloadPhotoSlide(photoSlideIndex + 1);
-                        preloadPhotoSlide(photoSlideIndex - 1);
-                    }
-                }
-                Array.from(track.children).forEach((slide, slideIndex) => {
-                    slide.setAttribute('aria-hidden', slideIndex === photoSlideIndex ? 'false' : 'true');
-                });
-                const slideCaption = slides[photoSlideIndex].caption || '';
-                const captionChanged = caption.textContent !== slideCaption;
-                const counterDigits = String(slides.length).length;
-                counter.textContent = `${String(photoSlideIndex + 1).padStart(counterDigits, '0')} / ${String(slides.length).padStart(counterDigits, '0')}`;
-                progress.setAttribute('aria-valuemax', String(slides.length));
-                progress.setAttribute('aria-valuenow', String(photoSlideIndex + 1));
-                progress.setAttribute('aria-valuetext', `Photo ${photoSlideIndex + 1} of ${slides.length}`);
-                progressFill.style.width = `${((photoSlideIndex + 1) / slides.length) * 100}%`;
-                caption.textContent = slideCaption;
-                if (captionChanged && !reducedMotionQuery.matches) {
-                    caption.classList.remove('slide-caption-enter');
-                    void caption.offsetWidth;
-                    caption.classList.add('slide-caption-enter');
-                }
-                if (announce && slideshowStatus) {
-                    slideshowStatus.textContent = `Photo ${photoSlideIndex + 1} of ${slides.length}${slideCaption ? `: ${slideCaption}` : ''}`;
-                }
-            }
-
-            window.changePhotoSlide = function(direction) {
-                showPhotoSlide(photoSlideIndex + direction, true);
-                restartPhotoSlideTimer();
-            };
-
-            function restartPhotoSlideTimer() {
-                if (photoSlideTimer) clearTimeout(photoSlideTimer);
-                photoSlideTimer = null;
-                // Keep manual swipe/arrow navigation available, but avoid automatic
-                // image changes for visitors who request reduced motion.
-                if (slides.length > 1 && photoSlideshowActive
-                    && !reducedMotionQuery.matches
-                    && document.visibilityState !== 'hidden') {
-                    const advanceWhenReady = () => {
-                        if (!photoSlideshowActive || document.visibilityState === 'hidden') return;
-
-                        const nextIndex = (photoSlideIndex + 1) % slides.length;
-                        const nextImage = track.children[nextIndex]?.querySelector('img');
-                        if (nextImage && !nextImage.complete) {
-                            // Back off while a slow mobile connection finishes the next photo.
-                            photoSlideTimer = window.setTimeout(advanceWhenReady, 500);
-                            return;
-                        }
-
-                        showPhotoSlide(nextIndex);
-                        restartPhotoSlideTimer();
-                    };
-
-                    photoSlideTimer = window.setTimeout(advanceWhenReady, 3000);
-                }
-            }
-
-            window.setPhotoSlideshowActive = function(isActive) {
-                const shouldActivate = Boolean(isActive);
-                if (shouldActivate && !photoSlideshowActive) {
-                    showPhotoSlide(photoSlideIndex);
-                }
-                photoSlideshowActive = shouldActivate;
-                restartPhotoSlideTimer();
-            };
-
-            // Mobile browsers may suspend timers when a tab is backgrounded or restored
-            // from the back-forward cache. Re-arm autoplay when the page becomes visible.
-            document.addEventListener('visibilitychange', restartPhotoSlideTimer);
-            window.addEventListener('pageshow', restartPhotoSlideTimer);
-            if (typeof reducedMotionQuery.addEventListener === 'function') {
-                reducedMotionQuery.addEventListener('change', restartPhotoSlideTimer);
-            } else if (typeof reducedMotionQuery.addListener === 'function') {
-                reducedMotionQuery.addListener(restartPhotoSlideTimer);
-            }
-
-            let pointerStart = null;
-            viewport.addEventListener('pointerdown', (event) => {
-                if (event.isPrimary) pointerStart = { x: event.clientX, y: event.clientY };
-            });
-            viewport.addEventListener('pointerup', (event) => {
-                if (!pointerStart) return;
-                const deltaX = event.clientX - pointerStart.x;
-                const deltaY = event.clientY - pointerStart.y;
-                pointerStart = null;
-                if (Math.abs(deltaX) > 45 && Math.abs(deltaX) > Math.abs(deltaY)) {
-                    window.changePhotoSlide(deltaX < 0 ? 1 : -1);
-                }
-            });
-            viewport.addEventListener('pointercancel', () => { pointerStart = null; });
-            viewport.addEventListener('keydown', (event) => {
-                if (event.key === 'ArrowLeft') {
-                    event.preventDefault();
-                    window.changePhotoSlide(-1);
-                }
-                if (event.key === 'ArrowRight') {
-                    event.preventDefault();
-                    window.changePhotoSlide(1);
-                }
-            });
-
-            // Keep the photos out of the initial registration-page network requests.
-            showPhotoSlide(0, false, false);
-            restartPhotoSlideTimer();
-        }
-
         function initializeScrollReveals() {
             const revealTargets = document.querySelectorAll(
-                '#step-invitation > .page2-invitation-card, #step-invitation > #debut-photo-slideshow, #step-invitation > .page2-countdown, #step-details > .debut-card, #step-details .grid > div, #step-rsvp > .debut-card, #step-confirmation > .debut-card'
+                '#step-invitation > .page2-invitation-card, #step-invitation > .page2-countdown, #step-details > .debut-card, #step-details .grid > div, #step-rsvp > .debut-card, #step-confirmation > .debut-card'
             );
 
             if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -600,8 +421,8 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
                 }
                 const focusTarget = document.getElementById(focusTargetId);
                 if (focusTarget && !focusTarget.classList.contains('hidden')) focusStepHeading(focusTarget);
-                if (typeof window.setPhotoSlideshowActive === 'function') {
-                    window.setPhotoSlideshowActive(focusTargetId === 'step-invitation' && !allowReplay);
+                if (typeof window.setCinematicPresentationActive === 'function') {
+                    window.setCinematicPresentationActive(focusTargetId === 'step-invitation' && !allowReplay);
                 }
                 if (showInvitationReminderAfterEnvelope) {
                     showInvitationReminderAfterEnvelope = false;
@@ -674,7 +495,6 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
 
         window.addEventListener('DOMContentLoaded', async () => {
             initializeEventDateLabels();
-            initializePhotoSlideshow();
             initializeNameCapitalization();
             initializeScrollReveals();
             initializeFloatingPetals();
@@ -1193,9 +1013,9 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
             }
 
             if (stepNum === 2) showInvitationEnvelope();
-            if (typeof window.setPhotoSlideshowActive === 'function') {
+            if (typeof window.setCinematicPresentationActive === 'function') {
                 const openingOverlay = document.getElementById('site-opening-overlay');
-                window.setPhotoSlideshowActive(stepNum === 2
+                window.setCinematicPresentationActive(stepNum === 2
                     && (!openingOverlay || openingOverlay.classList.contains('hidden')));
             }
 
