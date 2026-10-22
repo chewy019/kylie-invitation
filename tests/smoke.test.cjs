@@ -78,6 +78,11 @@ test('fullscreen feature-detects the API and keeps a CSS fallback', () => {
   assert.match(cinematic, /if \(!nativeFullscreenAvailable\(\)\) \{[\s\S]*?enterCssFullscreen\(\);/);
   assert.match(cinematic, /function enterCssFullscreen\(\)/);
   assert.match(cinematic, /requestMethod\.call\(root\)/);
+  assert.match(cinematic, /const FULLSCREEN_FALLBACK_MS = 1200/);
+  assert.match(cinematic, /let fullscreenRequestId = 0/);
+  assert.match(cinematic, /if \(requestId !== fullscreenRequestId\) return;/);
+  assert.match(cinematic, /if \(getFullscreenElement\(\) !== root\) return;/);
+  assert.match(cinematic, /if \(getFullscreenElement\(\) === root\) clearTimeout\(fullscreenTimer\)/);
   assert.match(cinematic, /Fullscreen is restricted in this browser\./);
   assert.doesNotMatch(cinematic, /Fullscreen API is not available/);
 });

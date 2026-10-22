@@ -19,6 +19,7 @@
     const MONTAGE_MS = 9000;
     const CLOSING_MS = 8000;
     const SCROLL_SETTLE_MS = 180;
+    const FULLSCREEN_FALLBACK_MS = 1200;
 
     const root = document.getElementById('cine-root');
     if (!root) return;
@@ -61,6 +62,7 @@
     let introHideTimer = null;
     let closingTimer = null;
     let fullscreenTimer = null;
+    let fullscreenRequestId = 0;
     let cssFullscreen = false;
     let montageTimer = null;
     let montageHideTimer = null;
@@ -717,12 +719,13 @@
     }
 
     function syncFullscreenState() {
-        clearTimeout(fullscreenTimer);
+        if (getFullscreenElement() === root) clearTimeout(fullscreenTimer);
         updateFullscreenState();
     }
 
     function enterCssFullscreen() {
         if (cssFullscreen) return;
+        clearTimeout(fullscreenTimer);
         cssFullscreen = true;
         root.classList.add('is-fullscreen');
         document.documentElement.classList.remove('cine-fullscreen-pending');
@@ -734,6 +737,7 @@
 
     function exitCssFullscreen() {
         if (!cssFullscreen) return;
+        clearTimeout(fullscreenTimer);
         cssFullscreen = false;
         root.classList.remove('is-fullscreen');
         document.documentElement.classList.remove('cine-fullscreen-active');
@@ -757,6 +761,7 @@
     }
 
     function toggleFullscreen() {
+        const requestId = ++fullscreenRequestId;
         const exitMethod = document.exitFullscreen || document.webkitExitFullscreen;
         if (getFullscreenElement() === root) {
             try {
@@ -783,10 +788,14 @@
         void root.offsetWidth;
         clearTimeout(fullscreenTimer);
         fullscreenTimer = window.setTimeout(() => {
-            if (getFullscreenElement() === root) return;
+            if (requestId !== fullscreenRequestId) return;
+            if (getFullscreenElement() === root) {
+                updateFullscreenState();
+                return;
+            }
             document.documentElement.classList.remove('cine-fullscreen-pending');
             enterCssFullscreen();
-        }, 2500);
+        }, FULLSCREEN_FALLBACK_MS);
 
         let request;
         try {
@@ -798,11 +807,14 @@
         }
         if (request && typeof request.then === 'function') {
             request.then(() => {
+                if (requestId !== fullscreenRequestId) return;
+                // Some iOS browser wrappers resolve the request without
+                // granting native fullscreen; only trust an actual element.
+                if (getFullscreenElement() !== root) return;
                 clearTimeout(fullscreenTimer);
-                document.documentElement.classList.remove('cine-fullscreen-pending');
-                document.documentElement.classList.add('cine-fullscreen-active');
-                setStatus('');
+                updateFullscreenState();
             }).catch(() => {
+                if (requestId !== fullscreenRequestId) return;
                 clearTimeout(fullscreenTimer);
                 document.documentElement.classList.remove('cine-fullscreen-pending');
                 enterCssFullscreen();
@@ -885,6 +897,7 @@
     function deactivate() {
         if (!active) return;
         active = false;
+        fullscreenRequestId += 1;
         exitCssFullscreen();
         clearScrollSettle();
         clearProgressionTimers();
