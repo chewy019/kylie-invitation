@@ -238,3 +238,11 @@ test('slideshow resize handling stays device-independent', () => {
   assert.doesNotMatch(cinematic, /navigator\.userAgent|Samsung|Galaxy|iPad|iPhone|iPod/i);
   assert.doesNotMatch(cinematic, /visualViewport/);
 });
+
+test('decorative reel frames load eagerly and decode before scrolling', () => {
+  const reel = cinematic.slice(cinematic.indexOf('function buildReel'), cinematic.indexOf('function buildMontage'));
+  assert.match(reel, /img\.loading = 'eager';/);
+  assert.match(reel, /decodeImage\(img\);/);
+  assert.match(reel, /img2\.loading = 'eager';/);
+  assert.match(reel, /decodeImage\(img2\);/);
+});

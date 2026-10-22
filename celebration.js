@@ -195,9 +195,10 @@
                 img.src = slide.src;
                 img.alt = '';
                 img.decoding = 'async';
-                img.loading = 'lazy';
+                img.loading = 'eager';
                 img.draggable = false;
                 frame.appendChild(img);
+                decodeImage(img);
 
                 if (frame.classList.contains('cine-reel-frame--split')) {
                     const second = SLIDES[(config.offset + i + 4) % SLIDES.length];
@@ -205,9 +206,10 @@
                     img2.src = second.src;
                     img2.alt = '';
                     img2.decoding = 'async';
-                    img2.loading = 'lazy';
+                    img2.loading = 'eager';
                     img2.draggable = false;
                     frame.appendChild(img2);
+                    decodeImage(img2);
                 }
 
                 run.appendChild(frame);
