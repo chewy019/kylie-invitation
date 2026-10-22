@@ -72,6 +72,16 @@ test('iPhone standalone metadata and safe-area rules stay present', () => {
   assert.match(cinematicCss, /env\(safe-area-inset-bottom/);
 });
 
+test('fullscreen feature-detects the API and keeps a CSS fallback', () => {
+  assert.match(cinematic, /function getFullscreenRequestMethod\(\)/);
+  assert.match(cinematic, /function nativeFullscreenAvailable\(\)/);
+  assert.match(cinematic, /if \(!nativeFullscreenAvailable\(\)\) \{[\s\S]*?enterCssFullscreen\(\);/);
+  assert.match(cinematic, /function enterCssFullscreen\(\)/);
+  assert.match(cinematic, /requestMethod\.call\(root\)/);
+  assert.match(cinematic, /Fullscreen is restricted in this browser\./);
+  assert.doesNotMatch(cinematic, /Fullscreen API is not available/);
+});
+
 test('cinematic slideshow photos exist and include alternative text', () => {
   const slides = [...js.matchAll(/\{\s*src:\s*['"]\.\/photos\/([^'"]+)['"],\s*alt:\s*['"]([^'"]+)['"]/g)];
 

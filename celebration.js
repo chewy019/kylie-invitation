@@ -61,6 +61,7 @@
     let introHideTimer = null;
     let closingTimer = null;
     let fullscreenTimer = null;
+    let cssFullscreen = false;
     let montageTimer = null;
     let montageHideTimer = null;
     let montageRemaining = MONTAGE_MS;
@@ -675,6 +676,72 @@
         return document.fullscreenElement || document.webkitFullscreenElement || null;
     }
 
+    function getFullscreenRequestMethod() {
+        const method = root.requestFullscreen || root.webkitRequestFullscreen;
+        return typeof method === 'function' ? method : null;
+    }
+
+    function nativeFullscreenAvailable() {
+        const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
+        return Boolean(getFullscreenRequestMethod()) && enabled !== false;
+    }
+
+    function fullscreenFallbackMessage() {
+        return 'Fullscreen is restricted in this browser. The presentation is expanded inside the tab; browser controls remain visible. On iOS, use Add to Home Screen for a full-screen app view.';
+    }
+
+    function updateFullscreenButton() {
+        if (!el.full) return;
+        const isNative = getFullscreenElement() === root;
+        const expanded = isNative || cssFullscreen;
+        const label = expanded
+            ? (isNative ? 'Exit full screen' : 'Exit expanded view')
+            : (nativeFullscreenAvailable() ? 'Enter full screen' : 'Expand presentation');
+        el.full.setAttribute('aria-pressed', String(expanded));
+        el.full.setAttribute('aria-label', label);
+        el.full.title = label;
+    }
+
+    function updateFullscreenState() {
+        const isNative = getFullscreenElement() === root;
+        if (isNative) cssFullscreen = false;
+        const expanded = isNative || cssFullscreen;
+        const docEl = document.documentElement;
+        root.classList.toggle('is-fullscreen', expanded);
+        docEl.classList.toggle('cine-fullscreen-active', expanded);
+        docEl.classList.remove('cine-fullscreen-pending');
+        updateFullscreenButton();
+        if (isNative) setStatus('');
+        scheduleHeroFit();
+        syncAudioWithFullscreen();
+    }
+
+    function syncFullscreenState() {
+        clearTimeout(fullscreenTimer);
+        updateFullscreenState();
+    }
+
+    function enterCssFullscreen() {
+        if (cssFullscreen) return;
+        cssFullscreen = true;
+        root.classList.add('is-fullscreen');
+        document.documentElement.classList.remove('cine-fullscreen-pending');
+        document.documentElement.classList.add('cine-fullscreen-active');
+        updateFullscreenButton();
+        setStatus(fullscreenFallbackMessage(), true);
+        scheduleHeroFit();
+    }
+
+    function exitCssFullscreen() {
+        if (!cssFullscreen) return;
+        cssFullscreen = false;
+        root.classList.remove('is-fullscreen');
+        document.documentElement.classList.remove('cine-fullscreen-active');
+        updateFullscreenButton();
+        setStatus('');
+        scheduleHeroFit();
+    }
+
     function describeError(error) {
         if (error && (error.name || error.message)) {
             return [error.name, error.message].filter(Boolean).join(': ');
@@ -682,54 +749,15 @@
         return 'Unknown error';
     }
 
-    function syncFullscreenState() {
-        clearTimeout(fullscreenTimer);
-        const isFullscreen = getFullscreenElement() === root;
-        const docEl = document.documentElement;
-        root.classList.toggle('is-fullscreen', isFullscreen);
-        docEl.classList.toggle('cine-fullscreen-active', isFullscreen);
-        docEl.classList.remove('cine-fullscreen-pending');
-        if (el.full) {
-            el.full.setAttribute('aria-pressed', String(isFullscreen));
-            el.full.setAttribute('aria-label', isFullscreen ? 'Exit full screen' : 'Enter full screen');
-            if (isFullscreen) setStatus('');
-        }
-        scheduleHeroFit();
-        syncAudioWithFullscreen();
-    }
-
-    function fullscreenContextHint() {
-        if (window.self !== window.top) {
-            return 'This presentation is running inside an embedded preview frame; open the invitation URL in a top-level browser tab to use fullscreen.';
-        }
-        if (!window.isSecureContext) {
-            return 'Fullscreen requires a secure context (HTTPS or localhost).';
-        }
-        if (document.visibilityState === 'hidden' || !document.hasFocus()) {
-            return 'Focus the browser tab or window and try again.';
-        }
-        return 'Open the site in a normal browser tab and try again.';
-    }
-
     function failFullscreen(error) {
         clearTimeout(fullscreenTimer);
         document.documentElement.classList.remove('cine-fullscreen-pending', 'cine-fullscreen-active');
-        setStatus(`Full screen could not start (${describeError(error)}). ${fullscreenContextHint()}`, true);
+        setStatus(`Full screen could not start (${describeError(error)}).`, true);
         console.error('Full screen request failed:', error);
     }
 
     function toggleFullscreen() {
-        const requestMethod = root.requestFullscreen || root.webkitRequestFullscreen;
         const exitMethod = document.exitFullscreen || document.webkitExitFullscreen;
-        const enabled = document.fullscreenEnabled ?? document.webkitFullscreenEnabled;
-        if (!requestMethod) {
-            failFullscreen(new Error('Fullscreen API is not available'));
-            return;
-        }
-        if (enabled === false) {
-            failFullscreen(new Error('Fullscreen is disabled or blocked in this browser context'));
-            return;
-        }
         if (getFullscreenElement() === root) {
             try {
                 const exit = exitMethod && exitMethod.call(document);
@@ -739,6 +767,15 @@
             }
             return;
         }
+        if (cssFullscreen) {
+            exitCssFullscreen();
+            return;
+        }
+        if (!nativeFullscreenAvailable()) {
+            enterCssFullscreen();
+            return;
+        }
+        const requestMethod = getFullscreenRequestMethod();
         // A retained transform on #step-invitation (from stepReveal) creates a
         // containing block. Neutralise ancestors before requesting fullscreen and
         // force a style flush so the neutralisation is active for the request.
@@ -748,19 +785,15 @@
         fullscreenTimer = window.setTimeout(() => {
             if (getFullscreenElement() === root) return;
             document.documentElement.classList.remove('cine-fullscreen-pending');
-            const reasons = [];
-            if (window.self !== window.top) reasons.push('the page is inside an embedded preview frame');
-            if (!window.isSecureContext) reasons.push('the address is not a secure context (HTTPS or localhost is required)');
-            if (document.visibilityState === 'hidden' || !document.hasFocus()) reasons.push('the browser tab is not focused or visible');
-            const reason = reasons.length ? reasons.join('; ') : 'the browser did not grant fullscreen';
-            setStatus(`Full screen did not start (${reason}). Open the site in a normal browser tab and try again.`, true);
+            enterCssFullscreen();
         }, 2500);
 
         let request;
         try {
             request = requestMethod.call(root);
         } catch (error) {
-            failFullscreen(error);
+            document.documentElement.classList.remove('cine-fullscreen-pending');
+            enterCssFullscreen();
             return;
         }
         if (request && typeof request.then === 'function') {
@@ -769,7 +802,11 @@
                 document.documentElement.classList.remove('cine-fullscreen-pending');
                 document.documentElement.classList.add('cine-fullscreen-active');
                 setStatus('');
-            }).catch(failFullscreen);
+            }).catch(() => {
+                clearTimeout(fullscreenTimer);
+                document.documentElement.classList.remove('cine-fullscreen-pending');
+                enterCssFullscreen();
+            });
         }
     }
 
@@ -848,6 +885,7 @@
     function deactivate() {
         if (!active) return;
         active = false;
+        exitCssFullscreen();
         clearScrollSettle();
         clearProgressionTimers();
         clearTimeout(introTimer);
@@ -905,6 +943,7 @@
     el.play.addEventListener('click', () => setPlaying(!playing));
     el.music.addEventListener('click', toggleMusic);
     el.full.addEventListener('click', toggleFullscreen);
+    updateFullscreenButton();
 
     document.addEventListener('fullscreenchange', syncFullscreenState);
     document.addEventListener('webkitfullscreenchange', syncFullscreenState);
@@ -927,6 +966,12 @@
             return;
         }
         switch (event.key) {
+            case 'Escape':
+                if (cssFullscreen) {
+                    event.preventDefault();
+                    exitCssFullscreen();
+                }
+                break;
             case 'ArrowRight':
                 event.preventDefault();
                 next();
