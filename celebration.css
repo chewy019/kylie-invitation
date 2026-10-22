@@ -947,3 +947,31 @@ html.cine-fullscreen-active body {
     filter: none !important;
     will-change: auto !important;
 }
+
+/* Keep full-screen controls inside the iPhone notch/home-indicator insets. */
+.cine.is-fullscreen .cine-back {
+    top: calc(clamp(14px, 3vw, 26px) + env(safe-area-inset-top, 0px));
+    left: calc(clamp(14px, 3vw, 26px) + env(safe-area-inset-left, 0px));
+}
+
+.cine.is-fullscreen .cine-hud {
+    top: calc(clamp(16px, 3vw, 28px) + env(safe-area-inset-top, 0px));
+}
+
+.cine.is-fullscreen .cine-controls {
+    bottom: calc(.65rem + env(safe-area-inset-bottom, 0px));
+    max-width: calc(100% - 1.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+}
+
+.cine.is-fullscreen .cine-hero {
+    padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cine.is-fullscreen .cine-montage-copy {
+    bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
+}
+
+.cine.is-fullscreen .cine-status-visible {
+    bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+}

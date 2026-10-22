@@ -10,6 +10,7 @@ const html = read('index.html');
 const js = read('script.js');
 const css = read('style.css');
 const cinematic = read('celebration.js');
+const cinematicCss = read('celebration.css');
 
 test('guest flow contains the expected steps and forms', () => {
   const expectedSteps = [
@@ -49,6 +50,26 @@ test('cinematic slideshow keeps controls and autoplay without thumbnails', () =>
   assert.match(cinematic, /const AUTOPLAY_MS = 6500;/, 'slides should advance every 6.5 seconds');
   assert.match(cinematic, /prefers-reduced-motion:\s*reduce/, 'autoplay should respect reduced motion');
   assert.match(cinematic, /setCinematicPresentationActive/, 'invitation step should activate the presentation');
+});
+
+test('cinematic start waits for active scrolling to settle', () => {
+  assert.match(cinematic, /const SCROLL_SETTLE_MS = 180;/);
+  assert.match(cinematic, /window\.addEventListener\('scroll', noteScrollActivity, \{ passive: true \}\);/);
+  assert.match(cinematic, /function noteScrollActivity\(\)/);
+  assert.match(cinematic, /if \(!scrollSettled\) \{[\s\S]*?setTimeout\(start, 80\)/);
+  assert.match(cinematic, /function clearScrollSettle\(\)/);
+  assert.match(cinematic, /function resetToIntro[\s\S]*?clearScrollSettle\(\);/);
+  assert.match(cinematic, /function deactivate[\s\S]*?clearScrollSettle\(\);/);
+  assert.match(cinematic, /document\.addEventListener\('visibilitychange'[\s\S]*?clearScrollSettle\(\);/);
+});
+
+test('iPhone standalone metadata and safe-area rules stay present', () => {
+  assert.match(html, /viewport-fit=cover/);
+  assert.match(html, /apple-mobile-web-app-capable/);
+  assert.match(html, /apple-mobile-web-app-status-bar-style/);
+  assert.match(css, /env\(safe-area-inset-top/);
+  assert.match(cinematicCss, /\.cine\.is-fullscreen \.cine-controls/);
+  assert.match(cinematicCss, /env\(safe-area-inset-bottom/);
 });
 
 test('cinematic slideshow photos exist and include alternative text', () => {

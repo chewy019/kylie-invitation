@@ -5708,3 +5708,26 @@ body {
     outline-offset: 3px;
     border-radius: 2px;
 }
+
+/* Keep iPhone standalone mode and landscape notch areas clear of content. */
+.site-header {
+    padding-top: max(14px, env(safe-area-inset-top, 0px));
+}
+
+@media (max-width: 760px) {
+    .site-header {
+        padding-top: max(11px, env(safe-area-inset-top, 0px));
+    }
+
+    .site-main {
+        padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+    }
+}
+
+@media (min-width: 761px) and (max-width: 932px) and (orientation: landscape) {
+    .site-main {
+        padding-left: max(16px, env(safe-area-inset-left, 0px)) !important;
+        padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
+    }
+}

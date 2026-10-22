@@ -18,6 +18,7 @@
     const INTRO_MS = 5000;
     const MONTAGE_MS = 9000;
     const CLOSING_MS = 8000;
+    const SCROLL_SETTLE_MS = 180;
 
     const root = document.getElementById('cine-root');
     if (!root) return;
@@ -72,6 +73,8 @@
     let heroFitResizeTimer = null;
     let backdropHoldTimer = null;
     let previousBackdropIndex = -1;
+    let scrollSettleTimer = null;
+    let scrollSettled = true;
 
     const pad = (n) => String(n).padStart(2, '0');
 
@@ -511,8 +514,32 @@
         if (playing) schedule();
     }
 
+    function clearScrollSettle() {
+        clearTimeout(scrollSettleTimer);
+        scrollSettleTimer = null;
+        scrollSettled = true;
+    }
+
+    function noteScrollActivity() {
+        scrollSettled = false;
+        clearTimeout(scrollSettleTimer);
+        scrollSettleTimer = window.setTimeout(() => {
+            scrollSettleTimer = null;
+            scrollSettled = true;
+        }, SCROLL_SETTLE_MS);
+    }
+
     function start() {
         if (!active || started) return;
+        // Do not start a new cinematic animation while the page is still
+        // scrolling. Some mobile GPUs briefly drop freshly composited film
+        // layers when the intro timer fires during an active scroll.
+        if (!scrollSettled) {
+            clearTimeout(introTimer);
+            introTimer = window.setTimeout(start, 80);
+            return;
+        }
+        clearScrollSettle();
         started = true;
         clearTimeout(introTimer);
         clearTimeout(closingTimer);
@@ -766,6 +793,7 @@
 
     function resetToIntro(preserveAudio = false) {
         started = false;
+        clearScrollSettle();
         index = 0;
         montageActive = false;
         montageRemaining = MONTAGE_MS;
@@ -820,6 +848,7 @@
     function deactivate() {
         if (!active) return;
         active = false;
+        clearScrollSettle();
         clearProgressionTimers();
         clearTimeout(introTimer);
         clearTimeout(introHideTimer);
@@ -869,6 +898,7 @@
 
     window.addEventListener('resize', scheduleHeroFitOnResize);
     window.addEventListener('orientationchange', scheduleHeroFitOnResize);
+    window.addEventListener('scroll', noteScrollActivity, { passive: true });
 
     if (el.prev) el.prev.addEventListener('click', prev);
     el.next.addEventListener('click', next);
@@ -928,6 +958,7 @@
 
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
+            clearScrollSettle();
             clearTimeout(timer);
             timer = null;
             clearTimeout(closingTimer);
