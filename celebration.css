@@ -253,18 +253,20 @@
 .cine-backdrop {
     position: absolute;
     inset: 0;
+    z-index: 0;
     opacity: 0;
-    transition: opacity 1.5s ease;
+    transition: opacity 1.25s ease;
     contain: paint;
 }
-.cine-backdrop.is-active { opacity: 1; }
+.cine-backdrop.is-active { opacity: 1; z-index: 2; }
+.cine-backdrop.is-previous { opacity: 1; transition: none; z-index: 1; }
 .cine-backdrop img {
     position: absolute;
     inset: -6%;
     width: 112%;
     height: 112%;
     object-fit: cover;
-    filter: blur(16px) saturate(1.15) brightness(.6) sepia(.1);
+    filter: blur(12px) saturate(1.15) brightness(.6) sepia(.1);
     transform: scale(1.04);
 }
 .cine-backdrop::after {
@@ -337,12 +339,20 @@
 }
 
 .cine-reel-track {
+    position: relative;
     display: flex;
     flex-direction: column;
     padding: 0;
-    filter: sepia(.18) saturate(.85) brightness(.92) contrast(.98) blur(1.4px);
     animation: cineReelScroll var(--reel-speed, 100s) linear infinite;
     will-change: transform;
+}
+.cine-reel-track::after {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    content: "";
+    pointer-events: none;
+    background: rgba(78, 42, 24, .14);
 }
 .cine-reel-strip.is-reverse .cine-reel-track { animation-direction: reverse; }
 .cine-reel-run { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
@@ -443,12 +453,20 @@
 .cine-montage-strip--d { top: 72%; z-index: 1; transform: rotate(7deg); opacity: .82; }
 
 .cine-montage-track {
+    position: relative;
     display: flex;
     width: max-content;
     padding: 0;
-    filter: sepia(.13) saturate(.92) brightness(.95) contrast(.98);
     animation: cineMontageScroll var(--montage-speed, 50s) linear infinite;
     will-change: transform;
+}
+.cine-montage-track::after {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    content: "";
+    pointer-events: none;
+    background: rgba(78, 42, 24, .10);
 }
 .cine-montage-strip.is-reverse .cine-montage-track { animation-direction: reverse; }
 .cine.is-montage:not(.is-playing) .cine-montage-track { animation-play-state: paused; }
@@ -513,9 +531,14 @@
     inset: 0;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 1.25s ease, visibility 1.25s ease;
+    transition: opacity 1.25s ease, visibility 0s linear 1.25s;
 }
-.cine-slide.is-active { opacity: 1; visibility: visible; z-index: 2; }
+.cine-slide.is-active {
+    opacity: 1;
+    visibility: visible;
+    z-index: 2;
+    transition: opacity 1.25s ease, visibility 0s;
+}
 
 /* Main solo photo, mounted on its own strip of film and never cropped. */
 .cine-hero {
@@ -600,8 +623,8 @@
     animation: cineHeroIn 1.35s cubic-bezier(.2, .7, .2, 1) both;
 }
 @keyframes cineHeroIn {
-    from { opacity: 0; transform: translateY(16px) rotate(-2.4deg) scale(.975); }
-    to   { opacity: 1; transform: translateY(0) rotate(-1.2deg) scale(1); }
+    from { transform: translateY(16px) rotate(-2.4deg) scale(.975); }
+    to   { transform: translateY(0) rotate(-1.2deg) scale(1); }
 }
 
 /* Handwritten paper memory labels, placed below the photo so no face is covered. */

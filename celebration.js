@@ -69,6 +69,8 @@
     let audioUserMuted = false;
     let audioGestureCleanup = null;
     let heroFitFrame = null;
+    let backdropHoldTimer = null;
+    let previousBackdropIndex = -1;
 
     const pad = (n) => String(n).padStart(2, '0');
 
@@ -180,7 +182,7 @@
             const run = document.createElement('div');
             run.className = 'cine-reel-run';
 
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 8; i++) {
                 const slide = SLIDES[(config.offset + i) % SLIDES.length];
                 const frame = document.createElement('div');
                 frame.className = 'cine-reel-frame';
@@ -221,9 +223,9 @@
         if (!el.montageStrips) return;
         const configs = [
             { className: 'a', offset: 0, speed: '46s', reverse: false },
-            { className: 'b', offset: 3, speed: '58s', reverse: true },
-            { className: 'c', offset: 5, speed: '52s', reverse: false },
-            { className: 'd', offset: 8, speed: '64s', reverse: true }
+            { className: 'b', offset: 2, speed: '58s', reverse: true },
+            { className: 'c', offset: 4, speed: '52s', reverse: false },
+            { className: 'd', offset: 6, speed: '64s', reverse: true }
         ];
 
         configs.forEach((config) => {
@@ -238,7 +240,7 @@
             const run = document.createElement('div');
             run.className = 'cine-montage-run';
 
-            SLIDES.forEach((slide, i) => {
+            SLIDES.slice(0, 8).forEach((slide, i) => {
                 const source = SLIDES[(config.offset + i) % SLIDES.length];
                 const frame = document.createElement('div');
                 frame.className = 'cine-montage-frame';
@@ -265,7 +267,9 @@
         if (!el.backdrops) return;
         const node = el.backdrops.children[i];
         const img = node ? node.querySelector('img') : null;
-        if (img && img.loading === 'lazy') img.loading = 'eager';
+        if (!img) return;
+        if (img.loading === 'lazy') img.loading = 'eager';
+        decodeImage(img);
     }
 
     function scheduleHeroFit() {
@@ -273,6 +277,7 @@
         heroFitFrame = requestAnimationFrame(() => {
             heroFitFrame = null;
             fitHeroImage(index);
+            fitHeroImage(index + 1);
         });
     }
 
@@ -303,10 +308,22 @@
         img.style.maxHeight = `${Math.max(120, Math.round(maxH))}px`;
     }
 
+    function decodeImage(img) {
+        if (!img || typeof img.decode !== 'function') return;
+        try {
+            const decoded = img.decode();
+            if (decoded && typeof decoded.catch === 'function') decoded.catch(() => {});
+        } catch (error) {
+            /* decode is best-effort; never block the slideshow */
+        }
+    }
+
     function primeImage(i) {
         const node = el.slides.children[i];
         const img = node ? node.querySelector('img') : null;
-        if (img && img.loading === 'lazy') img.loading = 'eager';
+        if (!img) return;
+        if (img.loading === 'lazy') img.loading = 'eager';
+        decodeImage(img);
     }
 
     function render() {
@@ -322,6 +339,23 @@
         if (el.backdrops) {
             const backdropIndex = Math.min(index, total - 2);
             const backdrops = el.backdrops.children;
+            if (backdropIndex !== previousBackdropIndex) {
+                const outgoing = previousBackdropIndex;
+                previousBackdropIndex = backdropIndex;
+                clearTimeout(backdropHoldTimer);
+                for (let i = 0; i < backdrops.length; i++) {
+                    if (i !== outgoing) backdrops[i].classList.remove('is-previous');
+                }
+                if (outgoing >= 0 && backdrops[outgoing]) {
+                    backdrops[outgoing].classList.add('is-previous');
+                }
+                backdropHoldTimer = window.setTimeout(() => {
+                    backdropHoldTimer = null;
+                    if (outgoing >= 0 && backdrops[outgoing]) {
+                        backdrops[outgoing].classList.remove('is-previous');
+                    }
+                }, 1300);
+            }
             for (let i = 0; i < backdrops.length; i++) {
                 backdrops[i].classList.toggle('is-active', i === backdropIndex);
             }
@@ -727,6 +761,14 @@
         clearTimeout(montageHideTimer);
         montageTimer = null;
         montageHideTimer = null;
+        clearTimeout(backdropHoldTimer);
+        backdropHoldTimer = null;
+        previousBackdropIndex = -1;
+        if (el.backdrops) {
+            for (let i = 0; i < el.backdrops.children.length; i++) {
+                el.backdrops.children[i].classList.remove('is-previous');
+            }
+        }
         if (el.montage) {
             el.montage.hidden = true;
             el.montage.classList.remove('is-leaving');
@@ -775,6 +817,14 @@
         montageHideTimer = null;
         montageActive = false;
         montageRemaining = MONTAGE_MS;
+        clearTimeout(backdropHoldTimer);
+        backdropHoldTimer = null;
+        previousBackdropIndex = -1;
+        if (el.backdrops) {
+            for (let i = 0; i < el.backdrops.children.length; i++) {
+                el.backdrops.children[i].classList.remove('is-previous');
+            }
+        }
         if (el.montage) {
             el.montage.hidden = true;
             el.montage.classList.remove('is-leaving');
