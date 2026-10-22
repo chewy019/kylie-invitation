@@ -476,6 +476,7 @@
         el.stage.hidden = false;
         el.hud.hidden = false;
         el.controls.hidden = false;
+        root.classList.add('is-started');
         index = 0;
         render();
         startMontage();
@@ -701,7 +702,7 @@
     function spawnParticles() {
         if (!el.particles || reduceMotion.matches || particlesBuilt) return;
         particlesBuilt = true;
-        const count = window.innerWidth < 640 ? 16 : 28;
+        const count = window.innerWidth < 1024 ? 14 : 24;
         for (let i = 0; i < count; i++) {
             const dot = document.createElement('span');
             dot.className = 'cine-particle';
@@ -731,6 +732,7 @@
             el.montage.classList.remove('is-leaving');
         }
         root.classList.remove('is-montage');
+        root.classList.remove('is-started');
         clearTimeout(introHideTimer);
         introHideTimer = null;
         el.intro.hidden = false;
@@ -792,7 +794,7 @@
         updateMusicUi(false);
         started = false;
         document.documentElement.classList.remove('cine-fullscreen-pending', 'cine-fullscreen-active');
-        root.classList.remove('is-playing', 'is-music-on');
+        root.classList.remove('is-playing', 'is-music-on', 'is-started');
     }
 
     buildSlides();

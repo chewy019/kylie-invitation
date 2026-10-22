@@ -108,6 +108,7 @@
 
 /* ---------- Ambient light and particles ---------- */
 .cine-ambient { position: absolute; inset: 0; pointer-events: none; z-index: 1; overflow: hidden; }
+.cine.is-started .cine-ambient { display: none; }
 .cine-orb {
     position: absolute;
     display: block;
@@ -132,7 +133,6 @@
     height: 4px;
     border-radius: 50%;
     background: radial-gradient(circle, #fff6ea 0%, rgba(243, 228, 200, .8) 40%, rgba(183, 110, 121, 0) 70%);
-    box-shadow: 0 0 10px rgba(243, 228, 200, .65);
     opacity: 0;
     animation: cineFloat linear infinite;
 }
@@ -223,30 +223,12 @@
     z-index: 10;
     overflow: hidden;
     background: #120a0f;
+    contain: paint;
 }
 
-/* Warm light leaks, vintage green bloom and soft bokeh, kept behind the photos. */
-.cine-stage::before {
-    position: absolute;
-    inset: -8%;
-    z-index: 2;
-    content: "";
-    pointer-events: none;
-    background:
-        linear-gradient(112deg, rgba(255, 174, 108, .18) 0%, transparent 26%, transparent 68%, rgba(122, 150, 82, .20) 100%),
-        radial-gradient(40% 50% at 3% 16%, rgba(255, 164, 96, .58), transparent 70%),
-        radial-gradient(34% 42% at 94% 6%, rgba(255, 218, 158, .46), transparent 70%),
-        radial-gradient(46% 58% at 96% 84%, rgba(112, 140, 74, .50), transparent 72%),
-        radial-gradient(50% 62% at 4% 94%, rgba(226, 112, 142, .46), transparent 72%),
-        radial-gradient(circle at 22% 32%, rgba(255, 238, 198, .24) 0 3px, transparent 9px),
-        radial-gradient(circle at 74% 20%, rgba(255, 224, 176, .20) 0 4px, transparent 11px),
-        radial-gradient(circle at 84% 62%, rgba(255, 236, 200, .16) 0 3px, transparent 10px),
-        radial-gradient(circle at 14% 70%, rgba(255, 220, 180, .15) 0 5px, transparent 13px);
-    filter: blur(13px) saturate(1.15);
-    mix-blend-mode: screen;
-    opacity: .95;
-    animation: cineLeak 15s ease-in-out infinite alternate;
-}
+/* Warm light leaks are carried by the backdrop layer so no full-screen
+   blended layer sits above the moving film strips. */
+.cine-stage::before { content: none; }
 
 /* Fine film grain and dust over the whole reel. */
 .cine-stage::after {
@@ -257,13 +239,8 @@
     pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.6'/%3E%3C/svg%3E");
     background-size: 180px 180px;
-    mix-blend-mode: overlay;
-    opacity: .095;
-}
-
-@keyframes cineLeak {
-    from { opacity: .72; }
-    to   { opacity: .95; }
+    mix-blend-mode: normal;
+    opacity: .05;
 }
 
 .cine-backdrops {
@@ -278,7 +255,7 @@
     inset: 0;
     opacity: 0;
     transition: opacity 1.5s ease;
-    will-change: opacity;
+    contain: paint;
 }
 .cine-backdrop.is-active { opacity: 1; }
 .cine-backdrop img {
@@ -287,7 +264,7 @@
     width: 112%;
     height: 112%;
     object-fit: cover;
-    filter: blur(24px) saturate(1.2) brightness(.56) sepia(.1);
+    filter: blur(16px) saturate(1.15) brightness(.6) sepia(.1);
     transform: scale(1.04);
 }
 .cine-backdrop::after {
@@ -295,6 +272,11 @@
     inset: 0;
     content: "";
     background:
+        linear-gradient(112deg, rgba(255, 174, 108, .16) 0%, transparent 26%, transparent 68%, rgba(122, 150, 82, .18) 100%),
+        radial-gradient(40% 50% at 3% 16%, rgba(255, 164, 96, .48), transparent 70%),
+        radial-gradient(34% 42% at 94% 6%, rgba(255, 218, 158, .38), transparent 70%),
+        radial-gradient(46% 58% at 96% 84%, rgba(112, 140, 74, .42), transparent 72%),
+        radial-gradient(50% 62% at 4% 94%, rgba(226, 112, 142, .38), transparent 72%),
         linear-gradient(180deg, rgba(18, 10, 15, .38) 0%, rgba(18, 10, 15, .06) 34%, rgba(18, 10, 15, .22) 70%, rgba(18, 10, 15, .72) 100%),
         radial-gradient(110% 95% at 50% 45%, transparent 36%, rgba(18, 10, 15, .58) 100%);
 }
@@ -311,11 +293,12 @@
 .cine-reel-strip {
     position: absolute;
     width: clamp(124px, 16vw, 230px);
+    padding: 24px clamp(24px, 3vw, 32px);
     background: linear-gradient(90deg, #110a06 0%, #2a1a10 9%, #1a100a 50%, #2a1a10 91%, #110a06 100%);
     border-radius: 4px;
     box-shadow: 0 24px 60px rgba(0, 0, 0, .45);
     opacity: .5;
-    filter: blur(1.2px);
+    contain: paint;
 }
 
 .cine-reel-strip::before,
@@ -339,32 +322,30 @@
     top: 50%;
     transform: translateY(-50%) rotate(-12deg);
     opacity: .55;
-    filter: blur(2px);
 }
 .cine-reel-strip--right {
     right: 3%;
     top: 50%;
     transform: translateY(-50%) rotate(12deg);
     opacity: .48;
-    filter: blur(2.6px);
 }
 .cine-reel-strip--center {
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%) rotate(-3deg);
     opacity: .28;
-    filter: blur(3.2px);
 }
 
 .cine-reel-track {
     display: flex;
     flex-direction: column;
-    padding: 24px clamp(24px, 3vw, 32px);
+    padding: 0;
+    filter: sepia(.18) saturate(.85) brightness(.92) contrast(.98) blur(1.4px);
     animation: cineReelScroll var(--reel-speed, 100s) linear infinite;
     will-change: transform;
 }
 .cine-reel-strip.is-reverse .cine-reel-track { animation-direction: reverse; }
-.cine-reel-run { display: flex; flex-direction: column; gap: 8px; }
+.cine-reel-run { display: flex; flex-direction: column; gap: 8px; padding-bottom: 8px; }
 
 .cine-reel-frame {
     display: flex;
@@ -383,7 +364,6 @@
     height: 100%;
     min-width: 0;
     object-fit: cover;
-    filter: sepia(.18) saturate(.82) brightness(.9) contrast(.98);
 }
 
 @keyframes cineReelScroll {
@@ -403,26 +383,15 @@
     opacity: 1;
     transition: opacity 1s ease;
     background:
+        radial-gradient(38% 50% at 4% 20%, rgba(255, 170, 108, .30), transparent 70%),
+        radial-gradient(42% 52% at 96% 78%, rgba(112, 144, 78, .32), transparent 72%),
+        radial-gradient(36% 44% at 86% 8%, rgba(255, 214, 154, .22), transparent 72%),
         radial-gradient(55% 62% at 12% 10%, rgba(255, 166, 104, .24), transparent 70%),
         radial-gradient(52% 62% at 88% 86%, rgba(110, 140, 78, .30), transparent 70%),
         linear-gradient(160deg, rgba(34, 17, 22, .99) 0%, rgba(16, 9, 13, .995) 100%);
 }
 .cine-montage[hidden] { display: none !important; }
 .cine-montage.is-leaving { opacity: 0; }
-
-.cine-montage::before {
-    position: absolute;
-    inset: -10%;
-    z-index: 0;
-    content: "";
-    pointer-events: none;
-    background:
-        radial-gradient(38% 50% at 4% 20%, rgba(255, 170, 108, .35), transparent 70%),
-        radial-gradient(42% 52% at 96% 78%, rgba(112, 144, 78, .38), transparent 72%),
-        radial-gradient(36% 44% at 86% 8%, rgba(255, 214, 154, .24), transparent 72%);
-    filter: blur(24px);
-    mix-blend-mode: screen;
-}
 
 .cine-montage::after {
     position: absolute;
@@ -445,10 +414,12 @@
     position: absolute;
     left: -4%;
     width: 108%;
+    padding: 16px 26px;
     overflow: hidden;
     border-radius: 3px;
     background: linear-gradient(180deg, #110a06 0%, #2a1a10 8%, #1a100a 50%, #2a1a10 92%, #110a06 100%);
     box-shadow: 0 20px 55px rgba(0, 0, 0, .5);
+    contain: paint;
 }
 .cine-montage-strip::before,
 .cine-montage-strip::after {
@@ -469,12 +440,13 @@
 .cine-montage-strip--a { top: 3%; z-index: 2; transform: rotate(-7deg); }
 .cine-montage-strip--b { top: 26%; z-index: 3; transform: rotate(5deg); }
 .cine-montage-strip--c { top: 49%; z-index: 4; transform: rotate(-4deg); }
-.cine-montage-strip--d { top: 72%; z-index: 1; transform: rotate(7deg); opacity: .82; filter: blur(.7px); }
+.cine-montage-strip--d { top: 72%; z-index: 1; transform: rotate(7deg); opacity: .82; }
 
 .cine-montage-track {
     display: flex;
     width: max-content;
-    padding: 16px 26px;
+    padding: 0;
+    filter: sepia(.13) saturate(.92) brightness(.95) contrast(.98);
     animation: cineMontageScroll var(--montage-speed, 50s) linear infinite;
     will-change: transform;
 }
@@ -496,7 +468,6 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: sepia(.13) saturate(.9) brightness(.94) contrast(.98);
 }
 
 @keyframes cineMontageScroll {
