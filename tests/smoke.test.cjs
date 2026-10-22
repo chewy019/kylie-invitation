@@ -173,3 +173,68 @@ test('application JavaScript passes Node syntax checks', () => {
     execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
   }
 });
+
+test('slideshow hero fitting debounces resize bursts and coalesces timers', () => {
+  const match = cinematic.match(/function scheduleHeroFitOnResize\(\) \{[\s\S]*?\n    \}/);
+  assert.ok(match, 'scheduleHeroFitOnResize should exist');
+
+  const timers = new Map();
+  let nextId = 1;
+  const fakeWindow = {
+    setTimeout(fn, ms) {
+      const id = nextId++;
+      timers.set(id, { fn, ms });
+      return id;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    }
+  };
+
+  let fitCalls = 0;
+  const scheduleHeroFit = () => { fitCalls += 1; };
+  const factory = new Function(
+    'window',
+    'scheduleHeroFit',
+    'clearTimeout',
+    `let heroFitResizeTimer = null;\n${match[0]}\nreturn scheduleHeroFitOnResize;`
+  );
+  const handler = factory(fakeWindow, scheduleHeroFit, fakeWindow.clearTimeout);
+
+  handler();
+  const first = [...timers.keys()][0];
+  handler();
+  const second = [...timers.keys()][0];
+
+  assert.notEqual(first, second, 'a resize burst should replace the pending timer');
+  assert.equal(timers.size, 1, 'only one hero fit should be pending');
+  assert.equal(timers.get(second).ms, 180, 'the debounce should wait 180ms');
+  assert.equal(fitCalls, 0, 'no fit should run during the burst');
+
+  const pending = timers.get(second);
+  timers.delete(second);
+  pending.fn();
+  assert.equal(fitCalls, 1, 'exactly one fit should run after the burst settles');
+  assert.equal(timers.size, 0, 'the timer should be cleared after firing');
+});
+
+test('slideshow hero fitting writes only changed sizes and still fits the next slide', () => {
+  assert.match(cinematic, /if \(img\.style\.maxWidth !== nextMaxWidth\) img\.style\.maxWidth = nextMaxWidth;/);
+  assert.match(cinematic, /if \(img\.style\.maxHeight !== nextMaxHeight\) img\.style\.maxHeight = nextMaxHeight;/);
+  assert.match(cinematic, /function scheduleHeroFit\(\) \{[\s\S]*?requestAnimationFrame/);
+  assert.match(cinematic, /fitHeroImage\(index\);\s*\n\s*fitHeroImage\(index \+ 1\);/);
+});
+
+test('slideshow resize fitting is debounced on resize/orientation and cleared on reset/deactivate', () => {
+  assert.match(cinematic, /addEventListener\('resize', scheduleHeroFitOnResize\)/);
+  assert.match(cinematic, /addEventListener\('orientationchange', scheduleHeroFitOnResize\)/);
+  const clears = cinematic.match(/clearTimeout\(heroFitResizeTimer\);/g) || [];
+  assert.ok(clears.length >= 2, 'reset and deactivate should clear the resize timer');
+  assert.match(cinematic, /function resetToIntro\([\s\S]*?clearTimeout\(heroFitResizeTimer\)/);
+  assert.match(cinematic, /function deactivate\([\s\S]*?clearTimeout\(heroFitResizeTimer\)/);
+});
+
+test('slideshow resize handling stays device-independent', () => {
+  assert.doesNotMatch(cinematic, /navigator\.userAgent|Samsung|Galaxy|iPad|iPhone|iPod/i);
+  assert.doesNotMatch(cinematic, /visualViewport/);
+});

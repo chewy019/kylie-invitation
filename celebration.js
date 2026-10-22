@@ -69,6 +69,7 @@
     let audioUserMuted = false;
     let audioGestureCleanup = null;
     let heroFitFrame = null;
+    let heroFitResizeTimer = null;
     let backdropHoldTimer = null;
     let previousBackdropIndex = -1;
 
@@ -281,6 +282,14 @@
         });
     }
 
+    function scheduleHeroFitOnResize() {
+        clearTimeout(heroFitResizeTimer);
+        heroFitResizeTimer = window.setTimeout(() => {
+            heroFitResizeTimer = null;
+            scheduleHeroFit();
+        }, 180);
+    }
+
     function fitHeroImage(slideIndex) {
         if (!el.stage || slideIndex < 0 || slideIndex >= total - 1) return;
         const slide = el.slides.children[slideIndex];
@@ -304,8 +313,10 @@
         const maxW = hero.clientWidth - padX - frameX * 2;
         const maxH = hero.clientHeight - padY - captionHeight - gap - frameY;
 
-        img.style.maxWidth = `${Math.max(120, Math.round(maxW))}px`;
-        img.style.maxHeight = `${Math.max(120, Math.round(maxH))}px`;
+        const nextMaxWidth = `${Math.max(120, Math.round(maxW))}px`;
+        const nextMaxHeight = `${Math.max(120, Math.round(maxH))}px`;
+        if (img.style.maxWidth !== nextMaxWidth) img.style.maxWidth = nextMaxWidth;
+        if (img.style.maxHeight !== nextMaxHeight) img.style.maxHeight = nextMaxHeight;
     }
 
     function decodeImage(img) {
@@ -764,6 +775,8 @@
         clearTimeout(backdropHoldTimer);
         backdropHoldTimer = null;
         previousBackdropIndex = -1;
+        clearTimeout(heroFitResizeTimer);
+        heroFitResizeTimer = null;
         if (el.backdrops) {
             for (let i = 0; i < el.backdrops.children.length; i++) {
                 el.backdrops.children[i].classList.remove('is-previous');
@@ -820,6 +833,8 @@
         clearTimeout(backdropHoldTimer);
         backdropHoldTimer = null;
         previousBackdropIndex = -1;
+        clearTimeout(heroFitResizeTimer);
+        heroFitResizeTimer = null;
         if (el.backdrops) {
             for (let i = 0; i < el.backdrops.children.length; i++) {
                 el.backdrops.children[i].classList.remove('is-previous');
@@ -850,8 +865,8 @@
     buildSlides();
     render();
 
-    window.addEventListener('resize', scheduleHeroFit);
-    window.addEventListener('orientationchange', scheduleHeroFit);
+    window.addEventListener('resize', scheduleHeroFitOnResize);
+    window.addEventListener('orientationchange', scheduleHeroFitOnResize);
 
     if (el.prev) el.prev.addEventListener('click', prev);
     el.next.addEventListener('click', next);
