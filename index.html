@@ -25,10 +25,10 @@ if (invitationLinkOpening) {
 <!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <!-- FontAwesome for luxury icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<link href="./style.css?v=20261020-1" rel="stylesheet"/><link href="./celebration.css?v=20261020-5" rel="stylesheet"/></head>
+<link href="./style.css?v=20261020-1" rel="stylesheet"/><link href="./celebration.css?v=20261021-2" rel="stylesheet"/></head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900">
 <div aria-live="polite" class="invite-link-loader" id="invite-link-loader" role="status">
 <span aria-hidden="true" class="invite-link-loader-mark">K</span>
@@ -243,6 +243,7 @@ if (invitationLinkOpening) {
 </div>
 </div>
 </div>
+
 <!-- Kylie's Moments: recovered cinematic slideshow (auto-plays on the Invitation step) -->
 <section aria-label="Kylie's cinematic birthday slideshow" class="cine mb-8" id="cine-root">
 <div aria-hidden="true" class="cine-ambient">
@@ -260,7 +261,16 @@ if (invitationLinkOpening) {
 </section>
 
 <section aria-label="Birthday photo slideshow" aria-roledescription="carousel" class="cine-stage" hidden id="cine-stage">
+<div aria-hidden="true" class="cine-backdrops" id="cine-backdrops"></div>
+<div aria-hidden="true" class="cine-reel" id="cine-reel"></div>
 <div class="cine-slides" id="cine-slides"></div>
+<div aria-hidden="true" class="cine-montage" id="cine-montage" hidden>
+<div class="cine-montage-strips" id="cine-montage-strips"></div>
+<div class="cine-montage-copy">
+<p class="cine-montage-kicker">Every frame, a memory</p>
+<p class="cine-montage-title">A Reel of Memories</p>
+</div>
+</div>
 <div aria-hidden="true" class="cine-vignette"></div>
 </section>
 
@@ -754,5 +764,5 @@ if (invitationLinkOpening) {
 </div>
 </div>
 <script src="./script.js?v=20261020-1" type="module"></script>
-<script src="./celebration.js?v=20261020-6" defer></script></body>
+<script src="./celebration.js?v=20261021-2" defer></script></body>
 </html>

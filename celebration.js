@@ -16,6 +16,7 @@
 
     const AUTOPLAY_MS = 6500;
     const INTRO_MS = 5000;
+    const MONTAGE_MS = 9000;
     const CLOSING_MS = 8000;
 
     const root = document.getElementById('cine-root');
@@ -24,6 +25,10 @@
     const el = {
         intro: document.getElementById('cine-intro'),
         stage: document.getElementById('cine-stage'),
+        backdrops: document.getElementById('cine-backdrops'),
+        reel: document.getElementById('cine-reel'),
+        montage: document.getElementById('cine-montage'),
+        montageStrips: document.getElementById('cine-montage-strips'),
         slides: document.getElementById('cine-slides'),
         hud: document.getElementById('cine-hud'),
         controls: document.getElementById('cine-controls'),
@@ -55,9 +60,15 @@
     let introHideTimer = null;
     let closingTimer = null;
     let fullscreenTimer = null;
+    let montageTimer = null;
+    let montageHideTimer = null;
+    let montageRemaining = MONTAGE_MS;
+    let montageStartedAt = 0;
+    let montageActive = false;
     let particlesBuilt = false;
     let audioUserMuted = false;
     let audioGestureCleanup = null;
+    let heroFitFrame = null;
 
     const pad = (n) => String(n).padStart(2, '0');
 
@@ -69,26 +80,60 @@
 
     function buildSlides() {
         const frag = document.createDocumentFragment();
+        const backdropFrag = document.createDocumentFragment();
 
         SLIDES.forEach((slide, i) => {
+            const backdrop = document.createElement('div');
+            backdrop.className = 'cine-backdrop';
+            backdrop.setAttribute('aria-hidden', 'true');
+            const backdropImg = document.createElement('img');
+            backdropImg.src = slide.src;
+            backdropImg.alt = '';
+            backdropImg.decoding = 'async';
+            backdropImg.loading = i < 3 ? 'eager' : 'lazy';
+            backdrop.appendChild(backdropImg);
+            backdropFrag.appendChild(backdrop);
+
             const wrap = document.createElement('article');
             wrap.className = 'cine-slide';
             wrap.setAttribute('aria-roledescription', 'slide');
             wrap.setAttribute('aria-label', `${i + 1} of ${total}`);
             wrap.setAttribute('aria-hidden', 'true');
 
+            const hero = document.createElement('div');
+            hero.className = 'cine-hero';
+
+            const heroReel = document.createElement('div');
+            heroReel.className = 'cine-hero-reel';
+
+            const card = document.createElement('figure');
+            card.className = 'cine-hero-card';
+
             const img = document.createElement('img');
-            img.src = slide.src;
             img.alt = slide.alt;
             img.decoding = 'async';
             img.loading = i < 2 ? 'eager' : 'lazy';
             img.addEventListener('error', () => wrap.classList.add('is-missing'));
+            img.addEventListener('load', () => {
+                if (wrap.classList.contains('is-active')) scheduleHeroFit();
+            });
+            img.src = slide.src;
+
+            card.appendChild(img);
+            heroReel.appendChild(card);
+
+            const edge = document.createElement('span');
+            edge.className = 'cine-hero-edge';
+            edge.setAttribute('aria-hidden', 'true');
+            edge.textContent = 'KODAK 20';
+            heroReel.appendChild(edge);
 
             const caption = document.createElement('p');
             caption.className = 'cine-caption';
             caption.textContent = slide.caption;
 
-            wrap.append(img, caption);
+            hero.append(heroReel, caption);
+            wrap.appendChild(hero);
             frag.appendChild(wrap);
         });
 
@@ -105,9 +150,157 @@
             </div>`;
         frag.appendChild(closing);
 
+        if (el.backdrops) el.backdrops.appendChild(backdropFrag);
         el.slides.appendChild(frag);
         el.total.textContent = pad(total);
         el.progress.setAttribute('aria-valuemax', String(total));
+
+        buildReel();
+        buildMontage();
+    }
+
+    function buildReel() {
+        if (!el.reel) return;
+        const strips = [
+            { className: 'cine-reel-strip--left', offset: 0, speed: '92s', reverse: false },
+            { className: 'cine-reel-strip--right', offset: 5, speed: '116s', reverse: true },
+            { className: 'cine-reel-strip--center', offset: 2, speed: '138s', reverse: false }
+        ];
+
+        strips.forEach((config, stripIndex) => {
+            const strip = document.createElement('div');
+            strip.className = `cine-reel-strip ${config.className}`;
+            strip.style.setProperty('--reel-speed', config.speed);
+            if (config.reverse) strip.classList.add('is-reverse');
+
+            const track = document.createElement('div');
+            track.className = 'cine-reel-track';
+            track.style.animationDelay = `${-stripIndex * 19}s`;
+
+            const run = document.createElement('div');
+            run.className = 'cine-reel-run';
+
+            for (let i = 0; i < 10; i++) {
+                const slide = SLIDES[(config.offset + i) % SLIDES.length];
+                const frame = document.createElement('div');
+                frame.className = 'cine-reel-frame';
+                if ((i + stripIndex) % 5 === 3) frame.classList.add('cine-reel-frame--split');
+                if ((i + stripIndex) % 4 === 1) frame.classList.add('is-tall');
+                if ((i + stripIndex) % 3 === 2) frame.classList.add('is-short');
+
+                const img = document.createElement('img');
+                img.src = slide.src;
+                img.alt = '';
+                img.decoding = 'async';
+                img.loading = 'lazy';
+                img.draggable = false;
+                frame.appendChild(img);
+
+                if (frame.classList.contains('cine-reel-frame--split')) {
+                    const second = SLIDES[(config.offset + i + 4) % SLIDES.length];
+                    const img2 = document.createElement('img');
+                    img2.src = second.src;
+                    img2.alt = '';
+                    img2.decoding = 'async';
+                    img2.loading = 'lazy';
+                    img2.draggable = false;
+                    frame.appendChild(img2);
+                }
+
+                run.appendChild(frame);
+            }
+
+            track.appendChild(run);
+            track.appendChild(run.cloneNode(true));
+            strip.appendChild(track);
+            el.reel.appendChild(strip);
+        });
+    }
+
+    function buildMontage() {
+        if (!el.montageStrips) return;
+        const configs = [
+            { className: 'a', offset: 0, speed: '46s', reverse: false },
+            { className: 'b', offset: 3, speed: '58s', reverse: true },
+            { className: 'c', offset: 5, speed: '52s', reverse: false },
+            { className: 'd', offset: 8, speed: '64s', reverse: true }
+        ];
+
+        configs.forEach((config) => {
+            const strip = document.createElement('div');
+            strip.className = `cine-montage-strip cine-montage-strip--${config.className}`;
+            strip.style.setProperty('--montage-speed', config.speed);
+            if (config.reverse) strip.classList.add('is-reverse');
+
+            const track = document.createElement('div');
+            track.className = 'cine-montage-track';
+
+            const run = document.createElement('div');
+            run.className = 'cine-montage-run';
+
+            SLIDES.forEach((slide, i) => {
+                const source = SLIDES[(config.offset + i) % SLIDES.length];
+                const frame = document.createElement('div');
+                frame.className = 'cine-montage-frame';
+
+                const img = document.createElement('img');
+                img.src = source.src;
+                img.alt = '';
+                img.decoding = 'async';
+                img.loading = 'eager';
+                img.draggable = false;
+                frame.appendChild(img);
+
+                run.appendChild(frame);
+            });
+
+            track.appendChild(run);
+            track.appendChild(run.cloneNode(true));
+            strip.appendChild(track);
+            el.montageStrips.appendChild(strip);
+        });
+    }
+
+    function primeBackdrop(i) {
+        if (!el.backdrops) return;
+        const node = el.backdrops.children[i];
+        const img = node ? node.querySelector('img') : null;
+        if (img && img.loading === 'lazy') img.loading = 'eager';
+    }
+
+    function scheduleHeroFit() {
+        if (heroFitFrame) cancelAnimationFrame(heroFitFrame);
+        heroFitFrame = requestAnimationFrame(() => {
+            heroFitFrame = null;
+            fitHeroImage(index);
+        });
+    }
+
+    function fitHeroImage(slideIndex) {
+        if (!el.stage || slideIndex < 0 || slideIndex >= total - 1) return;
+        const slide = el.slides.children[slideIndex];
+        if (!slide) return;
+        const hero = slide.querySelector('.cine-hero');
+        const img = slide.querySelector('.cine-hero-card img');
+        const caption = slide.querySelector('.cine-caption');
+        if (!hero || !img) return;
+
+        const rect = el.stage.getBoundingClientRect();
+        if (!rect.width || !rect.height) return;
+
+        const style = getComputedStyle(hero);
+        const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+        const padY = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+        const gap = parseFloat(style.rowGap) || 0;
+        const captionHeight = caption ? caption.getBoundingClientRect().height : 0;
+        const compact = rect.width < 560;
+        const frameX = compact ? 24 : 38; // film rail + photo border, per side
+        const frameY = compact ? 40 : 52; // top and bottom film rail + border
+        const maxW = hero.clientWidth - padX - frameX * 2;
+        const maxH = hero.clientHeight - padY - captionHeight - gap - frameY;
+
+        img.style.maxWidth = `${Math.max(120, Math.round(maxW))}px`;
+        img.style.maxHeight = `${Math.max(120, Math.round(maxH))}px`;
     }
 
     function primeImage(i) {
@@ -126,6 +319,16 @@
         primeImage(index);
         primeImage(index + 1);
 
+        if (el.backdrops) {
+            const backdropIndex = Math.min(index, total - 2);
+            const backdrops = el.backdrops.children;
+            for (let i = 0; i < backdrops.length; i++) {
+                backdrops[i].classList.toggle('is-active', i === backdropIndex);
+            }
+            primeBackdrop(backdropIndex);
+            primeBackdrop(backdropIndex + 1);
+        }
+
         el.current.textContent = pad(index + 1);
         el.progress.setAttribute('aria-valuenow', String(index + 1));
         el.progress.setAttribute('aria-valuetext', `Slide ${index + 1} of ${total}`);
@@ -135,6 +338,8 @@
         setStatus(isClosing
             ? 'Closing slide: thank you for celebrating.'
             : `Slide ${index + 1} of ${total}${SLIDES[index] ? ': ' + SLIDES[index].caption : ''}`);
+
+        scheduleHeroFit();
     }
 
     function clearProgressionTimers() {
@@ -147,6 +352,7 @@
     function schedule() {
         clearTimeout(timer);
         timer = null;
+        if (montageActive) return;
         if (!active || !started || !playing || document.hidden) return;
         if (index >= total - 1) {
             scheduleLoop();
@@ -171,9 +377,11 @@
             el.play.setAttribute('aria-label', value ? 'Pause presentation' : 'Play presentation');
         }
         if (value) {
-            if (index >= total - 1) scheduleLoop();
+            if (montageActive) scheduleMontageEnd();
+            else if (index >= total - 1) scheduleLoop();
             else schedule();
         } else {
+            if (montageActive) pauseMontageTimer();
             clearTimeout(timer);
             timer = null;
             clearTimeout(closingTimer);
@@ -189,13 +397,71 @@
     }
 
     function next() {
+        if (montageActive) {
+            endMontage();
+            return;
+        }
         if (index >= total - 1) return; // closing is the last slide
         goTo(index + 1);
     }
 
     function prev() {
+        if (montageActive) return;
         if (index <= 0) return;
         goTo(index - 1);
+    }
+
+    function scheduleMontageEnd() {
+        clearTimeout(montageTimer);
+        montageTimer = null;
+        if (!active || !started || !playing || !montageActive || document.hidden) return;
+        montageStartedAt = performance.now();
+        montageTimer = window.setTimeout(() => {
+            montageTimer = null;
+            endMontage();
+        }, Math.max(0, montageRemaining));
+    }
+
+    function pauseMontageTimer() {
+        if (!montageTimer) return;
+        montageRemaining = Math.max(0, montageRemaining - (performance.now() - montageStartedAt));
+        clearTimeout(montageTimer);
+        montageTimer = null;
+    }
+
+    function startMontage() {
+        if (!el.montage) return;
+        montageActive = true;
+        montageRemaining = MONTAGE_MS;
+        clearTimeout(montageTimer);
+        clearTimeout(montageHideTimer);
+        montageTimer = null;
+        montageHideTimer = null;
+        el.montage.hidden = false;
+        el.montage.classList.remove('is-leaving');
+        root.classList.add('is-montage');
+        setStatus('Film montage: every frame, a memory.');
+    }
+
+    function endMontage() {
+        if (!montageActive) return;
+        montageActive = false;
+        montageRemaining = 0;
+        clearTimeout(montageTimer);
+        montageTimer = null;
+        root.classList.remove('is-montage');
+        if (el.montage) {
+            el.montage.classList.add('is-leaving');
+            clearTimeout(montageHideTimer);
+            montageHideTimer = window.setTimeout(() => {
+                if (!el.montage) return;
+                el.montage.hidden = true;
+                el.montage.classList.remove('is-leaving');
+            }, reduceMotion.matches ? 0 : 1100);
+        }
+        index = 0;
+        render();
+        if (playing) schedule();
     }
 
     function start() {
@@ -212,6 +478,7 @@
         el.controls.hidden = false;
         index = 0;
         render();
+        startMontage();
         setPlaying(!reduceMotion.matches);
     }
 
@@ -268,6 +535,7 @@
 
     async function startAudio() {
         if (!el.audio || audioUserMuted) return false;
+        if (getFullscreenElement() !== root) return false;
         try {
             el.audio.volume = 0.35;
             await el.audio.play();
@@ -279,8 +547,25 @@
         }
     }
 
+    function pauseAudioOutsideFullscreen() {
+        if (!el.audio) return;
+        if (!el.audio.paused) el.audio.pause();
+        updateMusicUi(false);
+        cleanupAudioGestureListeners();
+    }
+
+    function syncAudioWithFullscreen() {
+        if (!active) return;
+        if (getFullscreenElement() === root) attemptAudioAutoplay();
+        else pauseAudioOutsideFullscreen();
+    }
+
     function attemptAudioAutoplay() {
         if (!el.audio || audioUserMuted) return;
+        if (getFullscreenElement() !== root) {
+            pauseAudioOutsideFullscreen();
+            return;
+        }
         if (!el.audio.paused) {
             updateMusicUi(true);
             cleanupAudioGestureListeners();
@@ -294,6 +579,10 @@
     async function toggleMusic() {
         if (!el.audio) return;
         if (el.audio.paused) {
+            if (getFullscreenElement() !== root) {
+                setStatus('Background music plays in full screen.', true);
+                return;
+            }
             audioUserMuted = false;
             const ok = await startAudio();
             if (ok) setStatus('Background music on.');
@@ -325,10 +614,13 @@
         root.classList.toggle('is-fullscreen', isFullscreen);
         docEl.classList.toggle('cine-fullscreen-active', isFullscreen);
         docEl.classList.remove('cine-fullscreen-pending');
-        if (!el.full) return;
-        el.full.setAttribute('aria-pressed', String(isFullscreen));
-        el.full.setAttribute('aria-label', isFullscreen ? 'Exit full screen' : 'Enter full screen');
-        if (isFullscreen) setStatus('');
+        if (el.full) {
+            el.full.setAttribute('aria-pressed', String(isFullscreen));
+            el.full.setAttribute('aria-label', isFullscreen ? 'Exit full screen' : 'Enter full screen');
+            if (isFullscreen) setStatus('');
+        }
+        scheduleHeroFit();
+        syncAudioWithFullscreen();
     }
 
     function fullscreenContextHint() {
@@ -427,7 +719,18 @@
     function resetToIntro(preserveAudio = false) {
         started = false;
         index = 0;
+        montageActive = false;
+        montageRemaining = MONTAGE_MS;
         clearProgressionTimers();
+        clearTimeout(montageTimer);
+        clearTimeout(montageHideTimer);
+        montageTimer = null;
+        montageHideTimer = null;
+        if (el.montage) {
+            el.montage.hidden = true;
+            el.montage.classList.remove('is-leaving');
+        }
+        root.classList.remove('is-montage');
         clearTimeout(introHideTimer);
         introHideTimer = null;
         el.intro.hidden = false;
@@ -436,9 +739,10 @@
         el.hud.hidden = true;
         el.controls.hidden = true;
         root.classList.remove('is-playing');
-        if (!preserveAudio && el.audio) {
+        if (el.audio && (!preserveAudio || getFullscreenElement() !== root)) {
             el.audio.pause();
             updateMusicUi(false);
+            cleanupAudioGestureListeners();
         }
         render();
     }
@@ -450,7 +754,7 @@
         spawnParticles();
         clearTimeout(introTimer);
         setStatus('Presentation starting.');
-        attemptAudioAutoplay();
+        syncAudioWithFullscreen();
         introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
     }
 
@@ -461,8 +765,19 @@
         clearTimeout(introTimer);
         clearTimeout(introHideTimer);
         clearTimeout(fullscreenTimer);
+        clearTimeout(montageTimer);
+        clearTimeout(montageHideTimer);
         introTimer = null;
         introHideTimer = null;
+        montageTimer = null;
+        montageHideTimer = null;
+        montageActive = false;
+        montageRemaining = MONTAGE_MS;
+        if (el.montage) {
+            el.montage.hidden = true;
+            el.montage.classList.remove('is-leaving');
+        }
+        root.classList.remove('is-montage');
         cleanupAudioGestureListeners();
         if (getFullscreenElement() === root) {
             const exitMethod = document.exitFullscreen || document.webkitExitFullscreen;
@@ -482,6 +797,9 @@
 
     buildSlides();
     render();
+
+    window.addEventListener('resize', scheduleHeroFit);
+    window.addEventListener('orientationchange', scheduleHeroFit);
 
     if (el.prev) el.prev.addEventListener('click', prev);
     el.next.addEventListener('click', next);
@@ -547,9 +865,12 @@
             closingTimer = null;
             clearTimeout(introTimer);
             introTimer = null;
+            pauseMontageTimer();
         } else if (active) {
             if (!started) {
                 introTimer = window.setTimeout(start, reduceMotion.matches ? 1200 : INTRO_MS);
+            } else if (montageActive) {
+                if (playing) scheduleMontageEnd();
             } else if (playing) {
                 if (index >= total - 1) scheduleLoop();
                 else schedule();
