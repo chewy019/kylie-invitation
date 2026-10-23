@@ -201,6 +201,88 @@ test('Apps Script exposes the final email result by an opaque request ID', () =>
   assert.equal(status.text, `__kylieMailer_${requestId.replace(/-/g, '')}({"status":"sent"});`);
 });
 
+test('host resend targets the selected guest id without email lookup', () => {
+  const context = createAppsScriptContext();
+  const requestId = '12345678-1234-4abc-8abc-1234567890ab';
+  const guest = { id: 'guest-1234567890', name: 'Kylie Guest', email: 'guest@example.com' };
+  context.PropertiesService.getScriptProperties().setProperty(
+    'INVITATION_BASE_URL',
+    'https://kylie-18th-rsvp.web.app/'
+  );
+  context.verifyFirebaseIdToken_ = () => ({ uid: 'myL41BfZY2RXwIxMFU6ybtCHKNE2', provider: 'password' });
+  context.getConfirmedGuestByIdForHost_ = (guestId) => guestId === guest.id ? guest : null;
+  context.getConfirmedGuestByEmail_ = () => assert.fail('Host resend must not depend on email lookup.');
+  context.reserveSend_ = () => ({ allowed: true, nonce: 'test', targetKey: '', actorKey: '', windowStartedAt: 0 });
+  context.finalizeSend_ = () => {};
+
+  const post = context.doPost({
+    parameter: {
+      payload: JSON.stringify({
+        action: 'sendInvitation',
+        guestId: guest.id,
+        requestId,
+        idToken: 'host-token'
+      })
+    }
+  });
+
+  assert.deepEqual(JSON.parse(post.text), { accepted: true, status: 'sent' });
+  assert.equal(context.__sentEmails.length, 1);
+  assert.equal(context.__sentEmails[0].to, guest.email);
+});
+
+test('guest recovery reports cooldown instead of a failed send', () => {
+  const context = createAppsScriptContext();
+  const requestId = '12345678-1234-4abc-8abc-1234567890ab';
+  context.verifyFirebaseIdToken_ = () => ({ uid: 'anonymous-owner', provider: 'anonymous' });
+  context.enforceLookupCooldown_ = () => { throw new Error('lookup_cooldown'); };
+  context.getConfirmedGuestByEmail_ = () => assert.fail('Cooldown must stop before lookup.');
+  context.reserveSend_ = () => assert.fail('Cooldown must stop before reservation.');
+
+  const post = context.doPost({
+    parameter: {
+      payload: JSON.stringify({
+        action: 'sendInvitation',
+        email: 'guest@example.com',
+        name: 'kylie guest',
+        requestId,
+        idToken: 'test-token'
+      })
+    }
+  });
+
+  assert.deepEqual(JSON.parse(post.text), { accepted: false, status: 'cooldown' });
+  assert.equal(context.__sentEmails.length, 0);
+});
+
+test('a failed invitation send releases the reservation and reports failed', () => {
+  const context = createAppsScriptContext();
+  const requestId = '12345678-1234-4abc-8abc-1234567890ab';
+  const guest = { id: 'guest-1234567890', name: 'Kylie Guest', email: 'guest@example.com' };
+  let released = null;
+  context.verifyFirebaseIdToken_ = () => ({ uid: 'myL41BfZY2RXwIxMFU6ybtCHKNE2', provider: 'password' });
+  context.getConfirmedGuestByIdForHost_ = () => guest;
+  context.reserveSend_ = () => ({ allowed: true, nonce: 'failed-send', targetKey: 'target', actorKey: '', windowStartedAt: 1 });
+  context.finalizeSend_ = () => assert.fail('A failed send must not be finalized.');
+  context.releaseSend_ = (reservation) => { released = reservation; };
+  context.sendInvitationEmail_ = () => { throw new Error('mail_failed'); };
+
+  const post = context.doPost({
+    parameter: {
+      payload: JSON.stringify({
+        action: 'sendInvitation',
+        guestId: guest.id,
+        requestId,
+        idToken: 'host-token'
+      })
+    }
+  });
+
+  assert.deepEqual(JSON.parse(post.text), { accepted: false, status: 'failed' });
+  assert.equal(released && released.nonce, 'failed-send');
+  assert.equal(context.__sentEmails.length, 0);
+});
+
 test('RSVP confirmation sends the same QR-only invitation email', () => {
   const context = createAppsScriptContext();
   const requestId = '12345678-1234-4abc-8abc-1234567890ab';

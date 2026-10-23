@@ -1347,11 +1347,12 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
             return readGmailMailerResult(requestId, resultTimeoutMs);
         }
 
-        async function requestInvitationEmail(email, name = '') {
+        async function requestInvitationEmail(email, name = '', guestId = '') {
             return sendGmailMailerRequest({
                 action: 'sendInvitation',
                 email: normalizeEmail(email),
-                name: normalizeName(name)
+                name: normalizeName(name),
+                guestId: typeof guestId === 'string' ? guestId : ''
             });
         }
 
@@ -1522,19 +1523,20 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
             status.classList.add(isError ? 'bg-rose-50' : 'bg-emerald-50');
         }
 
-        async function resendInvitationFromAdmin(email) {
+        async function resendInvitationFromAdmin(guest) {
             if (!isHostUser()) throw new Error('Host access is required.');
-            return requestInvitationEmail(email);
+            if (!guest || typeof guest !== 'object') throw new Error('Guest record is required.');
+            return requestInvitationEmail(guest.email, '', guest.id);
         }
 
-        window.resendGuestInvitation = async function(email, button) {
-            if (!isHostUser() || !button || button.disabled) return;
+        window.resendGuestInvitation = async function(guest, button) {
+            if (!isHostUser() || !guest || !button || button.disabled) return;
             button.disabled = true;
             button.setAttribute('aria-busy', 'true');
             const originalText = button.textContent.trim();
             button.textContent = 'Sending…';
             try {
-                const result = await resendInvitationFromAdmin(email);
+                const result = await resendInvitationFromAdmin(guest);
                 const messages = {
                     sent: 'Invitation email sent. Check the Gmail Sent folder and the guest’s inbox.',
                     cooldown: 'A resend was requested recently. Wait 15 minutes before trying again.',
@@ -2729,7 +2731,7 @@ import { getFirestore, doc, setDoc, updateDoc, getDoc, getDocs, collection, quer
                         resendButton.innerHTML = '<i class="fa-solid fa-envelope" aria-hidden="true"></i><span>Resend</span>';
                         resendButton.addEventListener('click', (event) => {
                             event.stopPropagation();
-                            window.resendGuestInvitation(guest.email, resendButton);
+                            window.resendGuestInvitation(guest, resendButton);
                         });
                         actionCell.appendChild(resendButton);
                     }

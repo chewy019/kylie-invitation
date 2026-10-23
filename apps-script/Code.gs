@@ -42,11 +42,16 @@ function doPost(event) {
         sendKind = 'confirmation';
       } else if (payload.action === 'sendInvitation') {
         const email = normalizeEmail_(payload.email);
-        if (!isValidEmail_(email)) throw new Error('not_found');
 
         if (identity.uid === FIREBASE_HOST_UID) {
-          guest = getConfirmedGuestByEmail_(email, '');
+          // Host resend targets the exact guest record selected in the admin
+          // table. Fall back to email lookup for older clients.
+          const hostGuestId = typeof payload.guestId === 'string' ? payload.guestId : '';
+          guest = hostGuestId
+            ? getConfirmedGuestByIdForHost_(hostGuestId)
+            : getConfirmedGuestByEmail_(email, '');
         } else {
+          if (!isValidEmail_(email)) throw new Error('not_found');
           requireAnonymousGuest_(identity);
           const submittedName = normalizeName_(payload.name);
           if (!submittedName) throw new Error('not_found');
@@ -1338,7 +1343,7 @@ function enforceLookupCooldown_(actorUid) {
   try {
     const key = 'lookup:actor:' + sha256Hex_(actorUid);
     const cache = CacheService.getScriptCache();
-    if (cache.get(key)) throw new Error('try_later');
+    if (cache.get(key)) throw new Error('lookup_cooldown');
     cache.put(key, '1', Math.ceil(CALLER_COOLDOWN_MS / 1000));
   } finally {
     lock.releaseLock();
