@@ -64,6 +64,7 @@
     let fullscreenTimer = null;
     let fullscreenRequestId = 0;
     let cssFullscreen = false;
+    let galleryBuilt = false;
     let montageTimer = null;
     let montageHideTimer = null;
     let montageRemaining = MONTAGE_MS;
@@ -883,9 +884,17 @@
         render();
     }
 
+    function ensureGalleryBuilt() {
+        if (galleryBuilt) return;
+        galleryBuilt = true;
+        buildSlides();
+        render();
+    }
+
     function activate() {
         if (active) return;
         active = true;
+        ensureGalleryBuilt();
         resetToIntro();
         spawnParticles();
         clearTimeout(introTimer);
@@ -943,9 +952,6 @@
         document.documentElement.classList.remove('cine-fullscreen-pending', 'cine-fullscreen-active');
         root.classList.remove('is-playing', 'is-music-on', 'is-started');
     }
-
-    buildSlides();
-    render();
 
     window.addEventListener('resize', scheduleHeroFitOnResize);
     window.addEventListener('orientationchange', scheduleHeroFitOnResize);

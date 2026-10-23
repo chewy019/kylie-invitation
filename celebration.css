@@ -35,8 +35,8 @@
 .cine {
     --cine-blush: #f7dce4;
     --cine-champagne: #f3e4c8;
-    --cine-rose: #b76e79;
-    --cine-rose-deep: #8c4b54;
+    --cine-rose: var(--rosegold);
+    --cine-rose-deep: var(--rosegold-dark);
     --cine-amber: #d9965c;
     --cine-green: #6f7a52;
     --cine-plum: #1d0e16;

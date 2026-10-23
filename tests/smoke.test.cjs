@@ -282,3 +282,26 @@ test('decorative reel frames load eagerly and decode before scrolling', () => {
   assert.match(reel, /img2\.loading = 'eager';/);
   assert.match(reel, /decodeImage\(img2\);/);
 });
+
+test('cinematic gallery is built on first activation, not initial page load', () => {
+  assert.match(cinematic, /let galleryBuilt = false;/, 'gallery should start unbuilt');
+  assert.match(
+    cinematic,
+    /function ensureGalleryBuilt\(\) \{\s*if \(galleryBuilt\) return;\s*galleryBuilt = true;\s*buildSlides\(\);\s*render\(\);\s*\}/,
+    'build must run once behind a guard'
+  );
+  assert.doesNotMatch(cinematic, /\n    buildSlides\(\);\n    render\(\);/m, 'init must not build the gallery');
+  assert.doesNotMatch(cinematic, /\n\s*galleryBuilt = false;/, 'revisits must not force a rebuild');
+});
+
+test('gallery is ready before cinematic playback starts', () => {
+  const activate = cinematic.slice(cinematic.indexOf('function activate()'), cinematic.indexOf('function deactivate()'));
+  const buildAt = activate.indexOf('ensureGalleryBuilt();');
+  const timerAt = activate.indexOf('introTimer = window.setTimeout');
+  assert.ok(buildAt >= 0, 'activation should build the gallery');
+  assert.ok(timerAt > buildAt, 'gallery should build before the intro timer starts playback');
+
+  const build = cinematic.slice(cinematic.indexOf('function buildSlides'), cinematic.indexOf('function buildReel'));
+  assert.match(build, /buildReel\(\);/, 'reel frames must exist before playback');
+  assert.match(build, /buildMontage\(\);/, 'montage frames must exist before playback');
+});

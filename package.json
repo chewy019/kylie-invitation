@@ -2,7 +2,8 @@
   "name": "kylie-18th-invitation",
   "private": true,
   "scripts": {
-    "check": "node --check script.js && node --check tailwind.config.js && node --check functions/index.js",
+    "check": "node --check script.js && node --check celebration.js && node --check qr.js && node --check tailwind.config.js && node --check functions/index.js",
+    "build:css": "tailwindcss -i ./tailwind.input.css -o ./tailwind.build.css --minify",
     "test": "node --test tests/smoke.test.cjs tests/apps-script.test.cjs",
     "test:rules": "firebase emulators:exec --only firestore --project demo-kylie-18th-rules --config firebase.rules-test.json \"node --test tests/firestore.rules.cjs\"",
     "emulators": "firebase emulators:start --only auth,firestore,functions --project demo-kylie-18th-rules",
@@ -11,6 +12,7 @@
   "devDependencies": {
     "@firebase/rules-unit-testing": "5.0.2",
     "firebase": "12.0.0",
-    "firebase-tools": "15.30.2"
+    "firebase-tools": "15.30.2",
+    "tailwindcss": "3.4.17"
   }
 }

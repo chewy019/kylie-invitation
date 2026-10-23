@@ -18,10 +18,6 @@ if (invitationLinkOpening) {
 }
 </script>
 <title>Kylie's 18th Birthday Debut - Personalized RSVP Invitation</title>
-<!-- Tailwind configuration MUST load before Tailwind CDN -->
-<script src="./tailwind.config.js"></script>
-<!-- Tailwind CSS for utility styling -->
-<script src="https://cdn.tailwindcss.com"></script>
 <!-- Canvas Confetti Library for RSVP celebration burst -->
 <script defer src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 <!-- QR Code Generator for personal invitation QR codes -->
@@ -29,10 +25,12 @@ if (invitationLinkOpening) {
 <!-- Google Fonts: Great Vibes (Script), Cormorant Garamond (Serif), Montserrat (Sans) -->
 <link href="https://fonts.googleapis.com" rel="preconnect"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&amp;family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&amp;family=Great+Vibes&amp;family=Montserrat:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <!-- FontAwesome for luxury icons -->
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
-<link href="./style.css?v=20261023-1" rel="stylesheet"/><link href="./celebration.css?v=20261023-2" rel="stylesheet"/></head>
+<link href="./style.css?v=20261023-2" rel="stylesheet"/><link href="./celebration.css?v=20261023-3" rel="stylesheet"/>
+<!-- Compiled Tailwind CSS (npm run build:css); keep after custom CSS to match the former CDN cascade. -->
+<link href="./tailwind.build.css?v=20261023-1" rel="stylesheet"/></head>
 <body class="min-h-screen flex flex-col justify-between selection:bg-blush-200 selection:text-blush-900">
 <div aria-live="polite" class="invite-link-loader" id="invite-link-loader" role="status">
 <span aria-hidden="true" class="invite-link-loader-mark">K</span>
@@ -100,7 +98,7 @@ if (invitationLinkOpening) {
 <section class="step-transition block" id="step-registration">
 <div class="registration-layout">
 <figure class="registration-portrait">
-<img alt="Kylie in her pink debut gown among flowers" decoding="async" fetchpriority="high" src="./photos/registration-portrait.jpg"/>
+<img alt="Kylie in her pink debut gown among flowers" decoding="async" fetchpriority="high" height="1448" sizes="(max-width: 760px) calc(100vw - 32px), 638px" src="./photos/registration-portrait.webp" srcset="./photos/registration-portrait-800.webp 800w, ./photos/registration-portrait.webp 1086w" width="1086"/>
 <div aria-hidden="true" class="registration-portrait-wash"></div>
 <figcaption class="registration-portrait-caption">
 <span class="registration-portrait-label">A new chapter</span>
@@ -112,7 +110,7 @@ if (invitationLinkOpening) {
 <div class="registration-panel debut-card">
 <div class="registration-intro">
 <span class="registration-eyebrow"><span aria-hidden="true">✦</span> You are cordially invited</span>
-<h1 class="registration-title">Kylie Aianna Fulla</h1>
+<h2 class="registration-title">Kylie Aianna Fulla</h2>
 <p class="registration-subtitle">Is turning eighteen</p>
 <p class="registration-description">Share your name and email to receive your personal invitation and celebration details.</p>
 <p aria-live="polite" class="hidden registration-load-notice" id="invite-load-notice" role="status"></p>
@@ -260,7 +258,7 @@ if (invitationLinkOpening) {
 <section class="cine-intro" id="cine-intro">
 <p class="cine-kicker">An Evening For</p>
 <div aria-hidden="true" class="cine-18">18</div>
-<h1 class="cine-title">A Celebration of Eighteen</h1>
+<h2 class="cine-title">A Celebration of Eighteen</h2>
 <p class="cine-subtitle">Kylie's Special Day</p>
 </section>
 
@@ -316,7 +314,7 @@ if (invitationLinkOpening) {
 </section>
 <!-- Live Countdown Timer — same information, redesigned to match Page 2 -->
 <div class="page2-countdown rounded-[2rem] p-6 sm:p-8 shadow-xl mb-8 text-center relative overflow-hidden">
-<h4 class="page2-countdown-title text-3xl sm:text-4xl mb-1">Counting Down To The Magic</h4>
+<h3 class="page2-countdown-title text-3xl sm:text-4xl mb-1">Counting Down To The Magic</h3>
 <p class="page2-countdown-subtitle text-xs mb-6 uppercase tracking-wider font-semibold" id="countdown-subtitle">Saturday, November 7, 2026 at 4:30 PM</p>
 <div class="grid grid-cols-4 gap-3 sm:gap-4 max-w-md mx-auto" id="countdown-container">
 <div class="page2-time-box rounded-2xl p-3">
@@ -351,7 +349,7 @@ if (invitationLinkOpening) {
 <div class="debut-card p-6 sm:p-8 rounded-3xl space-y-6">
 <div class="text-center mb-6">
 <span class="text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Event Information</span>
-<h3 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h3>
+<h2 class="font-serif-debut text-3xl font-bold text-blush-900 mt-2">Debut Celebration Details</h2>
 </div>
 <div class="event-details-grid grid grid-cols-1 sm:grid-cols-2 gap-4">
 <!-- Date -->
@@ -360,7 +358,7 @@ if (invitationLinkOpening) {
 <svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M8 3v4m8-4v4M3 10h18m-11 5 2 2 4-4"></path></svg>
 </div>
 <div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h5>
+<h3 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Date</h3>
 <p class="font-semibold text-blush-900 text-sm" id="event-date-display">November 7, 2026</p>
 <p class="text-xs text-blush-700 mt-0.5" id="event-weekday-display">Saturday</p>
 <button class="add-calendar-button mt-3" onclick="addToCalendar()" type="button">
@@ -377,7 +375,7 @@ if (invitationLinkOpening) {
 <svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
 </div>
 <div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h5>
+<h3 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Time</h3>
 <p class="font-semibold text-blush-900 text-sm" id="event-start-time-display">4:30 PM</p>
 <p class="text-xs text-blush-700 mt-0.5" id="event-doors-open-display">Doors open at 4:00 PM</p>
 </div>
@@ -388,7 +386,7 @@ if (invitationLinkOpening) {
 <svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
 </div>
 <div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h5>
+<h3 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Venue</h3>
 <p class="font-semibold text-blush-900 text-sm">Tito's Restaurant</p>
 <p class="text-xs text-blush-700 mt-0.5">546 Concha St., Tondo, Manila</p>
 <a class="get-directions-button mt-3" href="https://www.google.com/maps/dir/?api=1&amp;destination=14.6106759%2C120.9674105" rel="noopener noreferrer" target="_blank">
@@ -403,7 +401,7 @@ if (invitationLinkOpening) {
 <svg aria-hidden="true" class="event-detail-icon-svg" viewBox="0 0 24 24"><path d="m16 4 5 3-3 5-2-1v9H8v-9l-2 1-3-5 5-3c.8 2 2.2 3 4 3s3.2-1 4-3Z"></path></svg>
 </div>
 <div>
-<h5 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Dress Code</h5>
+<h3 class="text-xs uppercase font-bold tracking-wider text-blush-600 mb-1">Dress Code</h3>
 <p class="font-semibold text-blush-900 text-sm">Casual Attire</p>
 <div class="flex items-center gap-4 mt-2">
 <div class="flex items-center gap-1.5"><span class="w-7 h-7 rounded-full border shadow-sm inline-block" style="background-color:#FFFDD0; border-color:#D8C9A8;" aria-label="Cream"></span><span class="text-xs text-blush-700">Cream</span></div>
@@ -413,7 +411,7 @@ if (invitationLinkOpening) {
 </div>
 </div>
 <div class="pt-4 border-t border-blush-200 milestone-section">
-<h4 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h4>
+<h3 class="text-center font-serif-debut text-xl font-bold text-blush-900 mb-4">Milestone Traditions</h3>
 <div class="grid grid-cols-3 gap-3 text-center milestone-grid">
 <button class="p-3 rounded-2xl bg-blush-50 border border-blush-200 hover:bg-blush-100 hover:border-blush-300 transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-blush-300" onclick="openMilestoneModal('roses')" type="button">
 <div aria-label="Rose icon" class="mb-2 flex justify-center" role="img">
@@ -455,7 +453,7 @@ if (invitationLinkOpening) {
 <div class="debut-card rounded-3xl p-6 sm:p-10 text-center border border-blush-300">
 <div class="mb-8">
 <span class="rsvp-kicker text-xs uppercase font-bold tracking-widest text-rosegold-dark bg-blush-100 px-3 py-1 rounded-full border border-blush-200">Attendance Confirmation</span>
-<h3 class="rsvp-heading font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h3>
+<h2 class="rsvp-heading font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mt-2 mb-1">Will You Be Attending?</h2>
 <p class="rsvp-intro text-xs sm:text-sm text-blush-700">Kindly let us know if you can share this special debut evening with Kylie.</p>
 </div>
 <form class="space-y-6 max-w-lg mx-auto text-left" id="rsvp-form" onsubmit="handleRsvpSubmit(event)">
@@ -501,7 +499,7 @@ if (invitationLinkOpening) {
 <g class="confirmation-icon-declined"><path d="M16 27S5 20.5 5 13a6 6 0 0 1 11-3 6 6 0 0 1 11 3c0 7.5-11 14-11 14Z"></path><path d="m17 10-3 5 3 2-3 5M5 5l22 22"></path></g>
 </svg>
 </div>
-<h3 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mb-3" id="confirm-title">
+<h2 class="font-serif-debut text-3xl sm:text-4xl font-bold text-blush-900 mb-3" id="confirm-title">
                     Thank You!
                 </h3>
 <p class="text-blush-800 text-base sm:text-lg mb-8 leading-relaxed font-script" id="confirm-message">
@@ -649,7 +647,7 @@ if (invitationLinkOpening) {
 <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-blush-100 flex items-center justify-center text-rosegold text-xl">
 <i class="fa-solid fa-crown"></i>
 </div>
-<h3 class="font-serif-debut text-2xl font-bold text-blush-900" id="admin-login-title">Host Login</h3>
+<h2 class="font-serif-debut text-2xl font-bold text-blush-900" id="admin-login-title">Host Login</h2>
 <p class="text-xs text-blush-700 mt-1">Sign in to view the private guest database.</p>
 </div>
 <form class="space-y-4" onsubmit="handleAdminLogin(event)">
@@ -667,7 +665,7 @@ if (invitationLinkOpening) {
 <div class="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-blush-200 overflow-hidden">
 <div class="p-6 text-center border-b border-blush-100">
 <div class="text-3xl mb-2" id="milestone-modal-icon">🌹</div>
-<h3 class="font-serif-debut text-2xl font-bold text-blush-900" id="milestone-modal-title">18 Roses</h3>
+<h2 class="font-serif-debut text-2xl font-bold text-blush-900" id="milestone-modal-title">18 Roses</h2>
 <p class="text-xs text-blush-600 mt-1" id="milestone-modal-subtitle">Grand Dance</p>
 </div>
 <div class="p-6 max-h-[55vh] overflow-y-auto" id="milestone-name-list">
@@ -686,7 +684,7 @@ if (invitationLinkOpening) {
 <div class="secret-modal-card">
 <div class="secret-modal-content">
 <div class="secret-modal-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M7 3v3M17 3v3M4.5 9h15M5.5 5h13a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z"></path><path d="m9 14 2 2 4-4"></path></svg></div>
-<h3 class="secret-modal-title" id="calendar-app-confirm-title">Add to Calendar?</h3>
+<h2 class="secret-modal-title" id="calendar-app-confirm-title">Add to Calendar?</h2>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
 <p class="secret-modal-message">Would you like to open your calendar?</p>
 <button class="secret-modal-button" onclick="confirmCalendarAppOpen()" type="button">Yes, Open Calendar</button>
@@ -699,7 +697,7 @@ if (invitationLinkOpening) {
 <div class="secret-modal-card">
 <div class="secret-modal-content">
 <div class="secret-modal-icon"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 6.5h16v11H4z"></path><path d="m4 8 8 5 8-5"></path><path d="M7 17.5h10"></path></svg></div>
-<h3 class="secret-modal-title" id="recovery-title">Recover My Invitation</h3>
+<h2 class="secret-modal-title" id="recovery-title">Recover My Invitation</h2>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
 <p class="text-xs leading-relaxed text-blush-700 mb-4">Enter the name and email used for your RSVP to request another copy of your personal QR code and event details.</p>
 <form class="space-y-4 text-left" id="recovery-form" onsubmit="emailMyInvitation(event)">
@@ -754,7 +752,7 @@ if (invitationLinkOpening) {
 <div class="secret-modal-icon">
 <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"></path></svg>
 </div>
-<h3 class="secret-modal-title" id="secret-reminder-title">A Note in Confidence</h3>
+<h2 class="secret-modal-title" id="secret-reminder-title">A Note in Confidence</h2>
 <div class="secret-modal-ornament">♡ ✦ ♡</div>
 <p class="secret-modal-message">
                     Please keep this invitation and the details of this celebration private.
@@ -768,5 +766,5 @@ if (invitationLinkOpening) {
 </div>
 </div>
 <script src="./script.js?v=20261020-1" type="module"></script>
-<script src="./celebration.js?v=20261023-4" defer></script></body>
+<script src="./celebration.js?v=20261023-5" defer></script></body>
 </html>
